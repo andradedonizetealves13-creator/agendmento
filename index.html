@@ -22,25 +22,33 @@
         .calendar-time-col { background: #f8fafc; text-align: right; padding-right: 6px; font-size: 11px; color: #64748b; font-weight: 500; }
         .calendar-cell { background: #ffffff; min-height: 50px; position: relative; }
         
-        /* CORREÇÃO DO POST-IT: Estritamente limitado a 1 coluna */
+        /* TRACINHO COMPACTO COLORIDO PARA O ADM */
         .appointment-postit {
             position: absolute;
-            left: 2px;
-            width: calc(100% - 4px) !important;
-            max-width: calc(100% - 4px) !important;
+            left: 3px;
+            width: calc(100% - 6px) !important;
+            max-width: calc(100% - 6px) !important;
             box-sizing: border-box;
-            border-radius: 6px;
-            padding: 4px 6px;
-            font-size: 11px;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
             color: #fff;
-            border-left: 3px solid rgba(0,0,0,0.2);
             z-index: 10;
             cursor: pointer;
-            transition: transform 0.1s;
+            transition: transform 0.15s ease, z-index 0.15s ease, box-shadow 0.15s ease;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
         }
-        .appointment-postit:hover { transform: scale(1.02); z-index: 20; }
+        .appointment-postit:hover { 
+            transform: scale(1.03); 
+            z-index: 30; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+        }
+        
         input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; transition: 0.2s; }
         input[type="date"]::-webkit-calendar-picker-indicator:hover, input[type="time"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
         .calendar-fullscreen { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: #f8fafc; height: 100vh !important; border-radius: 0 !important; }
@@ -77,7 +85,13 @@
             document.getElementById(id).classList.toggle('hidden');
         }
 
-        const STORAGE_KEY = 'agendapro_saas_v11';
+        const STORAGE_KEY = 'agendapro_saas_v12';
+
+        // Paleta para atribuição automática aos funcionários
+        const COLOR_PALETTE = [
+            '#4f46e5', '#0284c7', '#0891b2', '#059669', '#d97706', 
+            '#dc2626', '#7c3aed', '#c026d3', '#db2777', '#4b5563'
+        ];
 
         function getDefWH() {
             return {
@@ -94,7 +108,7 @@
         function getEmptyTenant(name, adminEmail, adminPass) {
             return {
                 name: name, logo: '',
-                admin: { id: 'adm-'+Date.now(), name: 'Administrador', email: adminEmail, password: adminPass, avatar: '', workingHours: getDefWH(), exceptions: {} },
+                admin: { id: 'adm-'+Date.now(), name: 'Administrador', email: adminEmail, password: adminPass, avatar: '', color: COLOR_PALETTE[0], workingHours: getDefWH(), exceptions: {} },
                 employees: [], procedures: [], appointments: [], clients: [], requests: []
             };
         }
@@ -122,10 +136,12 @@
                 for(let k in db.tenants) {
                     if(!db.tenants[k].admin.workingHours) db.tenants[k].admin.workingHours = getDefWH();
                     if(!db.tenants[k].admin.exceptions) db.tenants[k].admin.exceptions = {};
+                    if(!db.tenants[k].admin.color) db.tenants[k].admin.color = COLOR_PALETTE[0];
                     if(!db.tenants[k].requests) db.tenants[k].requests = [];
-                    db.tenants[k].employees.forEach(e => {
+                    db.tenants[k].employees.forEach((e, idx) => {
                         if(!e.workingHours) e.workingHours = getDefWH();
                         if(!e.exceptions) e.exceptions = {};
+                        if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
                     });
                 }
             } 
@@ -143,7 +159,6 @@
             const exc = emp.exceptions?.[dateStr];
             if(exc && exc.type === 'folga') return false;
             if(exc && exc.type === 'plantao') return true;
-            // Se for funcionário comum, herda horário do Admin se não tiver exceção
             const whSource = emp.workingHours || t.admin.workingHours;
             return whSource?.[dayOfWeek]?.active !== false;
         }
@@ -383,7 +398,6 @@
                 const pendingRequests = t.requests ? t.requests.filter(r => r.status === 'pending') : [];
 
                 if (isAdm) {
-                    // TELA DO ADM: Horário Padrão da Empresa + Aprovação de Solicitações
                     const wh = t.admin.workingHours;
                     const excs = Object.keys(t.admin.exceptions).sort().map(d => ({ date: d, ...t.admin.exceptions[d] }));
 
@@ -474,7 +488,6 @@
                         </div>
                     `;
                 } else {
-                    // TELA DO FUNCIONÁRIO: Apenas envia solicitações de ausência/hora a mais para o ADM
                     const myReqs = t.requests ? t.requests.filter(r => r.empId === user.id) : [];
 
                     return `
@@ -535,7 +548,7 @@
             if(role === 'admin' && activeTab === 'employees') {
                 const empToEdit = editEmployeeId ? t.employees.find(e=>e.id===editEmployeeId) : null;
                 return `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar Profissional' : 'Adicionar Profissional'}</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${empToEdit?empToEdit.name:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail de Acesso</label><input type="email" id="e-email" value="${empToEdit?empToEdit.email:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit ? 'Nova Senha (Deixe em branco para manter)' : 'Senha Inicial'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} placeholder="${empToEdit?'*** Oculta ***':'Ex: 123456'}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-2">Procedimentos Habilitados</label><div class="space-y-2 max-h-48 overflow-y-auto border border-slate-200 p-3 rounded-xl bg-slate-50 custom-scrollbar">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border hover:border-indigo-300 cursor-pointer transition-all"><input type="checkbox" value="${p.id}" class="proc-check text-indigo-600 rounded w-5 h-5 focus:ring-indigo-500" ${empToEdit && empToEdit.procedures.includes(p.id) ? 'checked' : ''}><span class="font-medium">${p.name}</span></label>`).join('')}${t.procedures.length===0?'<p class="text-xs text-slate-400 p-2">Nenhum procedimento cadastrado.</p>':''}</div></div><div class="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 mt-6 pt-2">${empToEdit ? `<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 py-3 rounded-xl text-sm font-bold transition-all">Cancelar Edição</button>` : ''}<button type="submit" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 py-3 rounded-xl text-sm font-bold transition-all shadow-md">${empToEdit ? 'Salvar Alterações' : 'Cadastrar Profissional'}</button></div></form></div><div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Equipe Cadastrada</h3><div class="space-y-3">${t.employees.map(e=>`<div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-50 transition-all hover:border-indigo-200"><div class="flex items-center space-x-4">${e.avatar ? `<img src="${e.avatar}" onclick="showImageModal('${e.avatar}')" class="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 shadow-sm border border-slate-200 shrink-0">` : `<div class="w-12 h-12 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${e.name.charAt(0)}</div>`}<div><p class="font-bold text-sm text-slate-900">${e.name}</p><p class="text-[11px] font-medium text-slate-500 truncate w-32 sm:w-auto">${e.email}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs text-indigo-600 font-bold px-4 py-2 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm ml-2 shrink-0">Editar</button></div>`).join('')}${t.employees.length===0?'<div class="text-center py-10"><p class="text-sm text-slate-400 font-medium">Nenhum profissional cadastrado.</p></div>':''}</div></div></div>`;
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar Profissional' : 'Adicionar Profissional'}</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${empToEdit?empToEdit.name:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail de Acesso</label><input type="email" id="e-email" value="${empToEdit?empToEdit.email:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit ? 'Nova Senha (Deixe em branco para manter)' : 'Senha Inicial'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} placeholder="${empToEdit?'*** Oculta ***':'Ex: 123456'}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-2">Procedimentos Habilitados</label><div class="space-y-2 max-h-48 overflow-y-auto border border-slate-200 p-3 rounded-xl bg-slate-50 custom-scrollbar">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border hover:border-indigo-300 cursor-pointer transition-all"><input type="checkbox" value="${p.id}" class="proc-check text-indigo-600 rounded w-5 h-5 focus:ring-indigo-500" ${empToEdit && empToEdit.procedures.includes(p.id) ? 'checked' : ''}><span class="font-medium">${p.name}</span></label>`).join('')}${t.procedures.length===0?'<p class="text-xs text-slate-400 p-2">Nenhum procedimento cadastrado.</p>':''}</div></div><div class="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 mt-6 pt-2">${empToEdit ? `<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 py-3 rounded-xl text-sm font-bold transition-all">Cancelar Edição</button>` : ''}<button type="submit" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 py-3 rounded-xl text-sm font-bold transition-all shadow-md">${empToEdit ? 'Salvar Alterações' : 'Cadastrar Profissional'}</button></div></form></div><div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Equipe Cadastrada</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-50 transition-all hover:border-indigo-200"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full shrink-0" style="background-color: ${e.color || COLOR_PALETTE[(idx+1)%COLOR_PALETTE.length]}"></div>${e.avatar ? `<img src="${e.avatar}" onclick="showImageModal('${e.avatar}')" class="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 shadow-sm border border-slate-200 shrink-0">` : `<div class="w-12 h-12 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${e.name.charAt(0)}</div>`}<div><p class="font-bold text-sm text-slate-900">${e.name}</p><p class="text-[11px] font-medium text-slate-500 truncate w-32 sm:w-auto">${e.email}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs text-indigo-600 font-bold px-4 py-2 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm ml-2 shrink-0">Editar</button></div>`).join('')}${t.employees.length===0?'<div class="text-center py-10"><p class="text-sm text-slate-400 font-medium">Nenhum profissional cadastrado.</p></div>':''}</div></div></div>`;
             }
 
             if(role === 'admin' && activeTab === 'procedures') {
@@ -545,7 +558,6 @@
             return '';
         }
 
-        // Lógica de Solicitações
         function handleCreateRequest(e, empId, empName) {
             e.preventDefault();
             const date = document.getElementById('req-date').value;
@@ -610,7 +622,6 @@
         }
         function removeException(dateStr) { const t = db.tenants[db.currentUser.slug]; delete t.admin.exceptions[dateStr]; saveDB(); render(); }
 
-        // VISUALIZAÇÕES
         function selectListMonth(val, name) { listFilterMonth = val; listFilterDate = ''; render(); }
 
         function renderListView(tenant, role, user) {
@@ -741,14 +752,16 @@
                             ${weekApps.map(a => {
                                 const aDate = new Date(a.date + 'T00:00:00'); const dayIndex = aDate.getDay(); const [h, m] = a.time.split(':').map(Number);
                                 if(h < 7 || h > 20) return '';
-                                const startY = ((h - 7) * 51) + ((m / 60) * 51) + 65; const height = Math.max((a.totalDuration / 60) * 51, 30); const gridRowStart = h - 7 + 2; 
+                                const startY = ((h - 7) * 51) + ((m / 60) * 51) + 65; const height = Math.max((a.totalDuration / 60) * 51, 24); const gridRowStart = h - 7 + 2; 
                                 const emp = a.employeeId === tenant.admin.id ? tenant.admin : tenant.employees.find(e => e.id === a.employeeId);
                                 const empName = emp ? emp.name : 'Equipe';
+                                const empColor = emp ? (emp.color || '#4f46e5') : '#4f46e5';
+                                
                                 const postitTitle = (role === 'admin' && hasEmployees)
                                     ? `${a.time} - ${empName} - {${a.clientName}}`
                                     : `${a.time} -${a.clientName}`;
 
-                                return `<div onclick="showAppDetails('${a.id}')" class="appointment-postit bg-indigo-600 hover:bg-indigo-500 shadow-md border-l-4 border-indigo-800" style="grid-column: ${dayIndex + 2} / span 1; grid-row:${gridRowStart}; margin-top: ${(m/60)*51}px; height:${height}px; min-height: 30px;"><p class="font-bold truncate text-[10px] md:text-xs drop-shadow-sm text-white">${postitTitle}</p><p class="text-[9px] text-indigo-100 truncate mt-0.5">${a.proceduresNames.join(', ')}</p></div>`;
+                                return `<div onclick="showAppDetails('${a.id}')" title="${postitTitle} —${a.proceduresNames.join(', ')}" class="appointment-postit shadow-sm hover:shadow-md" style="grid-column: ${dayIndex + 2} / span 1; grid-row: ${gridRowStart}; margin-top:${(m/60)*51}px; height: ${height}px; min-height: 22px; background-color:${empColor};"><p class="font-bold truncate text-[10px] drop-shadow-sm text-white leading-tight">${postitTitle}</p></div>`;
                             }).join('')}
                         </div>
                     </div>
@@ -774,7 +787,7 @@
         function salvarOrg() { const t = db.tenants[db.currentUser.slug]; t.name = document.getElementById('org-name').value; saveDB(); showModal('Sucesso', 'Organização atualizada!', 'success'); render(); }
         function handleImageUpload(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { const t = db.tenants[db.currentUser.slug]; if(type === 'logo') t.logo = event.target.result; else { let user = t.admin.id === userId ? t.admin : t.employees.find(emp=>emp.id===userId); user.avatar = event.target.result; } saveDB(); render(); }; reader.readAsDataURL(file); }
         function salvarPerfil(userId) { const t = db.tenants[db.currentUser.slug]; const role = db.currentUser.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'A senha atual está incorreta.', 'error'); if(newP === user.password) return showModal('Erro', 'A nova senha não pode ser igual à antiga.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); render(); }
-        function saveEmployee(e) { e.preventDefault(); const t = db.tenants[db.currentUser.slug]; const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); render(); }
+        function saveEmployee(e) { e.preventDefault(); const t = db.tenants[db.currentUser.slug]; const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); render(); }
         function addProcedure(e) { e.preventDefault(); db.tenants[db.currentUser.slug].procedures.push({ id: 'p-'+Date.now(), name: document.getElementById('p-name').value, duration: parseInt(document.getElementById('p-time').value), price: parseFloat(document.getElementById('p-price').value) }); saveDB(); render(); }
         function copiarLinkCliente() { const link = window.location.origin + window.location.pathname + '?b=' + db.currentUser.slug; navigator.clipboard.writeText(link); showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); }
         function cancelarAgendamento(id) { showModal('Cancelar', 'Deseja cancelar este agendamento?', 'error', () => { const t = db.tenants[db.currentUser.slug]; t.appointments = t.appointments.filter(a => a.id !== id); saveDB(); render(); }); }
