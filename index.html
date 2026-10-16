@@ -25,28 +25,28 @@
         /* TRACINHO COMPACTO COLORIDO PARA O ADM */
         .appointment-postit {
             position: absolute;
-            left: 3px;
-            width: calc(100% - 6px) !important;
-            max-width: calc(100% - 6px) !important;
             box-sizing: border-box;
-            border-radius: 4px;
+            border-radius: 6px;
             padding: 2px 6px;
             font-size: 10px;
             overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.18);
             color: #fff;
             z-index: 10;
             cursor: pointer;
-            transition: transform 0.15s ease, z-index 0.15s ease, box-shadow 0.15s ease;
+            transition: all 0.2s ease;
             white-space: nowrap;
             text-overflow: ellipsis;
             display: flex;
             align-items: center;
         }
         .appointment-postit:hover { 
-            transform: scale(1.03); 
-            z-index: 30; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+            transform: scale(1.05); 
+            z-index: 40 !important; 
+            box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+            width: auto !important;
+            min-width: 130px;
+            max-width: 220px !important;
         }
         
         input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; transition: 0.2s; }
@@ -74,23 +74,31 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('click', function(e) {
-            if(!e.target.closest('.custom-dropdown-container')) {
-                document.querySelectorAll('.custom-dropdown-menu').forEach(el => el.classList.add('hidden'));
-            }
-        });
-        function toggleDropdown(id) {
-            document.querySelectorAll('.custom-dropdown-menu').forEach(el => { if(el.id !== id) el.classList.add('hidden'); });
-            document.getElementById(id).classList.toggle('hidden');
-        }
+    <!-- MÓDULO DO FIREBASE E APLICAÇÃO -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        const STORAGE_KEY = 'agendapro_saas_v12';
+        // Configurações do Firebase fornecidas por ti
+        const firebaseConfig = {
+          apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
+          authDomain: "agenda-16a31.firebaseapp.com",
+          databaseURL: "https://agenda-16a31-default-rtdb.firebaseio.com",
+          projectId: "agenda-16a31",
+          storageBucket: "agenda-16a31.firebasestorage.app",
+          messagingSenderId: "865554229500",
+          appId: "1:865554229500:web:f786ebd6f0d0781019cf79",
+          measurementId: "G-DN64QXTBGF"
+        };
 
-        // Paleta para atribuição automática aos funcionários
+        // Inicializa o Firebase
+        const firebaseApp = initializeApp(firebaseConfig);
+        const rtdb = getDatabase(firebaseApp);
+        const dbRef = ref(rtdb, 'agendapro_saas');
+
         const COLOR_PALETTE = [
-            '#4f46e5', '#0284c7', '#0891b2', '#059669', '#d97706', 
-            '#dc2626', '#7c3aed', '#c026d3', '#db2777', '#4b5563'
+            '#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', 
+            '#7c3aed', '#c026d3', '#db2777', '#0891b2', '#4b5563'
         ];
 
         function getDefWH() {
@@ -113,47 +121,61 @@
             };
         }
 
-        let db = { tenants: {}, currentUser: null, currentTenantSlug: null, currentClient: null };
-        let activeTab = 'dashboard';
-        let editEmployeeId = null;
-        let scheduleEditTargetId = null; 
-        let currentWeekOffset = 0;
-        let dashboardViewMode = 'calendar'; 
-        let listFilterMonth = ''; let listFilterDate = '';
-        let isSidebarOpenMobile = false; let isCalendarFullscreen = false;
-        let simulatedTenantSlug = null;
+        window.db = { tenants: {}, currentUser: null, currentTenantSlug: null, currentClient: null };
+        window.activeTab = 'dashboard';
+        window.editEmployeeId = null;
+        window.scheduleEditTargetId = null; 
+        window.currentWeekOffset = 0;
+        window.dashboardViewMode = 'calendar'; 
+        window.listFilterMonth = ''; window.listFilterDate = '';
+        window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
+        window.simulatedTenantSlug = null;
 
-        let clientAuthMode = 'login';
-        let clientActiveTab = 'book';
-        let clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null };
-        let clientCalYear = new Date().getFullYear();
-        let clientCalMonth = new Date().getMonth();
+        window.clientAuthMode = 'login';
+        window.clientActiveTab = 'book';
+        window.clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null };
+        window.clientCalYear = new Date().getFullYear();
+        window.clientCalMonth = new Date().getMonth();
 
-        function loadDB() { 
-            const data = localStorage.getItem(STORAGE_KEY); 
+        // Escuta os dados no Firebase em Tempo Real
+        onValue(dbRef, (snapshot) => {
+            const data = snapshot.val();
             if (data) {
-                db = JSON.parse(data);
-                for(let k in db.tenants) {
-                    if(!db.tenants[k].admin.workingHours) db.tenants[k].admin.workingHours = getDefWH();
-                    if(!db.tenants[k].admin.exceptions) db.tenants[k].admin.exceptions = {};
-                    if(!db.tenants[k].admin.color) db.tenants[k].admin.color = COLOR_PALETTE[0];
-                    if(!db.tenants[k].requests) db.tenants[k].requests = [];
-                    db.tenants[k].employees.forEach((e, idx) => {
+                window.db = data;
+                for(let k in window.db.tenants) {
+                    if(!window.db.tenants[k].admin.workingHours) window.db.tenants[k].admin.workingHours = getDefWH();
+                    if(!window.db.tenants[k].admin.exceptions) window.db.tenants[k].admin.exceptions = {};
+                    if(!window.db.tenants[k].admin.color) window.db.tenants[k].admin.color = COLOR_PALETTE[0];
+                    if(!window.db.tenants[k].requests) window.db.tenants[k].requests = [];
+                    if(!window.db.tenants[k].employees) window.db.tenants[k].employees = [];
+                    if(!window.db.tenants[k].procedures) window.db.tenants[k].procedures = [];
+                    if(!window.db.tenants[k].appointments) window.db.tenants[k].appointments = [];
+                    if(!window.db.tenants[k].clients) window.db.tenants[k].clients = [];
+                    
+                    window.db.tenants[k].employees.forEach((e, idx) => {
                         if(!e.workingHours) e.workingHours = getDefWH();
                         if(!e.exceptions) e.exceptions = {};
                         if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
                     });
                 }
-            } 
-        }
-        function saveDB() { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+            } else {
+                window.db = { tenants: {}, currentUser: null, currentTenantSlug: null, currentClient: null };
+            }
+            render();
+        });
 
-        function timeToMins(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); }
-        function minsToTime(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; }
-        function formatDateBR(dateStr) { return dateStr.split('-').reverse().join('/'); }
-        function generateSlug(text) { return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''); }
+        // Grava no Firebase em tempo real
+        window.saveDB = function() {
+            set(dbRef, window.db);
+        };
 
-        function doesEmployeeWorkOnDate(emp, dateStr, t) {
+        // Funções Auxiliares
+        window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
+        window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
+        window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
+        window.generateSlug = function(text) { return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''); };
+
+        window.doesEmployeeWorkOnDate = function(emp, dateStr, t) {
             const [y, m, d] = dateStr.split('-');
             const dayOfWeek = new Date(y, m - 1, d).getDay(); 
             const exc = emp.exceptions?.[dateStr];
@@ -161,16 +183,16 @@
             if(exc && exc.type === 'plantao') return true;
             const whSource = emp.workingHours || t.admin.workingHours;
             return whSource?.[dayOfWeek]?.active !== false;
-        }
+        };
 
-        function isCompanyOpenOnDate(t, dateStr) {
+        window.isCompanyOpenOnDate = function(t, dateStr) {
             if (t.employees && t.employees.length > 0) {
                 return t.employees.some(emp => doesEmployeeWorkOnDate(emp, dateStr, t));
             }
             return doesEmployeeWorkOnDate(t.admin, dateStr, t);
-        }
+        };
 
-        function getAvailableTimeSlots(t, empId, dateStr, durationMins) {
+        window.getAvailableTimeSlots = function(t, empId, dateStr, durationMins) {
             const emp = empId === t.admin.id ? t.admin : t.employees.find(e => e.id === empId);
             if(!emp) return [];
 
@@ -188,7 +210,7 @@
 
             const startMins = timeToMins(start);
             const endMins = timeToMins(end);
-            const apps = t.appointments.filter(a => a.employeeId === empId && a.date === dateStr);
+            const apps = (t.appointments || []).filter(a => a.employeeId === empId && a.date === dateStr);
             const slots = [];
 
             for(let m = startMins; m <= endMins - durationMins; m += 30) {
@@ -203,9 +225,9 @@
                 if(!overlap) slots.push(minsToTime(m));
             }
             return slots;
-        }
+        };
 
-        function showModal(title, message, type = 'info', onConfirm = null) {
+        window.showModal = function(title, message, type = 'info', onConfirm = null) {
             const modal = document.getElementById('custom-modal');
             const iconContainer = document.getElementById('modal-icon-container');
             const buttonsContainer = document.getElementById('modal-buttons');
@@ -221,22 +243,26 @@
                 document.getElementById('btn-confirm').onclick = () => { closeModal(); onConfirm(); };
             } else { buttonsContainer.innerHTML = `<button onclick="closeModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 md:py-2.5 rounded-xl font-medium shadow-sm">OK</button>`; }
             modal.classList.remove('hidden'); lucide.createIcons();
-        }
-        function closeModal() { document.getElementById('custom-modal').classList.add('hidden'); }
-        function showImageModal(src) { if(!src) return; document.getElementById('image-modal-content').src = src; document.getElementById('image-modal').classList.remove('hidden'); lucide.createIcons(); }
-        function closeImageModal() { document.getElementById('image-modal').classList.add('hidden'); }
+        };
+        window.closeModal = function() { document.getElementById('custom-modal').classList.add('hidden'); };
+        window.showImageModal = function(src) { if(!src) return; document.getElementById('image-modal-content').src = src; document.getElementById('image-modal').classList.remove('hidden'); lucide.createIcons(); };
+        window.closeImageModal = function() { document.getElementById('image-modal').classList.add('hidden'); };
         
-        function openClientSimulator() { simulatedTenantSlug = db.currentUser.slug; render(); }
-        function voltarAoAdmin() { simulatedTenantSlug = null; render(); }
+        window.openClientSimulator = function() { simulatedTenantSlug = db.currentUser.slug; render(); };
+        window.voltarAoAdmin = function() { simulatedTenantSlug = null; render(); };
 
-        function render() {
-            loadDB();
+        window.toggleDropdown = function(id) {
+            document.querySelectorAll('.custom-dropdown-menu').forEach(el => { if(el.id !== id) el.classList.add('hidden'); });
+            document.getElementById(id).classList.toggle('hidden');
+        };
+
+        window.render = function() {
             const app = document.getElementById('app');
             const urlParams = new URLSearchParams(window.location.search);
             const tenantSlug = simulatedTenantSlug || urlParams.get('b');
 
             if (tenantSlug) {
-                if (!db.tenants[tenantSlug]) { app.innerHTML = `<div class="flex items-center justify-center h-full"><p>Empresa não encontrada.</p></div>`; return; }
+                if (!db.tenants || !db.tenants[tenantSlug]) { app.innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-slate-500 font-medium">Carregando dados da empresa...</p></div>`; return; }
                 db.currentTenantSlug = tenantSlug; 
                 renderClientApp();
             } else {
@@ -244,16 +270,16 @@
                 else app.innerHTML = renderDashboard();
             }
             lucide.createIcons();
-        }
+        };
 
-        let portalMode = 'login';
+        // Renderizadores das Telas
         function renderPortalLogin() {
             return `
                 <div class="flex-1 flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 p-4 fade-in">
                     <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full">
                         <div class="text-center mb-6">
                             <h1 class="text-2xl font-bold text-slate-900">AgendaPro</h1>
-                            <p class="text-sm text-slate-500 mt-1">Plataforma de Agendamentos</p>
+                            <p class="text-sm text-slate-500 mt-1">Plataforma de Agendamentos (Firebase Realtime)</p>
                         </div>
                         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
                             <button onclick="portalMode='login';render()" class="flex-1 py-3 md:py-2 text-xs md:text-sm font-medium rounded-lg ${portalMode==='login'?'bg-white text-indigo-600 shadow-sm':'text-slate-600 hover:text-slate-800'}">Entrar</button>
@@ -275,7 +301,7 @@
         }
 
         function renderClientTestList() {
-            const slugs = Object.keys(db.tenants);
+            const slugs = Object.keys(db.tenants || {});
             if (slugs.length === 0) return `<div class="text-center py-6 border border-dashed border-slate-200 rounded-xl bg-slate-50"><p class="text-sm text-slate-500">Nenhuma empresa criada ainda.</p></div>`;
             return `
                 <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
@@ -290,7 +316,7 @@
             `;
         }
 
-        function handlePortalAuth(e) {
+        window.handlePortalAuth = function(e) {
             e.preventDefault();
             const email = document.getElementById('auth-email').value.trim();
             const pass = document.getElementById('auth-pass').value.trim();
@@ -300,29 +326,30 @@
                 const empresa = document.getElementById('reg-empresa').value.trim();
                 if(pass !== passConfirm) return showModal('Erro', 'As senhas não coincidem.', 'error');
                 const slug = generateSlug(empresa);
-                if(db.tenants[slug]) return showModal('Erro', 'Este nome de empresa já está em uso.', 'error');
+                if(db.tenants && db.tenants[slug]) return showModal('Erro', 'Este nome de empresa já está em uso.', 'error');
+                if(!db.tenants) db.tenants = {};
                 db.tenants[slug] = getEmptyTenant(empresa, email, pass);
                 db.currentUser = { slug, id: db.tenants[slug].admin.id, role: 'admin' };
-                saveDB(); render();
+                saveDB();
             } else {
                 let foundUser = null;
                 for (const slug in db.tenants) {
                     const t = db.tenants[slug];
                     if(t.admin.email === email && t.admin.password === pass) { foundUser = { slug, id: t.admin.id, role: 'admin' }; break; }
-                    const emp = t.employees.find(e => e.email === email && e.password === pass);
+                    const emp = (t.employees || []).find(e => e.email === email && e.password === pass);
                     if(emp) { foundUser = { slug, id: emp.id, role: 'employee' }; break; }
                 }
-                if(foundUser) { db.currentUser = foundUser; saveDB(); render(); }
+                if(foundUser) { db.currentUser = foundUser; saveDB(); }
                 else { showModal('Acesso Negado', 'E-mail ou senha incorretos.', 'error'); }
             }
-        }
+        };
 
-        function toggleMobileMenu() { isSidebarOpenMobile = !isSidebarOpenMobile; render(); }
+        window.toggleMobileMenu = function() { isSidebarOpenMobile = !isSidebarOpenMobile; render(); };
 
         function renderDashboard() {
             const role = db.currentUser.role;
             const t = db.tenants[db.currentUser.slug];
-            const userProfile = role === 'admin' ? t.admin : t.employees.find(e=>e.id === db.currentUser.id);
+            const userProfile = role === 'admin' ? t.admin : (t.employees || []).find(e=>e.id === db.currentUser.id);
             const logoHtml = t.logo ? `<img src="${t.logo}" onclick="showImageModal('${t.logo}')" class="w-10 h-10 rounded-xl object-cover cursor-pointer hover:opacity-80 shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">O</div>`;
             const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" onclick="showImageModal('${userProfile.avatar}')" class="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${userProfile.name.charAt(0)}</div>`;
 
@@ -375,7 +402,7 @@
         function getTargetEmployee(t) {
             if(!scheduleEditTargetId) scheduleEditTargetId = db.currentUser.id;
             if(scheduleEditTargetId === t.admin.id) return t.admin;
-            return t.employees.find(e => e.id === scheduleEditTargetId) || t.admin;
+            return (t.employees || []).find(e => e.id === scheduleEditTargetId) || t.admin;
         }
 
         function renderDashboardContent(t, role, user) {
@@ -399,7 +426,7 @@
 
                 if (isAdm) {
                     const wh = t.admin.workingHours;
-                    const excs = Object.keys(t.admin.exceptions).sort().map(d => ({ date: d, ...t.admin.exceptions[d] }));
+                    const excs = Object.keys(t.admin.exceptions || {}).sort().map(d => ({ date: d, ...t.admin.exceptions[d] }));
 
                     return `
                         <div class="max-w-4xl mx-auto space-y-6 fade-in">
@@ -546,25 +573,26 @@
             }
 
             if(role === 'admin' && activeTab === 'employees') {
-                const empToEdit = editEmployeeId ? t.employees.find(e=>e.id===editEmployeeId) : null;
+                const empToEdit = editEmployeeId ? (t.employees || []).find(e=>e.id===editEmployeeId) : null;
                 return `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar Profissional' : 'Adicionar Profissional'}</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${empToEdit?empToEdit.name:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail de Acesso</label><input type="email" id="e-email" value="${empToEdit?empToEdit.email:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit ? 'Nova Senha (Deixe em branco para manter)' : 'Senha Inicial'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} placeholder="${empToEdit?'*** Oculta ***':'Ex: 123456'}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-2">Procedimentos Habilitados</label><div class="space-y-2 max-h-48 overflow-y-auto border border-slate-200 p-3 rounded-xl bg-slate-50 custom-scrollbar">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border hover:border-indigo-300 cursor-pointer transition-all"><input type="checkbox" value="${p.id}" class="proc-check text-indigo-600 rounded w-5 h-5 focus:ring-indigo-500" ${empToEdit && empToEdit.procedures.includes(p.id) ? 'checked' : ''}><span class="font-medium">${p.name}</span></label>`).join('')}${t.procedures.length===0?'<p class="text-xs text-slate-400 p-2">Nenhum procedimento cadastrado.</p>':''}</div></div><div class="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 mt-6 pt-2">${empToEdit ? `<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 py-3 rounded-xl text-sm font-bold transition-all">Cancelar Edição</button>` : ''}<button type="submit" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 py-3 rounded-xl text-sm font-bold transition-all shadow-md">${empToEdit ? 'Salvar Alterações' : 'Cadastrar Profissional'}</button></div></form></div><div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Equipe Cadastrada</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-50 transition-all hover:border-indigo-200"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full shrink-0" style="background-color: ${e.color || COLOR_PALETTE[(idx+1)%COLOR_PALETTE.length]}"></div>${e.avatar ? `<img src="${e.avatar}" onclick="showImageModal('${e.avatar}')" class="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 shadow-sm border border-slate-200 shrink-0">` : `<div class="w-12 h-12 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${e.name.charAt(0)}</div>`}<div><p class="font-bold text-sm text-slate-900">${e.name}</p><p class="text-[11px] font-medium text-slate-500 truncate w-32 sm:w-auto">${e.email}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs text-indigo-600 font-bold px-4 py-2 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm ml-2 shrink-0">Editar</button></div>`).join('')}${t.employees.length===0?'<div class="text-center py-10"><p class="text-sm text-slate-400 font-medium">Nenhum profissional cadastrado.</p></div>':''}</div></div></div>`;
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar Profissional' : 'Adicionar Profissional'}</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${empToEdit?empToEdit.name:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail de Acesso</label><input type="email" id="e-email" value="${empToEdit?empToEdit.email:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit ? 'Nova Senha (Deixe em branco para manter)' : 'Senha Inicial'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} placeholder="${empToEdit?'*** Oculta ***':'Ex: 123456'}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-2">Procedimentos Habilitados</label><div class="space-y-2 max-h-48 overflow-y-auto border border-slate-200 p-3 rounded-xl bg-slate-50 custom-scrollbar">${(t.procedures || []).map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border hover:border-indigo-300 cursor-pointer transition-all"><input type="checkbox" value="${p.id}" class="proc-check text-indigo-600 rounded w-5 h-5 focus:ring-indigo-500" ${empToEdit && empToEdit.procedures && empToEdit.procedures.includes(p.id) ? 'checked' : ''}><span class="font-medium">${p.name}</span></label>`).join('')}${(t.procedures || []).length===0?'<p class="text-xs text-slate-400 p-2">Nenhum procedimento cadastrado.</p>':''}</div></div><div class="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 mt-6 pt-2">${empToEdit ? `<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 py-3 rounded-xl text-sm font-bold transition-all">Cancelar Edição</button>` : ''}<button type="submit" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 py-3 rounded-xl text-sm font-bold transition-all shadow-md">${empToEdit ? 'Salvar Alterações' : 'Cadastrar Profissional'}</button></div></form></div><div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Equipe Cadastrada</h3><div class="space-y-3">${(t.employees || []).map((e, idx)=>`<div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-50 transition-all hover:border-indigo-200"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full shrink-0" style="background-color: ${e.color || COLOR_PALETTE[(idx+1)%COLOR_PALETTE.length]}"></div>${e.avatar ? `<img src="${e.avatar}" onclick="showImageModal('${e.avatar}')" class="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 shadow-sm border border-slate-200 shrink-0">` : `<div class="w-12 h-12 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${e.name.charAt(0)}</div>`}<div><p class="font-bold text-sm text-slate-900">${e.name}</p><p class="text-[11px] font-medium text-slate-500 truncate w-32 sm:w-auto">${e.email}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs text-indigo-600 font-bold px-4 py-2 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm ml-2 shrink-0">Editar</button></div>`).join('')}${(t.employees || []).length===0?'<div class="text-center py-10"><p class="text-sm text-slate-400 font-medium">Nenhum profissional cadastrado.</p></div>':''}</div></div></div>`;
             }
 
             if(role === 'admin' && activeTab === 'procedures') {
                 return `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">Adicionar Procedimento</h3><form onsubmit="addProcedure(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome do Serviço</label><input type="text" id="p-name" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-semibold mb-1">Duração (min)</label><input type="number" id="p-time" required min="5" step="5" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">Valor (R$)</label><input type="number" id="p-price" required step="0.01" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div></div><button type="submit" class="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-3.5 rounded-xl text-sm font-bold w-full mt-4 shadow-md transition-all">Salvar Procedimento</button></form></div><div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Lista de Procedimentos</h3><div class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">${t.procedures.map(p=>`<div class="p-4 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 hover:bg-white transition-all gap-3 hover:border-indigo-200 hover:shadow-sm"><div><p class="font-bold text-sm text-slate-900">${p.name}</p><p class="text-xs font-medium text-slate-500 flex items-center mt-1"><i data-lucide="clock" class="w-3.5 h-3.5 mr-1.5 text-slate-400"></i>${p.duration} minutos</p></div><div class="flex items-center justify-between sm:justify-end border-t border-slate-200 sm:border-0 pt-3 sm:pt-0 mt-1 sm:mt-0 w-full sm:w-auto"><span class="font-bold text-emerald-600 text-sm bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">R$ ${p.price.toFixed(2)}</span></div></div>`).join('')}${t.procedures.length===0?'<div class="text-center py-10"><p class="text-sm text-slate-400 font-medium">Nenhum procedimento cadastrado.</p></div>':''}</div></div></div>`;
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">Adicionar Procedimento</h3><form onsubmit="addProcedure(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome do Serviço</label><input type="text" id="p-name" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-semibold mb-1">Duração (min)</label><input type="number" id="p-time" required min="5" step="5" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">Valor (R$)</label><input type="number" id="p-price" required step="0.01" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div></div><button type="submit" class="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-3.5 rounded-xl text-sm font-bold w-full mt-4 shadow-md transition-all">Salvar Procedimento</button></form></div><div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Lista de Procedimentos</h3><div class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">${(t.procedures || []).map(p=>`<div class="p-4 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 hover:bg-white transition-all gap-3 hover:border-indigo-200 hover:shadow-sm"><div><p class="font-bold text-sm text-slate-900">${p.name}</p><p class="text-xs font-medium text-slate-500 flex items-center mt-1"><i data-lucide="clock" class="w-3.5 h-3.5 mr-1.5 text-slate-400"></i>${p.duration} minutos</p></div><div class="flex items-center justify-between sm:justify-end border-t border-slate-200 sm:border-0 pt-3 sm:pt-0 mt-1 sm:mt-0 w-full sm:w-auto"><span class="font-bold text-emerald-600 text-sm bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">R$ ${p.price.toFixed(2)}</span></div></div>`).join('')}${(t.procedures || []).length===0?'<div class="text-center py-10"><p class="text-sm text-slate-400 font-medium">Nenhum procedimento cadastrado.</p></div>':''}</div></div></div>`;
             }
             return '';
         }
 
-        function handleCreateRequest(e, empId, empName) {
+        window.handleCreateRequest = function(e, empId, empName) {
             e.preventDefault();
             const date = document.getElementById('req-date').value;
             const type = document.getElementById('req-type').value;
             if(!date) return showModal('Erro', 'Selecione uma data.', 'error');
             
             const t = db.tenants[db.currentUser.slug];
+            if(!t.requests) t.requests = [];
             const newReq = {
                 id: 'req-' + Date.now(),
                 empId, empName, date, type, status: 'pending'
@@ -574,19 +602,20 @@
                 newReq.end = document.getElementById('req-end').value;
             }
             t.requests.push(newReq);
-            saveDB(); showModal('Enviado', 'Solicitação enviada ao Administrador.', 'success'); render();
-        }
+            saveDB(); showModal('Enviado', 'Solicitação enviada ao Administrador.', 'success');
+        };
 
-        function handleApproveRequest(reqId, approved) {
+        window.handleApproveRequest = function(reqId, approved) {
             const t = db.tenants[db.currentUser.slug];
-            const req = t.requests.find(r => r.id === reqId);
+            const req = (t.requests || []).find(r => r.id === reqId);
             if(!req) return;
 
             req.status = approved ? 'approved' : 'rejected';
 
             if(approved) {
-                const emp = t.employees.find(e => e.id === req.empId);
+                const emp = (t.employees || []).find(e => e.id === req.empId);
                 if(emp) {
+                    if(!emp.exceptions) emp.exceptions = {};
                     if(req.type === 'folga') {
                         emp.exceptions[req.date] = { type: 'folga' };
                     } else {
@@ -594,38 +623,39 @@
                     }
                 }
             }
-            saveDB(); render();
-        }
+            saveDB();
+        };
 
-        function saveWorkingHours() {
+        window.saveWorkingHours = function() {
             const t = db.tenants[db.currentUser.slug];
             for(let i=0; i<7; i++) {
                 t.admin.workingHours[i].active = document.getElementById(`wh-cb-${i}`).checked;
                 t.admin.workingHours[i].start = document.getElementById(`wh-s-${i}`).value;
                 t.admin.workingHours[i].end = document.getElementById(`wh-e-${i}`).value;
             }
-            saveDB(); showModal('Salvo', 'Horários da empresa atualizados com sucesso.', 'success'); render();
-        }
+            saveDB(); showModal('Salvo', 'Horários da empresa atualizados com sucesso.', 'success');
+        };
 
-        function addException() {
+        window.addException = function() {
             const date = document.getElementById('exc-date').value;
             const type = document.getElementById('exc-type').value;
             if(!date) return showModal('Erro', 'Selecione uma data.', 'error');
             const t = db.tenants[db.currentUser.slug];
+            if(!t.admin.exceptions) t.admin.exceptions = {};
             if(type === 'folga') t.admin.exceptions[date] = { type: 'folga' };
             else {
                 const s = document.getElementById('exc-start').value; const e = document.getElementById('exc-end').value;
                 if(!s || !e) return showModal('Erro', 'Preencha o horário de plantão.', 'error');
                 t.admin.exceptions[date] = { type: 'plantao', start: s, end: e };
             }
-            saveDB(); render();
-        }
-        function removeException(dateStr) { const t = db.tenants[db.currentUser.slug]; delete t.admin.exceptions[dateStr]; saveDB(); render(); }
+            saveDB();
+        };
+        window.removeException = function(dateStr) { const t = db.tenants[db.currentUser.slug]; if(t.admin.exceptions) delete t.admin.exceptions[dateStr]; saveDB(); };
 
-        function selectListMonth(val, name) { listFilterMonth = val; listFilterDate = ''; render(); }
+        window.selectListMonth = function(val, name) { listFilterMonth = val; listFilterDate = ''; render(); };
 
         function renderListView(tenant, role, user) {
-            let apps = tenant.appointments;
+            let apps = tenant.appointments || [];
             if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
             if(listFilterMonth) apps = apps.filter(a => a.date.split('-')[1] === listFilterMonth);
             if(listFilterDate) apps = apps.filter(a => a.date === listFilterDate);
@@ -659,7 +689,7 @@
                     
                     <div class="space-y-4">
                         ${apps.length === 0 ? '<div class="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-300"><i data-lucide="calendar-x" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>' : apps.map(a => {
-                            const emp = a.employeeId === tenant.admin.id ? tenant.admin : tenant.employees.find(e => e.id === a.employeeId);
+                            const emp = a.employeeId === tenant.admin.id ? tenant.admin : (tenant.employees || []).find(e => e.id === a.employeeId);
                             const empName = emp ? emp.name : 'Equipe';
                             const titleText = (role === 'admin' && hasEmployees) ? `${empName} - {${a.clientName}}` : a.clientName;
                             return `
@@ -682,13 +712,13 @@
             `;
         }
 
-        function jumpToMonth(monthIndexStr) {
+        window.jumpToMonth = function(monthIndexStr) {
             const monthIndex = parseInt(monthIndexStr); const today = new Date(); const targetDate = new Date(today.getFullYear(), monthIndex, 1);
             const diffTime = targetDate.getTime() - today.getTime(); const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             currentWeekOffset = Math.floor(diffDays / 7); render();
-        }
-        function toggleFullscreen() { isCalendarFullscreen = !isCalendarFullscreen; render(); }
-        function scrollCalendar(direction) { const container = document.getElementById('calendar-scroll-area'); if(container) { container.scrollBy({ left: direction * (window.innerWidth / 2), behavior: 'smooth' }); } }
+        };
+        window.toggleFullscreen = function() { isCalendarFullscreen = !isCalendarFullscreen; render(); };
+        window.scrollCalendar = function(direction) { const container = document.getElementById('calendar-scroll-area'); if(container) { container.scrollBy({ left: direction * (window.innerWidth / 2), behavior: 'smooth' }); } };
 
         function renderWeeklyCalendar(tenant, role, user) {
             const today = new Date(); const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + (currentWeekOffset * 7));
@@ -697,13 +727,70 @@
             const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
             const hours = []; for(let i=7; i<=20; i++) hours.push(`${i.toString().padStart(2, '0')}:00`);
 
-            const weekApps = tenant.appointments.filter(a => {
+            const weekApps = (tenant.appointments || []).filter(a => {
                 if(role === 'employee' && a.employeeId !== user.id) return false;
                 const aDate = new Date(a.date + 'T00:00:00'); return aDate >= weekDays[0] && aDate <= weekDays[6];
             });
 
             const currentProfile = role === 'admin' ? tenant.admin : user;
             const hasEmployees = tenant.employees && tenant.employees.length > 0;
+
+            const appsByDayAndSlot = {};
+            
+            weekApps.forEach(a => {
+                const aDate = new Date(a.date + 'T00:00:00');
+                const dayIdx = aDate.getDay();
+                const [h, m] = a.time.split(':').map(Number);
+                if(h < 7 || h > 20) return;
+
+                const startMins = timeToMins(a.time);
+                const endMins = startMins + a.totalDuration;
+
+                if (!appsByDayAndSlot[dayIdx]) appsByDayAndSlot[dayIdx] = [];
+                appsByDayAndSlot[dayIdx].push({ ...a, startMins, endMins, h, m });
+            });
+
+            const postitsHtml = [];
+
+            Object.keys(appsByDayAndSlot).forEach(dayIdxStr => {
+                const dayIdx = parseInt(dayIdxStr);
+                const dayApps = appsByDayAndSlot[dayIdxStr];
+
+                dayApps.forEach((a) => {
+                    const overlapping = dayApps.filter(other => (a.startMins < other.endMins && a.endMins > other.startMins));
+                    const totalOverlaps = overlapping.length;
+                    const overlapIndex = overlapping.findIndex(o => o.id === a.id);
+
+                    const gridRowStart = a.h - 7 + 2; 
+                    const height = Math.max((a.totalDuration / 60) * 51, 22);
+
+                    const emp = a.employeeId === tenant.admin.id ? tenant.admin : (tenant.employees || []).find(e => e.id === a.employeeId);
+                    const empName = emp ? emp.name : 'Equipe';
+                    const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
+
+                    const postitTitle = (role === 'admin' && hasEmployees)
+                        ? `${a.time} - ${empName} - {${a.clientName}}`
+                        : `${a.time} - ${a.clientName}`;
+
+                    let styleWidth = 'calc(100% - 6px)';
+                    let styleLeft = '3px';
+
+                    if (totalOverlaps > 1) {
+                        const widthPct = (100 / totalOverlaps);
+                        styleWidth = `calc(${widthPct}% - 4px)`;
+                        styleLeft = `calc(${overlapIndex * widthPct}% + 2px)`;
+                    }
+
+                    postitsHtml.push(`
+                        <div onclick="showAppDetails('${a.id}')" 
+                             title="${postitTitle} — ${a.proceduresNames.join(', ')}" 
+                             class="appointment-postit" 
+                             style="grid-column: ${dayIdx + 2} / span 1; grid-row: ${gridRowStart}; margin-top: ${(a.m/60)*51}px; height: ${height}px; min-height: 22px; width: ${styleWidth} !important; max-width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
+                            <p class="font-bold truncate text-[10px] drop-shadow-sm text-white leading-tight">${postitTitle}</p>
+                        </div>
+                    `);
+                });
+            });
 
             return `
                 <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col fade-in relative ${isCalendarFullscreen ? 'calendar-fullscreen' : 'h-[600px]'}">
@@ -749,29 +836,16 @@
                                 }).join('')}
                             `).join('')}
 
-                            ${weekApps.map(a => {
-                                const aDate = new Date(a.date + 'T00:00:00'); const dayIndex = aDate.getDay(); const [h, m] = a.time.split(':').map(Number);
-                                if(h < 7 || h > 20) return '';
-                                const startY = ((h - 7) * 51) + ((m / 60) * 51) + 65; const height = Math.max((a.totalDuration / 60) * 51, 24); const gridRowStart = h - 7 + 2; 
-                                const emp = a.employeeId === tenant.admin.id ? tenant.admin : tenant.employees.find(e => e.id === a.employeeId);
-                                const empName = emp ? emp.name : 'Equipe';
-                                const empColor = emp ? (emp.color || '#4f46e5') : '#4f46e5';
-                                
-                                const postitTitle = (role === 'admin' && hasEmployees)
-                                    ? `${a.time} - ${empName} - {${a.clientName}}`
-                                    : `${a.time} -${a.clientName}`;
-
-                                return `<div onclick="showAppDetails('${a.id}')" title="${postitTitle} —${a.proceduresNames.join(', ')}" class="appointment-postit shadow-sm hover:shadow-md" style="grid-column: ${dayIndex + 2} / span 1; grid-row: ${gridRowStart}; margin-top:${(m/60)*51}px; height: ${height}px; min-height: 22px; background-color:${empColor};"><p class="font-bold truncate text-[10px] drop-shadow-sm text-white leading-tight">${postitTitle}</p></div>`;
-                            }).join('')}
+                            ${postitsHtml.join('')}
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        function showAppDetails(appId) {
-            const t = db.tenants[db.currentUser.slug]; const app = t.appointments.find(a => a.id === appId); if(!app) return;
-            const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
+        window.showAppDetails = function(appId) {
+            const t = db.tenants[db.currentUser.slug]; const app = (t.appointments || []).find(a => a.id === appId); if(!app) return;
+            const emp = app.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e => e.id === app.employeeId);
             const empName = emp ? emp.name : (t.employees && t.employees.length > 0 ? 'Equipe' : t.admin.name);
             const msg = `
                 <div class="text-left space-y-4 mt-2 bg-slate-50 p-5 md:p-6 rounded-2xl border border-slate-200 shadow-inner">
@@ -782,16 +856,16 @@
                     <div class="flex items-center space-x-3 pt-3 border-t border-slate-200"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)} <span class="text-xs text-slate-500 font-medium ml-1">(${app.totalDuration} min)</span></span></div>
                 </div>`;
             showModal('Detalhes do Agendamento', msg, 'info');
-        }
+        };
 
-        function salvarOrg() { const t = db.tenants[db.currentUser.slug]; t.name = document.getElementById('org-name').value; saveDB(); showModal('Sucesso', 'Organização atualizada!', 'success'); render(); }
-        function handleImageUpload(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { const t = db.tenants[db.currentUser.slug]; if(type === 'logo') t.logo = event.target.result; else { let user = t.admin.id === userId ? t.admin : t.employees.find(emp=>emp.id===userId); user.avatar = event.target.result; } saveDB(); render(); }; reader.readAsDataURL(file); }
-        function salvarPerfil(userId) { const t = db.tenants[db.currentUser.slug]; const role = db.currentUser.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'A senha atual está incorreta.', 'error'); if(newP === user.password) return showModal('Erro', 'A nova senha não pode ser igual à antiga.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); render(); }
-        function saveEmployee(e) { e.preventDefault(); const t = db.tenants[db.currentUser.slug]; const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); render(); }
-        function addProcedure(e) { e.preventDefault(); db.tenants[db.currentUser.slug].procedures.push({ id: 'p-'+Date.now(), name: document.getElementById('p-name').value, duration: parseInt(document.getElementById('p-time').value), price: parseFloat(document.getElementById('p-price').value) }); saveDB(); render(); }
-        function copiarLinkCliente() { const link = window.location.origin + window.location.pathname + '?b=' + db.currentUser.slug; navigator.clipboard.writeText(link); showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); }
-        function cancelarAgendamento(id) { showModal('Cancelar', 'Deseja cancelar este agendamento?', 'error', () => { const t = db.tenants[db.currentUser.slug]; t.appointments = t.appointments.filter(a => a.id !== id); saveDB(); render(); }); }
-        function logout() { db.currentUser = null; saveDB(); render(); }
+        window.salvarOrg = function() { const t = db.tenants[db.currentUser.slug]; t.name = document.getElementById('org-name').value; saveDB(); showModal('Sucesso', 'Organização atualizada!', 'success'); };
+        window.handleImageUpload = function(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { const t = db.tenants[db.currentUser.slug]; if(type === 'logo') t.logo = event.target.result; else { let user = t.admin.id === userId ? t.admin : (t.employees || []).find(emp=>emp.id===userId); user.avatar = event.target.result; } saveDB(); }; reader.readAsDataURL(file); };
+        window.salvarPerfil = function(userId) { const t = db.tenants[db.currentUser.slug]; const role = db.currentUser.role; let user = role === 'admin' ? t.admin : (t.employees || []).find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'A senha atual está incorreta.', 'error'); if(newP === user.password) return showModal('Erro', 'A nova senha não pode ser igual à antiga.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
+        window.saveEmployee = function(e) { e.preventDefault(); const t = db.tenants[db.currentUser.slug]; if(!t.employees) t.employees = []; const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); };
+        window.addProcedure = function(e) { e.preventDefault(); if(!db.tenants[db.currentUser.slug].procedures) db.tenants[db.currentUser.slug].procedures = []; db.tenants[db.currentUser.slug].procedures.push({ id: 'p-'+Date.now(), name: document.getElementById('p-name').value, duration: parseInt(document.getElementById('p-time').value), price: parseFloat(document.getElementById('p-price').value) }); saveDB(); };
+        window.copiarLinkCliente = function() { const link = window.location.origin + window.location.pathname + '?b=' + db.currentUser.slug; navigator.clipboard.writeText(link); showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); };
+        window.cancelarAgendamento = function(id) { showModal('Cancelar', 'Deseja cancelar este agendamento?', 'error', () => { const t = db.tenants[db.currentUser.slug]; t.appointments = (t.appointments || []).filter(a => a.id !== id); saveDB(); }); };
+        window.logout = function() { db.currentUser = null; saveDB(); };
 
         // FLUXO CLIENTE
         function renderClientAuth(t) {
@@ -833,9 +907,10 @@
             `;
         }
 
-        function handleClientAuthSubmit(e) {
+        window.handleClientAuthSubmit = function(e) {
             e.preventDefault();
             const t = db.tenants[db.currentTenantSlug];
+            if(!t.clients) t.clients = [];
             const email = document.getElementById('c-auth-email').value.trim();
             const pass = document.getElementById('c-auth-pass').value.trim();
 
@@ -847,30 +922,30 @@
                 const newClient = { id: 'cli-'+Date.now(), name, email, phone, password: pass };
                 t.clients.push(newClient);
                 db.currentClient = { slug: db.currentTenantSlug, id: newClient.id };
-                clientActiveTab = 'book'; clientBooking.step = 1; saveDB(); render();
+                clientActiveTab = 'book'; clientBooking.step = 1; saveDB();
             } else {
                 const client = t.clients.find(c => c.email === email && c.password === pass);
                 if(client) {
                     db.currentClient = { slug: db.currentTenantSlug, id: client.id };
-                    clientActiveTab = 'book'; clientBooking.step = 1; saveDB(); render();
+                    clientActiveTab = 'book'; clientBooking.step = 1; saveDB();
                 } else {
                     showModal('Acesso Negado', 'E-mail ou senha incorretos.', 'error');
                 }
             }
-        }
+        };
 
-        function clientLogout() { db.currentClient = null; saveDB(); render(); }
+        window.clientLogout = function() { db.currentClient = null; saveDB(); };
 
-        function cancelClientApp(id) {
+        window.cancelClientApp = function(id) {
             showModal('Cancelar', 'Tem certeza que deseja cancelar este agendamento?', 'error', () => {
                 const t = db.tenants[db.currentTenantSlug];
-                t.appointments = t.appointments.filter(a => a.id !== id);
-                saveDB(); render();
+                t.appointments = (t.appointments || []).filter(a => a.id !== id);
+                saveDB();
             });
-        }
+        };
 
         function renderClientAppointments(t, client) {
-            const apps = t.appointments.filter(a => a.clientId === client.id).sort((a,b) => new Date(b.date+'T'+b.time) - new Date(a.date+'T'+a.time));
+            const apps = (t.appointments || []).filter(a => a.clientId === client.id).sort((a,b) => new Date(b.date+'T'+b.time) - new Date(a.date+'T'+a.time));
             return `
                 <div class="max-w-2xl mx-auto mt-6 fade-in">
                     <h2 class="text-2xl font-black mb-6 text-slate-900">Meus Agendamentos</h2>
@@ -882,7 +957,7 @@
                                 <button onclick="clientActiveTab='book';render()" class="mt-4 text-indigo-600 font-bold hover:underline">Fazer um agendamento agora</button>
                             </div>
                         ` : apps.map(a => {
-                            const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e=>e.id===a.employeeId);
+                            const emp = a.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e=>e.id===a.employeeId);
                             const empName = emp ? emp.name : t.admin.name;
                             return `
                             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1012,13 +1087,13 @@
                         <h2 class="text-2xl font-black mb-1 text-center text-slate-900">Escolha os Serviços</h2>
                         <p class="text-xs text-center text-slate-500 mb-6">Data: <span class="font-bold text-indigo-600">${formatDateBR(clientBooking.date)}</span></p>
 
-                        ${t.procedures.length === 0 ? `
+                        ${(t.procedures || []).length === 0 ? `
                             <div class="text-center py-8 bg-amber-50 rounded-2xl border border-amber-200 p-4">
                                 <p class="text-sm text-amber-800 font-bold">Nenhum procedimento cadastrado.</p>
                             </div>
                         ` : `
                             <div class="space-y-4 max-h-[55vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
-                                ${t.procedures.map(p=>`
+                                ${(t.procedures || []).map(p=>`
                                     <label class="flex items-center justify-between p-4 border-2 ${clientBooking.procedures.includes(p.id) ? 'border-indigo-500 bg-indigo-50/40' : 'border-slate-100'} rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all group shadow-sm">
                                         <div class="flex items-center space-x-3">
                                             <input type="checkbox" value="${p.id}" ${clientBooking.procedures.includes(p.id) ? 'checked' : ''} class="c-proc-check w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 transition-all cursor-pointer">
@@ -1076,11 +1151,11 @@
                     </div>`;
             }
             else if (clientBooking.step === 4) {
-                const selectedProcs = t.procedures.filter(p=>clientBooking.procedures.includes(p.id));
+                const selectedProcs = (t.procedures || []).filter(p=>clientBooking.procedures.includes(p.id));
                 const totalDuration = selectedProcs.reduce((s, p)=>s+p.duration, 0);
                 const totalPrice = selectedProcs.reduce((s, p)=>s+p.price, 0);
                 const availableSlots = getAvailableTimeSlots(t, clientBooking.employeeId, clientBooking.date, totalDuration);
-                const emp = clientBooking.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === clientBooking.employeeId);
+                const emp = clientBooking.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e => e.id === clientBooking.employeeId);
                 const hasEmpStep = t.employees && t.employees.length > 0;
                 const empName = emp ? emp.name : t.admin.name;
                 
@@ -1115,17 +1190,17 @@
             return content;
         }
 
-        function changeClientCalMonth(delta) {
+        window.changeClientCalMonth = function(delta) {
             clientCalMonth += delta;
             if (clientCalMonth > 11) { clientCalMonth = 0; clientCalYear++; }
             else if (clientCalMonth < 0) { clientCalMonth = 11; clientCalYear--; }
             render();
-        }
+        };
 
-        function selectCalendarDate(dateStr) { clientBooking.date = dateStr; render(); }
-        function clientGoStep2() { if(!clientBooking.date) return showModal('Aviso', 'Selecione uma data para continuar.', 'info'); clientBooking.step = 2; render(); }
+        window.selectCalendarDate = function(dateStr) { clientBooking.date = dateStr; render(); };
+        window.clientGoStep2 = function() { if(!clientBooking.date) return showModal('Aviso', 'Selecione uma data para continuar.', 'info'); clientBooking.step = 2; render(); };
 
-        function clientGoStep3() {
+        window.clientGoStep3 = function() {
             const checks = Array.from(document.querySelectorAll('.c-proc-check:checked')).map(c => c.value);
             if(checks.length === 0) return showModal('Aviso', 'Selecione pelo menos um procedimento para continuar.', 'info');
             clientBooking.procedures = checks;
@@ -1141,24 +1216,26 @@
                 clientBooking.step = 3;
             }
             render();
-        }
+        };
 
-        function clientSelectEmp(empId) {
+        window.clientSelectEmp = function(empId) {
             clientBooking.employeeId = empId;
             clientBooking.time = null;
             clientBooking.step = 4;
             render();
-        }
+        };
 
-        function clientFinalize() {
+        window.clientFinalize = function() {
             if(!clientBooking.time) return showModal('Aviso', 'Selecione um horário disponível para confirmar.', 'info');
             const t = db.tenants[db.currentTenantSlug];
-            const client = t.clients.find(c => c.id === db.currentClient.id);
+            const client = (t.clients || []).find(c => c.id === db.currentClient.id);
             if(!client) return showModal('Erro', 'Sessão do cliente expirou. Faça login novamente.', 'error');
 
-            const selectedProcs = t.procedures.filter(p => clientBooking.procedures.includes(p.id));
+            const selectedProcs = (t.procedures || []).filter(p => clientBooking.procedures.includes(p.id));
             const totalDuration = selectedProcs.reduce((s, p) => s + p.duration, 0);
             const totalPrice = selectedProcs.reduce((s, p) => s + p.price, 0);
+
+            if(!t.appointments) t.appointments = [];
 
             const newApp = {
                 id: 'app-' + Date.now(),
@@ -1180,9 +1257,8 @@
             showModal('Sucesso!', `Seu agendamento para ${formatDateBR(clientBooking.date)} às ${clientBooking.time} foi confirmado com sucesso!`, 'success', () => {
                 clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null };
                 clientActiveTab = 'appointments';
-                render();
             });
-        }
+        };
 
         function renderClientApp() {
             const t = db.tenants[db.currentTenantSlug];
@@ -1192,7 +1268,7 @@
                 return;
             }
 
-            const client = t.clients.find(c => c.id === db.currentClient.id);
+            const client = (t.clients || []).find(c => c.id === db.currentClient.id);
             if (!client) {
                 db.currentClient = null; saveDB(); document.getElementById('app').innerHTML = renderClientAuth(t); return;
             }
@@ -1227,8 +1303,6 @@
                 </div>
             `;
         }
-
-        window.onload = render;
     </script>
 </body>
 </html>
