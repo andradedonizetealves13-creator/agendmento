@@ -22,7 +22,6 @@
         .calendar-time-col { background: #f8fafc; text-align: right; padding-right: 6px; font-size: 11px; color: #64748b; font-weight: 500; }
         .calendar-cell { background: #ffffff; min-height: 50px; position: relative; }
         
-        /* BARRAS E TRACINHOS DE AGENDAMENTO COM SUPORTE A COLISÃO */
         .appointment-postit {
             position: absolute;
             box-sizing: border-box;
@@ -48,15 +47,18 @@
             min-width: 130px;
             max-width: 220px !important;
         }
-        
-        input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; transition: 0.2s; }
-        input[type="date"]::-webkit-calendar-picker-indicator:hover, input[type="time"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
-        .calendar-fullscreen { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: #f8fafc; height: 100vh !important; border-radius: 0 !important; }
     </style>
 </head>
 <body class="h-full bg-slate-50 text-slate-800 antialiased overflow-hidden">
 
-    <div id="app" class="h-full flex flex-col"></div>
+    <div id="app" class="h-full flex flex-col">
+        <div class="flex items-center justify-center h-full">
+            <div class="text-center space-y-3">
+                <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p class="text-slate-500 font-medium text-sm">Carregando sistema...</p>
+            </div>
+        </div>
+    </div>
 
     <div id="custom-modal" class="hidden fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
@@ -74,12 +76,10 @@
         </div>
     </div>
 
-    <!-- MÓDULO DO FIREBASE E APLICAÇÃO -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Configuração do Firebase integrando suas credenciais
         const firebaseConfig = {
           apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
           authDomain: "agenda-16a31.firebaseapp.com",
@@ -87,13 +87,8 @@
           projectId: "agenda-16a31",
           storageBucket: "agenda-16a31.firebasestorage.app",
           messagingSenderId: "865554229500",
-          appId: "1:865554229500:web:f786ebd6f0d0781019cf79",
-          measurementId: "G-DN64QXTBGF"
+          appId: "1:865554229500:web:f786ebd6f0d0781019cf79"
         };
-
-        const firebaseApp = initializeApp(firebaseConfig);
-        const rtdb = getDatabase(firebaseApp);
-        const dbRef = ref(rtdb, 'agendapro_saas');
 
         const COLOR_PALETTE = [
             '#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', 
@@ -121,6 +116,7 @@
         }
 
         window.db = { tenants: {}, currentUser: null, currentTenantSlug: null, currentClient: null };
+        window.portalMode = 'login';
         window.activeTab = 'dashboard';
         window.editEmployeeId = null;
         window.scheduleEditTargetId = null; 
@@ -136,37 +132,45 @@
         window.clientCalYear = new Date().getFullYear();
         window.clientCalMonth = new Date().getMonth();
 
-        // Escuta os dados do Firebase em Tempo Real
-        onValue(dbRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                window.db = data;
-                for(let k in window.db.tenants) {
-                    if(!window.db.tenants[k].admin.workingHours) window.db.tenants[k].admin.workingHours = getDefWH();
-                    if(!window.db.tenants[k].admin.exceptions) window.db.tenants[k].admin.exceptions = {};
-                    if(!window.db.tenants[k].admin.color) window.db.tenants[k].admin.color = COLOR_PALETTE[0];
-                    if(!window.db.tenants[k].requests) window.db.tenants[k].requests = [];
-                    if(!window.db.tenants[k].employees) window.db.tenants[k].employees = [];
-                    if(!window.db.tenants[k].procedures) window.db.tenants[k].procedures = [];
-                    if(!window.db.tenants[k].appointments) window.db.tenants[k].appointments = [];
-                    if(!window.db.tenants[k].clients) window.db.tenants[k].clients = [];
-                    
-                    window.db.tenants[k].employees.forEach((e, idx) => {
-                        if(!e.workingHours) e.workingHours = getDefWH();
-                        if(!e.exceptions) e.exceptions = {};
-                        if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
-                    });
-                }
-            } else {
-                window.db = { tenants: {}, currentUser: null, currentTenantSlug: null, currentClient: null };
-            }
-            render();
-        });
+        try {
+            const firebaseApp = initializeApp(firebaseConfig);
+            const rtdb = getDatabase(firebaseApp);
+            const dbRef = ref(rtdb, 'agendapro_saas');
 
-        // Persiste as alterações no Firebase
-        window.saveDB = function() {
-            set(dbRef, window.db);
-        };
+            onValue(dbRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    window.db = data;
+                    for(let k in window.db.tenants) {
+                        if(!window.db.tenants[k].admin.workingHours) window.db.tenants[k].admin.workingHours = getDefWH();
+                        if(!window.db.tenants[k].admin.exceptions) window.db.tenants[k].admin.exceptions = {};
+                        if(!window.db.tenants[k].admin.color) window.db.tenants[k].admin.color = COLOR_PALETTE[0];
+                        if(!window.db.tenants[k].requests) window.db.tenants[k].requests = [];
+                        if(!window.db.tenants[k].employees) window.db.tenants[k].employees = [];
+                        if(!window.db.tenants[k].procedures) window.db.tenants[k].procedures = [];
+                        if(!window.db.tenants[k].appointments) window.db.tenants[k].appointments = [];
+                        if(!window.db.tenants[k].clients) window.db.tenants[k].clients = [];
+                        
+                        window.db.tenants[k].employees.forEach((e, idx) => {
+                            if(!e.workingHours) e.workingHours = getDefWH();
+                            if(!e.exceptions) e.exceptions = {};
+                            if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
+                        });
+                    }
+                }
+                render();
+            }, (error) => {
+                console.error("Erro no Firebase:", error);
+                render();
+            });
+
+            window.saveDB = function() {
+                set(dbRef, window.db);
+            };
+        } catch(e) {
+            console.error("Erro ao inicializar Firebase:", e);
+            render();
+        }
 
         window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
         window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
@@ -191,7 +195,7 @@
         };
 
         window.getAvailableTimeSlots = function(t, empId, dateStr, durationMins) {
-            const emp = empId === t.admin.id ? t.admin : t.employees.find(e => e.id === empId);
+            const emp = empId === t.admin.id ? t.admin : (t.employees || []).find(e => e.id === empId);
             if(!emp) return [];
 
             let start = '09:00', end = '18:00';
@@ -240,10 +244,11 @@
                 buttonsContainer.innerHTML = `<button onclick="closeModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 md:py-2.5 rounded-xl font-medium">Cancelar</button><button id="btn-confirm" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 md:py-2.5 rounded-xl font-medium shadow-sm">Confirmar</button>`;
                 document.getElementById('btn-confirm').onclick = () => { closeModal(); onConfirm(); };
             } else { buttonsContainer.innerHTML = `<button onclick="closeModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 md:py-2.5 rounded-xl font-medium shadow-sm">OK</button>`; }
-            modal.classList.remove('hidden'); lucide.createIcons();
+            modal.classList.remove('hidden'); 
+            if(window.lucide) lucide.createIcons();
         };
         window.closeModal = function() { document.getElementById('custom-modal').classList.add('hidden'); };
-        window.showImageModal = function(src) { if(!src) return; document.getElementById('image-modal-content').src = src; document.getElementById('image-modal').classList.remove('hidden'); lucide.createIcons(); };
+        window.showImageModal = function(src) { if(!src) return; document.getElementById('image-modal-content').src = src; document.getElementById('image-modal').classList.remove('hidden'); if(window.lucide) lucide.createIcons(); };
         window.closeImageModal = function() { document.getElementById('image-modal').classList.add('hidden'); };
         
         window.openClientSimulator = function() { simulatedTenantSlug = db.currentUser.slug; render(); };
@@ -260,14 +265,17 @@
             const tenantSlug = simulatedTenantSlug || urlParams.get('b');
 
             if (tenantSlug) {
-                if (!db.tenants || !db.tenants[tenantSlug]) { app.innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-slate-500 font-medium">Sincronizando com o Firebase...</p></div>`; return; }
+                if (!db.tenants || !db.tenants[tenantSlug]) { 
+                    app.innerHTML = `<div class="flex items-center justify-center h-full p-4 text-center"><p class="text-slate-500 font-medium">Aguardando dados da empresa...</p></div>`; 
+                    return; 
+                }
                 db.currentTenantSlug = tenantSlug; 
                 renderClientApp();
             } else {
                 if (!db.currentUser) app.innerHTML = renderPortalLogin();
                 else app.innerHTML = renderDashboard();
             }
-            lucide.createIcons();
+            if(window.lucide) lucide.createIcons();
         };
 
         function renderPortalLogin() {
@@ -276,7 +284,7 @@
                     <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full">
                         <div class="text-center mb-6">
                             <h1 class="text-2xl font-bold text-slate-900">AgendaPro</h1>
-                            <p class="text-sm text-slate-500 mt-1">Conectado ao Firebase Realtime</p>
+                            <p class="text-sm text-slate-500 mt-1">Plataforma de Agendamentos</p>
                         </div>
                         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
                             <button onclick="portalMode='login';render()" class="flex-1 py-3 md:py-2 text-xs md:text-sm font-medium rounded-lg ${portalMode==='login'?'bg-white text-indigo-600 shadow-sm':'text-slate-600 hover:text-slate-800'}">Entrar</button>
@@ -394,12 +402,6 @@
                         </div>
                     </main>
                 </div>`;
-        }
-
-        function getTargetEmployee(t) {
-            if(!scheduleEditTargetId) scheduleEditTargetId = db.currentUser.id;
-            if(scheduleEditTargetId === t.admin.id) return t.admin;
-            return (t.employees || []).find(e => e.id === scheduleEditTargetId) || t.admin;
         }
 
         function renderDashboardContent(t, role, user) {
