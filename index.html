@@ -22,7 +22,7 @@
         .calendar-time-col { background: #f8fafc; text-align: right; padding-right: 6px; font-size: 11px; color: #64748b; font-weight: 500; }
         .calendar-cell { background: #ffffff; min-height: 50px; position: relative; }
         
-        /* TRACINHO COMPACTO COLORIDO PARA O ADM */
+        /* BARRAS E TRACINHOS DE AGENDAMENTO COM SUPORTE A COLISÃO */
         .appointment-postit {
             position: absolute;
             box-sizing: border-box;
@@ -79,7 +79,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Configurações do Firebase fornecidas por ti
+        // Configuração do Firebase integrando suas credenciais
         const firebaseConfig = {
           apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
           authDomain: "agenda-16a31.firebaseapp.com",
@@ -91,7 +91,6 @@
           measurementId: "G-DN64QXTBGF"
         };
 
-        // Inicializa o Firebase
         const firebaseApp = initializeApp(firebaseConfig);
         const rtdb = getDatabase(firebaseApp);
         const dbRef = ref(rtdb, 'agendapro_saas');
@@ -137,7 +136,7 @@
         window.clientCalYear = new Date().getFullYear();
         window.clientCalMonth = new Date().getMonth();
 
-        // Escuta os dados no Firebase em Tempo Real
+        // Escuta os dados do Firebase em Tempo Real
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -164,12 +163,11 @@
             render();
         });
 
-        // Grava no Firebase em tempo real
+        // Persiste as alterações no Firebase
         window.saveDB = function() {
             set(dbRef, window.db);
         };
 
-        // Funções Auxiliares
         window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
         window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
         window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
@@ -262,7 +260,7 @@
             const tenantSlug = simulatedTenantSlug || urlParams.get('b');
 
             if (tenantSlug) {
-                if (!db.tenants || !db.tenants[tenantSlug]) { app.innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-slate-500 font-medium">Carregando dados da empresa...</p></div>`; return; }
+                if (!db.tenants || !db.tenants[tenantSlug]) { app.innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-slate-500 font-medium">Sincronizando com o Firebase...</p></div>`; return; }
                 db.currentTenantSlug = tenantSlug; 
                 renderClientApp();
             } else {
@@ -272,14 +270,13 @@
             lucide.createIcons();
         };
 
-        // Renderizadores das Telas
         function renderPortalLogin() {
             return `
                 <div class="flex-1 flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 p-4 fade-in">
                     <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full">
                         <div class="text-center mb-6">
                             <h1 class="text-2xl font-bold text-slate-900">AgendaPro</h1>
-                            <p class="text-sm text-slate-500 mt-1">Plataforma de Agendamentos (Firebase Realtime)</p>
+                            <p class="text-sm text-slate-500 mt-1">Conectado ao Firebase Realtime</p>
                         </div>
                         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
                             <button onclick="portalMode='login';render()" class="flex-1 py-3 md:py-2 text-xs md:text-sm font-medium rounded-lg ${portalMode==='login'?'bg-white text-indigo-600 shadow-sm':'text-slate-600 hover:text-slate-800'}">Entrar</button>
