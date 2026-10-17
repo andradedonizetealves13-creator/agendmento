@@ -18,11 +18,13 @@
 </head>
 <body class="text-slate-800 antialiased min-h-screen w-full flex flex-col">
 
+    <!-- Container da Aplicação -->
     <div id="app" class="min-h-screen w-full flex flex-col items-center justify-center p-4">
         <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p class="text-sm text-slate-500 font-medium">A carregar agendamentos...</p>
+        <p class="text-sm text-slate-500 font-medium">Carregando agendamentos...</p>
     </div>
 
+    <!-- Modal Modal -->
     <div id="custom-modal" class="hidden fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div id="modal-icon-container" class="mb-4 flex items-center justify-center w-12 h-12 rounded-full mx-auto"></div>
@@ -60,7 +62,7 @@
             window.tenantRef = tenantRef;
             window.clientAuthMode = 'login';
             window.clientActiveTab = 'book';
-            window.clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null };
+            window.clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null, isForOther: false, beneficiaryName: '' };
             window.clientCalYear = new Date().getFullYear();
             window.clientCalMonth = new Date().getMonth();
 
@@ -76,6 +78,8 @@
                 window.t = data;
                 if (!t.clients) t.clients = [];
                 if (!t.appointments) t.appointments = [];
+                if (!t.procedures) t.procedures = [];
+                if (!t.employees) t.employees = [];
                 render();
             });
 
@@ -98,6 +102,23 @@
                 return doesEmployeeWorkOnDate(t.admin, dateStr);
             };
 
+            // VERIFICA SE O CLIENTE JÁ TEM AGENDAMENTO NO MESMO HORÁRIO/FAIXA DE TEMPO
+            window.doesClientHaveCollision = function(dateStr, startMins, durationMins) {
+                if (!currentClient) return false;
+                const clientApps = t.appointments.filter(a => a.clientId === currentClient.id && a.date === dateStr);
+                const endMins = startMins + durationMins;
+
+                for (let a of clientApps) {
+                    const aStart = timeToMins(a.time);
+                    const aEnd = aStart + a.totalDuration;
+                    // Verifica se há sobreposição de faixa de tempo
+                    if (startMins < aEnd && endMins > aStart) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
             window.getAvailableTimeSlots = function(empId, dateStr, durationMins) {
                 const emp = empId === t.admin.id ? t.admin : (t.employees || []).find(e => e.id === empId);
                 if(!emp) return [];
@@ -110,15 +131,25 @@
                     if(wh && wh.active) { start = wh.start; end = wh.end; } else return [];
                 }
                 const startMins = timeToMins(start); const endMins = timeToMins(end);
-                const apps = (t.appointments || []).filter(a => a.employeeId === empId && a.date === dateStr);
+                const empApps = (t.appointments || []).filter(a => a.employeeId === empId && a.date === dateStr);
                 const slots = [];
+
                 for(let m = startMins; m <= endMins - durationMins; m += 30) {
                     let overlap = false;
-                    for(let a of apps) {
+                    const slotEnd = m + durationMins;
+                    
+                    // Colisão com a agenda do funcionário
+                    for(let a of empApps) {
                         const aStart = timeToMins(a.time); const aEnd = aStart + a.totalDuration;
-                        if(m < aEnd && (m + durationMins) > aStart) { overlap = true; break; }
+                        if(m < aEnd && slotEnd > aStart) { overlap = true; break; }
                     }
-                    if(!overlap) slots.push(minsToTime(m));
+
+                    if(!overlap) {
+                        slots.push({
+                            time: minsToTime(m),
+                            hasClientCollision: doesClientHaveCollision(dateStr, m, durationMins)
+                        });
+                    }
                 }
                 return slots;
             };
@@ -213,8 +244,16 @@
                     <div class="max-w-2xl mx-auto mt-6 fade-in"><h2 class="text-2xl font-black mb-6">Meus Agendamentos</h2>
                         <div class="space-y-4">${apps.length === 0 ? `<div class="bg-white p-8 rounded-2xl border text-center"><p class="text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>` : apps.map(a => {
                             const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e=>e.id===a.employeeId);
+                            const isDependent = a.beneficiaryName && a.beneficiaryName.trim() !== '' && a.beneficiaryName !== currentClient.name;
                             return `<div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div><div class="flex space-x-2 mb-1"><span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">${formatDateBR(a.date)} às ${a.time}</span><span class="text-xs text-slate-500">${a.totalDuration} min</span></div><p class="font-bold text-slate-800 text-lg">${a.proceduresNames.join(', ')}</p><p class="text-sm text-slate-500 mt-1">Com ${emp?emp.name:'Equipe'}</p></div>
+                                <div>
+                                    <div class="flex space-x-2 mb-1">
+                                        <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">${formatDateBR(a.date)} às ${a.time}</span>
+                                        <span class="text-xs text-slate-500">${a.totalDuration} min</span>
+                                    </div>
+                                    <p class="font-bold text-slate-800 text-lg">${a.proceduresNames.join(', ')}</p>
+                                    <p class="text-sm text-slate-500 mt-1">Com <b>${emp?emp.name:'Equipe'}</b> ${isDependent ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${a.beneficiaryName}</span>` : ''}</p>
+                                </div>
                                 <div class="flex md:flex-col items-end justify-between w-full md:w-auto border-t md:border-0 pt-3 md:pt-0"><span class="font-black text-emerald-600 text-lg mb-2">R$ ${a.totalPrice.toFixed(2)}</span><button onclick="cancelClientApp('${a.id}')" class="text-xs bg-rose-50 text-rose-600 font-bold px-4 py-2 rounded-lg hover:bg-rose-100">Cancelar</button></div>
                             </div>`;
                         }).join('')}</div>
@@ -255,14 +294,27 @@
                         </div>`;
                 }
                 else if (clientBooking.step === 2) {
+                    // FILTRAR APENAS PROCEDIMENTOS QUE POSSUAM PELO MENOS UM PROFISSIONAL TRABALHANDO NA DATA
+                    const availableProcedures = t.procedures.filter(p => {
+                        if (t.employees.length === 0) return doesEmployeeWorkOnDate(t.admin, clientBooking.date);
+                        return t.employees.some(emp => emp.procedures && emp.procedures.includes(p.id) && doesEmployeeWorkOnDate(emp, clientBooking.date));
+                    });
+
                     return `
                         <div class="max-w-md mx-auto bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
                             <button onclick="clientBooking.step=1;render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
-                            <h2 class="text-2xl font-black text-center mb-6">Escolha os Serviços</h2>
-                            <div class="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">${t.procedures.map(p => `
-                                <label class="flex justify-between items-center p-4 border rounded-2xl cursor-pointer hover:bg-indigo-50"><div class="flex items-center space-x-3"><input type="checkbox" value="${p.id}" ${clientBooking.procedures.includes(p.id)?'checked':''} class="c-proc-check w-5 h-5 text-indigo-600 rounded"><div><p class="font-bold text-sm">${p.name}</p><p class="text-xs text-slate-500">${p.duration} min</p></div></div><span class="font-bold text-emerald-600 text-sm">R$ ${p.price.toFixed(2)}</span></label>
-                            `).join('')}</div>
-                            <button onclick="clientGoStep3()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg mt-6">Continuar</button>
+                            <h2 class="text-2xl font-black text-center mb-2">Escolha os Serviços</h2>
+                            <p class="text-xs text-slate-400 text-center mb-6">Disponíveis para ${formatDateBR(clientBooking.date)}</p>
+                            ${availableProcedures.length === 0 ? `
+                                <div class="text-center py-8 bg-amber-50 rounded-2xl border border-amber-200 p-4">
+                                    <p class="text-sm text-amber-800 font-bold">Nenhum serviço disponível para esta data.</p>
+                                </div>
+                            ` : `
+                                <div class="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">${availableProcedures.map(p => `
+                                    <label class="flex justify-between items-center p-4 border rounded-2xl cursor-pointer hover:bg-indigo-50"><div class="flex items-center space-x-3"><input type="checkbox" value="${p.id}" ${clientBooking.procedures.includes(p.id)?'checked':''} class="c-proc-check w-5 h-5 text-indigo-600 rounded"><div><p class="font-bold text-sm">${p.name}</p><p class="text-xs text-slate-500">${p.duration} min</p></div></div><span class="font-bold text-emerald-600 text-sm">R$ ${p.price.toFixed(2)}</span></label>
+                                `).join('')}</div>
+                                <button onclick="clientGoStep3()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg mt-6">Continuar</button>
+                            `}
                         </div>`;
                 }
                 else if (clientBooking.step === 3) {
@@ -271,16 +323,14 @@
                         <div class="max-w-xl mx-auto bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
                             <button onclick="clientBooking.step=2;render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
                             <h2 class="text-2xl font-black text-center mb-6">Quem vai te atender?</h2>
-                            <div class="grid grid-cols-2 gap-4">
-                                ${empsAvailable.map(item => `
-                                    <div onclick="clientBooking.employeeId='${item.id}'; clientBooking.step=4; render()" class="p-4 border rounded-2xl flex flex-col items-center cursor-pointer hover:border-indigo-600 bg-slate-50 transition-all">
-                                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl mb-2 overflow-hidden shrink-0 border border-slate-200">
-                                            ${item.avatar ? `<img src="${item.avatar}" class="w-full h-full object-cover">` : `<span>${item.name.charAt(0)}</span>`}
-                                        </div>
-                                        <p class="font-bold text-sm text-center truncate w-full">${item.name}</p>
+                            <div class="grid grid-cols-2 gap-4">${empsAvailable.map(item => `
+                                <div onclick="clientBooking.employeeId='${item.id}'; clientBooking.step=4; render()" class="p-4 border rounded-2xl flex flex-col items-center cursor-pointer hover:border-indigo-600 bg-slate-50 transition-all">
+                                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl mb-2 overflow-hidden shrink-0 border border-slate-200">
+                                        ${item.avatar ? `<img src="${item.avatar}" class="w-full h-full object-cover">` : `<span>${item.name.charAt(0)}</span>`}
                                     </div>
-                                `).join('')}
-                            </div>
+                                    <p class="font-bold text-sm text-center truncate w-full">${item.name}</p>
+                                </div>
+                            `).join('')}</div>
                         </div>`;
                 }
                 else if (clientBooking.step === 4) {
@@ -289,13 +339,36 @@
                     const totalPrice = selectedProcs.reduce((s, p)=>s+p.price, 0);
                     const slots = getAvailableTimeSlots(clientBooking.employeeId, clientBooking.date, totalDuration);
                     const emp = clientBooking.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === clientBooking.employeeId);
+                    
+                    const selectedSlotObj = slots.find(s => s.time === clientBooking.time);
+                    const isColliding = selectedSlotObj && selectedSlotObj.hasClientCollision;
+
                     return `
                         <div class="max-w-md mx-auto bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
                             <button onclick="clientBooking.step=${t.employees.length>0?3:2};render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
                             <h2 class="text-2xl font-black text-center mb-6">Confirmar Horário</h2>
-                            <div class="bg-indigo-50/50 p-4 rounded-2xl border mb-6 text-sm"><p><b>Data:</b> ${formatDateBR(clientBooking.date)}</p><p><b>Profissional:</b> ${emp?emp.name:'Equipe'}</p><p><b>Serviços:</b> ${selectedProcs.map(p=>p.name).join(', ')}</p><p class="mt-2 text-emerald-600 font-bold text-base">Total: R$ ${totalPrice.toFixed(2)}</p></div>
-                            <div class="grid grid-cols-3 gap-2 mb-6 max-h-40 overflow-y-auto">${slots.map(h => `<button onclick="clientBooking.time='${h}'; render()" class="py-2.5 border rounded-xl text-xs font-bold ${clientBooking.time===h?'bg-indigo-600 text-white':'bg-white hover:bg-indigo-50'}">${h}</button>`).join('')}</div>
-                            ${clientBooking.time ? `<button onclick="clientFinalize()" class="w-full bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg">Confirmar Agendamento</button>` : ''}
+                            <div class="bg-indigo-50/50 p-4 rounded-2xl border mb-6 text-sm"><p><b>Data:</b> ${formatDateBR(clientBooking.date)}</p><p><b>Profissional:</b> ${emp?emp.name:'Equipe'}</p><p><b>Serviços:</b> ${selectedProcs.map(p=>p.name).join(', ')}</p><p class="mt-2 text-emerald-600 font-bold text-base">Total: R$ ${totalPrice.toFixed(2)} (${totalDuration} min)</p></div>
+                            
+                            <p class="text-xs font-bold text-slate-500 uppercase mb-2">Horários Livres do Profissional:</p>
+                            <div class="grid grid-cols-3 gap-2 mb-6 max-h-40 overflow-y-auto custom-scrollbar pr-1">${slots.map(s => `
+                                <button onclick="clientBooking.time='${s.time}'; render()" class="py-2.5 border rounded-xl text-xs font-bold relative ${clientBooking.time===s.time?'bg-indigo-600 text-white':'bg-white hover:bg-indigo-50'}">
+                                    ${s.time}${s.hasClientCollision ? `<span class="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" title="Você já tem agendamento neste horário"></span>` : ''}
+                                </button>
+                            `).join('')}</div>
+
+                            ${clientBooking.time ? `
+                                ${isColliding ? `
+                                    <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl mb-4 text-xs fade-in">
+                                        <p class="font-bold text-amber-900 mb-1 flex items-center"><i data-lucide="alert-circle" class="w-4 h-4 mr-1 text-amber-600"></i> Você já possui um agendamento neste horário/faixa de tempo!</p>
+                                        <p class="text-amber-800 mb-3">Para prosseguir, confirme se este agendamento é para outra pessoa (filho, acompanhante, etc.):</p>
+                                        
+                                        <label class="block font-bold text-slate-700 mb-1">Nome Completo do Atendido *</label>
+                                        <input type="text" id="beneficiary-name-inp" value="${clientBooking.beneficiaryName}" oninput="clientBooking.beneficiaryName = this.value" placeholder="Ex: João da Silva" class="w-full px-3 py-2 bg-white border rounded-xl outline-none focus:border-indigo-500 text-slate-800 font-semibold">
+                                    </div>
+                                ` : ''}
+
+                                <button onclick="clientFinalize(${isColliding})" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-lg transition-all">Confirmar Agendamento</button>
+                            ` : ''}
                         </div>`;
                 }
             }
@@ -309,14 +382,45 @@
                 render();
             };
 
-            window.clientFinalize = function() {
+            window.clientFinalize = function(isColliding) {
+                if (!clientBooking.time) return showModal('Aviso', 'Selecione um horário.', 'info');
+
+                let finalBeneficiary = currentClient.name;
+
+                if (isColliding) {
+                    const inpVal = document.getElementById('beneficiary-name-inp')?.value.trim();
+                    if (!inpVal || inpVal.length < 3) {
+                        return showModal('Aviso Necessário', 'Por favor, informe o Nome Completo da pessoa que receberá o atendimento neste horário sobreposto.', 'error');
+                    }
+                    finalBeneficiary = inpVal;
+                }
+
                 const selectedProcs = t.procedures.filter(p => clientBooking.procedures.includes(p.id));
                 const totalDuration = selectedProcs.reduce((s, p) => s + p.duration, 0);
                 const totalPrice = selectedProcs.reduce((s, p) => s + p.price, 0);
-                const newApp = { id: 'app-' + Date.now(), clientId: currentClient.id, clientName: currentClient.name, clientPhone: currentClient.phone || '', employeeId: clientBooking.employeeId, date: clientBooking.date, time: clientBooking.time, proceduresNames: selectedProcs.map(p => p.name), totalDuration, totalPrice, createdAt: new Date().toISOString() };
-                t.appointments.push(newApp); saveDB();
-                showModal('Sucesso!', `Agendamento confirmado para ${formatDateBR(clientBooking.date)} às ${clientBooking.time}!`, 'success', () => {
-                    clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null }; clientActiveTab = 'appointments'; render();
+
+                const newApp = { 
+                    id: 'app-' + Date.now(), 
+                    clientId: currentClient.id, 
+                    clientName: currentClient.name,
+                    beneficiaryName: finalBeneficiary,
+                    clientPhone: currentClient.phone || '', 
+                    employeeId: clientBooking.employeeId, 
+                    date: clientBooking.date, 
+                    time: clientBooking.time, 
+                    proceduresNames: selectedProcs.map(p => p.name), 
+                    totalDuration, 
+                    totalPrice, 
+                    createdAt: new Date().toISOString() 
+                };
+
+                t.appointments.push(newApp); 
+                saveDB();
+
+                showModal('Sucesso!', `Agendamento confirmado para ${formatDateBR(clientBooking.date)} às ${clientBooking.time}${isColliding ? ` (Para: ${finalBeneficiary})` : ''}!`, 'success', () => {
+                    clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null, isForOther: false, beneficiaryName: '' }; 
+                    clientActiveTab = 'appointments'; 
+                    render();
                 });
             };
         }
