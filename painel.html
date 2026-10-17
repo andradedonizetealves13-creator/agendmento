@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgendaPro - Painel de Controle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; font-family: 'Inter', sans-serif; background-color: #f8fafc; overflow-x: hidden; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .calendar-grid { display: grid; grid-template-columns: 60px repeat(7, minmax(140px, 1fr)); background: #e2e8f0; gap: 1px; border: 1px solid #e2e8f0; }
+        @media (max-width: 768px) { .calendar-grid { grid-template-columns: 50px repeat(7, minmax(calc(50vw - 30px), 1fr)); } }
+        .calendar-header-cell { background: #f8fafc; padding: 12px 4px; text-align: center; }
+        .calendar-time-col { background: #f8fafc; text-align: right; padding-right: 6px; font-size: 11px; color: #64748b; font-weight: 500; }
+        .calendar-cell { background: #ffffff; min-height: 50px; position: relative; }
+        
+        .appointment-postit {
+            position: absolute; box-sizing: border-box; border-radius: 4px; padding: 2px 6px; font-size: 10px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2); color: #fff; z-index: 10; cursor: pointer; transition: all 0.2s ease;
+            white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center;
+        }
+        .appointment-postit:hover { 
+            transform: scale(1.02); z-index: 50 !important; box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+            width: auto !important; min-width: 140px; max-width: 250px !important;
+        }
+        .calendar-fullscreen { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: #f8fafc; height: 100vh !important; border-radius: 0 !important; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased">
+
+    <!-- Carregador Inicial -->
+    <div id="app" class="min-h-screen w-full flex flex-col items-center justify-center fade-in">
+        <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p class="text-sm text-slate-500 font-medium">A sincronizar com a sua empresa...</p>
+    </div>
+
+    <!-- Modais -->
+    <div id="custom-modal" class="hidden fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 fade-in">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div id="modal-icon-container" class="mb-4 flex items-center justify-center w-12 h-12 rounded-full mx-auto"></div>
+            <h3 id="modal-title" class="text-lg font-bold text-slate-900 text-center mb-2"></h3>
+            <div id="modal-message" class="text-slate-600 text-center text-sm mb-6 max-h-[60vh] overflow-y-auto custom-scrollbar"></div>
+            <div id="modal-buttons" class="flex justify-end space-x-3"></div>
+        </div>
+    </div>
+
+    <div id="image-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 fade-in">
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-2">
+            <button onclick="closeImageModal()" class="absolute -top-4 -right-4 bg-rose-600 text-white p-2 rounded-full hover:bg-rose-700 shadow-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <img id="image-modal-content" src="" class="w-full h-auto max-h-[80vh] object-contain rounded-xl">
+        </div>
+    </div>
+
+    <!-- Script Principal -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Verifica a sessão
+        const sessionStr = localStorage.getItem('agendaProSession');
+        if (!sessionStr) { window.location.href = 'index.html'; }
+        const session = JSON.parse(sessionStr);
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
+            authDomain: "agenda-16a31.firebaseapp.com",
+            databaseURL: "https://agenda-16a31-default-rtdb.firebaseio.com",
+            projectId: "agenda-16a31",
+            storageBucket: "agenda-16a31.firebasestorage.app",
+            messagingSenderId: "865554229500",
+            appId: "1:865554229500:web:f786ebd6f0d0781019cf79"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const rtdb = getDatabase(app);
+        const tenantRef = ref(rtdb, 'agendapro_saas/tenants/' + session.slug);
+
+        const COLOR_PALETTE = ['#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', '#7c3aed', '#c026d3', '#db2777', '#0891b2', '#4b5563'];
+
+        function getDefWH() {
+            return {
+                0: { active: false, start: '09:00', end: '13:00' }, 1: { active: true,  start: '09:00', end: '18:00' },
+                2: { active: true,  start: '09:00', end: '18:00' }, 3: { active: true,  start: '09:00', end: '18:00' },
+                4: { active: true,  start: '09:00', end: '18:00' }, 5: { active: true,  start: '09:00', end: '18:00' },
+                6: { active: true,  start: '09:00', end: '14:00' }
+            };
+        }
+
+        window.t = null; // Tenant data
+        window.activeTab = 'dashboard';
+        window.editEmployeeId = null;
+        window.currentWeekOffset = 0;
+        window.dashboardViewMode = 'calendar'; 
+        window.listFilterMonth = ''; window.listFilterDate = '';
+        window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
+
+        // Escuta os dados APENAS desta empresa
+        onValue(tenantRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                localStorage.removeItem('agendaProSession');
+                window.location.href = 'index.html';
+                return;
+            }
+            window.t = data;
+            
+            // Garantir chaves base
+            if(!t.admin.workingHours) t.admin.workingHours = getDefWH();
+            if(!t.admin.exceptions) t.admin.exceptions = {};
+            if(!t.admin.color) t.admin.color = COLOR_PALETTE[0];
+            if(!t.requests) t.requests = [];
+            if(!t.employees) t.employees = [];
+            if(!t.procedures) t.procedures = [];
+            if(!t.appointments) t.appointments = [];
+            if(!t.clients) t.clients = [];
+            
+            t.employees.forEach((e, idx) => {
+                if(!e.workingHours) e.workingHours = getDefWH();
+                if(!e.exceptions) e.exceptions = {};
+                if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
+            });
+
+            render();
+        }, (error) => {
+            document.getElementById('app').innerHTML = `<div class="p-6 text-center text-rose-600 font-bold">Erro de ligação ao Firebase: ${error.message}</div>`;
+        });
+
+        window.saveDB = function() { set(tenantRef, window.t); };
+
+        window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
+        window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
+        window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
+
+        window.doesEmployeeWorkOnDate = function(emp, dateStr) {
+            const [y, m, d] = dateStr.split('-'); const dayOfWeek = new Date(y, m - 1, d).getDay(); 
+            const exc = emp.exceptions?.[dateStr];
+            if(exc && exc.type === 'folga') return false;
+            if(exc && exc.type === 'plantao') return true;
+            const whSource = emp.workingHours || t.admin.workingHours;
+            return whSource?.[dayOfWeek]?.active !== false;
+        };
+
+        window.showModal = function(title, message, type = 'info', onConfirm = null) {
+            const modal = document.getElementById('custom-modal');
+            const iconContainer = document.getElementById('modal-icon-container');
+            const buttonsContainer = document.getElementById('modal-buttons');
+            iconContainer.classList.remove('hidden');
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').innerHTML = message;
+            if (type === 'success') { iconContainer.className = 'mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mx-auto'; iconContainer.innerHTML = '<i data-lucide="check-circle" class="w-6 h-6"></i>'; }
+            else if (type === 'error') { iconContainer.className = 'mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-rose-50 text-rose-600 mx-auto'; iconContainer.innerHTML = '<i data-lucide="alert-triangle" class="w-6 h-6"></i>'; }
+            else { iconContainer.className = 'mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 mx-auto'; iconContainer.innerHTML = '<i data-lucide="info" class="w-6 h-6"></i>'; }
+
+            if (onConfirm) {
+                buttonsContainer.innerHTML = `<button onclick="closeModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 md:py-2.5 rounded-xl font-medium">Cancelar</button><button id="btn-confirm" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 md:py-2.5 rounded-xl font-medium shadow-sm">Confirmar</button>`;
+                document.getElementById('btn-confirm').onclick = () => { closeModal(); onConfirm(); };
+            } else { buttonsContainer.innerHTML = `<button onclick="closeModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 md:py-2.5 rounded-xl font-medium shadow-sm">OK</button>`; }
+            modal.classList.remove('hidden'); if(window.lucide) lucide.createIcons();
+        };
+        window.closeModal = function() { document.getElementById('custom-modal').classList.add('hidden'); };
+        window.showImageModal = function(src) { if(!src) return; document.getElementById('image-modal-content').src = src; document.getElementById('image-modal').classList.remove('hidden'); if(window.lucide) lucide.createIcons(); };
+        window.closeImageModal = function() { document.getElementById('image-modal').classList.add('hidden'); };
+        window.toggleDropdown = function(id) { document.querySelectorAll('.custom-dropdown-menu').forEach(el => { if(el.id !== id) el.classList.add('hidden'); }); document.getElementById(id).classList.toggle('hidden'); };
+        window.toggleMobileMenu = function() { isSidebarOpenMobile = !isSidebarOpenMobile; render(); };
+        
+        window.logout = function() { localStorage.removeItem('agendaProSession'); window.location.href = 'index.html'; };
+
+        window.render = function() {
+            if(!window.t) return;
+            const role = session.role;
+            const userProfile = role === 'admin' ? t.admin : (t.employees || []).find(e=>e.id === session.id);
+            if(!userProfile) return logout();
+
+            const logoHtml = t.logo ? `<img src="${t.logo}" onclick="showImageModal('${t.logo}')" class="w-10 h-10 rounded-xl object-cover cursor-pointer hover:opacity-80 shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">O</div>`;
+            const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" onclick="showImageModal('${userProfile.avatar}')" class="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${userProfile.name.charAt(0)}</div>`;
+
+            const sidebarClasses = isSidebarOpenMobile ? "fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-2xl translate-x-0" : "fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-2xl -translate-x-full md:translate-x-0 md:relative md:w-20 hover:md:w-64 transition-all duration-300 group";
+            const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-40 md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
+
+            document.getElementById('app').innerHTML = `
+                <div class="flex min-h-screen w-full bg-slate-100 fade-in relative">
+                    ${overlayMobile}
+                    <aside class="flex flex-col border-r border-slate-200 overflow-hidden ${sidebarClasses}">
+                        <div class="p-5 md:p-4 border-b border-slate-100 flex items-center space-x-3 bg-slate-50 min-w-max h-20">
+                            ${logoHtml}
+                            <div class="md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300"><h2 class="font-bold text-slate-800 text-sm truncate w-40">${t.name}</h2><span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Workspace</span></div>
+                            <button onclick="toggleMobileMenu()" class="ml-auto md:hidden p-2 text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-6 h-6"></i></button>
+                        </div>
+                        <nav class="flex-1 p-4 md:p-3 space-y-2 overflow-y-auto custom-scrollbar min-w-max">
+                            <button onclick="activeTab='dashboard'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='dashboard'?'bg-indigo-50 text-indigo-700':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="calendar" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300">Minha Agenda</span></button>
+                            <button onclick="activeTab='horarios'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='horarios'?'bg-indigo-50 text-indigo-700':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="clock" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300">Horários & Plantões</span></button>
+                            ${role === 'admin' ? `
+                                <button onclick="activeTab='procedures'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='procedures'?'bg-indigo-50 text-indigo-700':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="scissors" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300">Procedimentos</span></button>
+                                <button onclick="activeTab='employees'; editEmployeeId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='employees'?'bg-indigo-50 text-indigo-700':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="users" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300">Equipe</span></button>
+                            ` : ''}
+                            <button onclick="activeTab='profile'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='profile'?'bg-indigo-50 text-indigo-700':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="settings" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300">Configurações</span></button>
+                        </nav>
+                        <div class="p-4 border-t border-slate-100 flex items-center bg-white min-w-max overflow-hidden">
+                            ${userAvatarHtml}
+                            <div class="ml-3 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 w-32"><p class="text-sm font-bold text-slate-900 truncate">${userProfile.name}</p><p class="text-[10px] text-indigo-600 uppercase font-bold tracking-wider truncate">${role === 'admin' ? 'Administrador' : 'Profissional'}</p></div>
+                            <button onclick="logout()" class="p-3 md:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-auto md:ml-0 md:group-hover:ml-auto" title="Sair"><i data-lucide="log-out" class="w-6 h-6 md:w-5 md:h-5"></i></button>
+                        </div>
+                    </aside>
+                    <main class="flex-1 flex flex-col overflow-hidden relative w-full">
+                        <header class="h-16 md:h-14 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-10 shrink-0">
+                            <div class="flex items-center">
+                                <button onclick="toggleMobileMenu()" class="md:hidden mr-3 p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><i data-lucide="menu" class="w-6 h-6"></i></button>
+                                <h1 class="font-bold text-slate-800 text-sm md:text-base hidden sm:block">Painel de Controle</h1>
+                            </div>
+                            <div class="flex items-center">
+                                ${role === 'admin' ? `
+                                    <button onclick="copiarLinkCliente()" class="text-xs md:text-sm bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg font-bold flex items-center space-x-2 hover:bg-indigo-100 border border-indigo-100 transition-colors shadow-sm"><i data-lucide="external-link" class="w-4 h-4"></i> <span class="hidden sm:inline">Copiar Link do Cliente</span><span class="sm:hidden">Link Cliente</span></button>
+                                ` : ''}
+                            </div>
+                        </header>
+                        <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 w-full relative">
+                            ${renderDashboardContent(role, userProfile)}
+                        </div>
+                    </main>
+                </div>`;
+            if(window.lucide) lucide.createIcons();
+        };
+
+        window.copiarLinkCliente = function() { 
+            const baseUrl = window.location.href.replace('painel.html', 'cliente.html').split('?')[0];
+            const link = baseUrl + '?org=' + session.slug; 
+            navigator.clipboard.writeText(link); 
+            showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); 
+        };
+
+        function renderDashboardContent(role, user) {
+            if(activeTab === 'dashboard') {
+                return `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
+                        <h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2>
+                        <div class="flex space-x-2 bg-white rounded-lg p-1 border shadow-sm self-start">
+                            <button onclick="dashboardViewMode='calendar'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='calendar'?'bg-indigo-100 text-indigo-700':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="layout-grid" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Calendário</span></button>
+                            <button onclick="dashboardViewMode='list'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='list'?'bg-indigo-100 text-indigo-700':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="list" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Lista</span></button>
+                        </div>
+                    </div>
+                    ${dashboardViewMode === 'calendar' ? renderWeeklyCalendar(role, user) : renderListView(role, user)}
+                `;
+            }
+            
+            if(activeTab === 'horarios') {
+                const isAdm = role === 'admin';
+                const daysMap = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                const pendingRequests = t.requests ? t.requests.filter(r => r.status === 'pending') : [];
+
+                if (isAdm) {
+                    const wh = t.admin.workingHours;
+                    const excs = Object.keys(t.admin.exceptions || {}).sort().map(d => ({ date: d, ...t.admin.exceptions[d] }));
+
+                    return `
+                        <div class="max-w-4xl mx-auto space-y-6 fade-in">
+                            ${pendingRequests.length > 0 ? `
+                                <div class="bg-amber-50 border-2 border-amber-200 p-6 rounded-2xl shadow-sm">
+                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes (${pendingRequests.length})</h3>
+                                    <div class="space-y-3">
+                                        ${pendingRequests.map(r => `
+                                            <div class="bg-white p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                                                <div>
+                                                    <p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência/Folga':'Hora a mais'}</span></p>
+                                                    <p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b> ${r.type==='plantao'? `(${r.start} às ${r.end})`:''}</p>
+                                                </div>
+                                                <div class="flex items-center space-x-2">
+                                                    <button onclick="handleApproveRequest('${r.id}', true)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Aprovar</button>
+                                                    <button onclick="handleApproveRequest('${r.id}', false)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Recusar</button>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                                    <h3 class="font-bold text-lg mb-2">Horários Padrão da Empresa</h3>
+                                    <p class="text-xs text-slate-500 mb-6">Defina os dias de funcionamento.</p>
+                                    <div class="space-y-4">
+                                        ${daysMap.map((day, i) => `
+                                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-3 ${wh[i].active ? 'bg-indigo-50/30 border border-indigo-100' : 'bg-slate-50 border border-slate-100 opacity-60'} rounded-xl transition-all gap-3">
+                                                <div class="flex items-center space-x-3 w-32">
+                                                    <label class="relative inline-flex items-center cursor-pointer">
+                                                      <input type="checkbox" id="wh-cb-${i}" class="sr-only peer" ${wh[i].active ? 'checked' : ''} onchange="document.getElementById('wh-row-${i}').classList.toggle('opacity-60');">
+                                                      <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
+                                                    </label>
+                                                    <span class="text-sm font-bold ${wh[i].active?'text-slate-800':'text-slate-500'}">${day}</span>
+                                                </div>
+                                                <div id="wh-row-${i}" class="flex items-center justify-between sm:justify-start space-x-2">
+                                                    <input type="time" id="wh-s-${i}" value="${wh[i].start}" class="px-2 py-1.5 border rounded-lg text-sm bg-white">
+                                                    <span class="text-xs text-slate-400">até</span>
+                                                    <input type="time" id="wh-e-${i}" value="${wh[i].end}" class="px-2 py-1.5 border rounded-lg text-sm bg-white">
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    <button onclick="saveWorkingHours()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-md mt-6 transition-all text-sm uppercase">Salvar Horários</button>
+                                </div>
+
+                                <div class="space-y-6">
+                                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                                        <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral</h3>
+                                        <div class="space-y-4 mt-4">
+                                            <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
+                                            <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
+                                                <select id="exc-type" onchange="document.getElementById('exc-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium">
+                                                    <option value="folga">Ausência / Folga Geral</option>
+                                                    <option value="plantao">Plantão Geral</option>
+                                                </select>
+                                            </div>
+                                            <div id="exc-times" class="hidden flex items-center space-x-4">
+                                                <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="exc-start" value="08:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
+                                                <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="exc-end" value="20:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
+                                            </div>
+                                            <button onclick="addException()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-md mt-2">Adicionar Exceção</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                                        <h3 class="font-bold text-base mb-4">Exceções Registradas</h3>
+                                        <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                                            ${excs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma cadastrada.</p>' : excs.map(e => `
+                                                <div class="p-3 border rounded-xl flex items-center justify-between ${e.type==='folga'?'bg-rose-50/50 border-rose-100':'bg-emerald-50/50 border-emerald-100'}">
+                                                    <div>
+                                                        <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} -${e.type==='folga'?'Folga':'Plantão'}</p>
+                                                        ${e.type==='plantao' ? `<p class="text-xs text-emerald-600 font-medium">${e.start} às ${e.end}</p>` : ''}
+                                                    </div>
+                                                    <button onclick="removeException('${e.date}')" class="text-rose-500 bg-white hover:bg-rose-50 p-2 rounded-lg shadow-sm border border-transparent hover:border-rose-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    const myReqs = t.requests ? t.requests.filter(r => r.empId === user.id) : [];
+                    return `
+                        <div class="max-w-2xl mx-auto space-y-6 fade-in">
+                            <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                                <h3 class="font-bold text-lg mb-1">Solicitar Ausência ou Hora a Mais</h3>
+                                <form onsubmit="handleCreateRequest(event, '${user.id}', '${user.name}')" class="space-y-4 mt-4">
+                                    <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
+                                        <select id="req-type" onchange="document.getElementById('req-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-3 border rounded-xl text-sm bg-white font-medium">
+                                            <option value="folga">Solicitar Folga (Dia inteiro)</option><option value="plantao">Solicitar Hora a Mais (Plantão)</option>
+                                        </select>
+                                    </div>
+                                    <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="req-date" required class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div>
+                                    <div id="req-times" class="hidden flex items-center space-x-4"><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="req-start" value="08:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="req-end" value="20:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div></div>
+                                    <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl shadow-md mt-2">Enviar</button>
+                                </form>
+                            </div>
+                            <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                                <h3 class="font-bold text-base mb-4">Minhas Solicitações</h3>
+                                <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                                    ${myReqs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma solicitação.</p>' : myReqs.map(r => `
+                                        <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
+                                            <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Ausência':'Hora a mais'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
+                                            <span class="text-xs font-bold px-3 py-1.5 rounded-full border ${r.status==='approved'?'bg-emerald-50 text-emerald-700 border-emerald-200':(r.status==='rejected'?'bg-rose-50 text-rose-700 border-rose-200':'bg-amber-50 text-amber-700 border-amber-200')}">${r.status==='approved'?'Aprovado':(r.status==='rejected'?'Recusado':'Pendente')}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            if(activeTab === 'profile') {
+                return `
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
+                        ${role === 'admin' ? `<div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Organização</h3><div class="flex items-center space-x-4 mb-6">${t.logo ? `<img src="${t.logo}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${t.name}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Organização</button></div>` : ''}
+                        <div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${user.avatar ? `<img src="${user.avatar}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar', '${user.id}')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${user.name}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${user.email}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="bg-indigo-600 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full mt-4">Salvar Meu Perfil</button></div></div>
+                    </div>`;
+            }
+
+            if(role === 'admin' && activeTab === 'employees') {
+                const empToEdit = editEmployeeId ? t.employees.find(e=>e.id===editEmployeeId) : null;
+                return `
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${empToEdit?empToEdit.name:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${empToEdit?empToEdit.email:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-2">Procedimentos</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${p.name}</span></label>`).join('')}</div></div><div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Equipe</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${e.name}</p><p class="text-xs text-slate-500">${e.email}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs text-indigo-600 font-bold px-4 py-2 bg-indigo-50 rounded-lg">Editar</button></div>`).join('')}</div></div></div>`;
+            }
+
+            if(role === 'admin' && activeTab === 'procedures') {
+                return `
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">Adicionar Serviço</h3><form onsubmit="addProcedure(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="p-name" required class="w-full px-4 py-3 border rounded-xl text-sm"></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-semibold mb-1">Duração (min)</label><input type="number" id="p-time" required min="5" step="5" class="w-full px-4 py-3 border rounded-xl text-sm"></div><div><label class="block text-xs font-semibold mb-1">Valor (R$)</label><input type="number" id="p-price" required step="0.01" class="w-full px-4 py-3 border rounded-xl text-sm"></div></div><button type="submit" class="bg-indigo-600 text-white py-3.5 rounded-xl text-sm font-bold w-full mt-4">Salvar Serviço</button></form></div><div class="bg-white p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Lista de Serviços</h3><div class="space-y-3 max-h-[500px] overflow-y-auto pr-2">${t.procedures.map(p=>`<div class="p-4 border rounded-xl flex justify-between bg-slate-50"><div><p class="font-bold text-sm">${p.name}</p><p class="text-xs text-slate-500 mt-1">${p.duration} min</p></div><span class="font-bold text-emerald-600 text-sm bg-emerald-50 px-3 py-1.5 rounded-lg border h-fit">R$ ${p.price.toFixed(2)}</span></div>`).join('')}</div></div></div>`;
+            }
+            return '';
+        }
+
+        window.handleCreateRequest = function(e, empId, empName) {
+            e.preventDefault(); const date = document.getElementById('req-date').value; const type = document.getElementById('req-type').value;
+            if(!date) return showModal('Erro', 'Selecione uma data.', 'error');
+            const newReq = { id: 'req-' + Date.now(), empId, empName, date, type, status: 'pending' };
+            if(type === 'plantao') { newReq.start = document.getElementById('req-start').value; newReq.end = document.getElementById('req-end').value; }
+            t.requests.push(newReq); saveDB(); showModal('Enviado', 'Solicitação enviada.', 'success');
+        };
+
+        window.handleApproveRequest = function(reqId, approved) {
+            const req = t.requests.find(r => r.id === reqId); if(!req) return;
+            req.status = approved ? 'approved' : 'rejected';
+            if(approved) {
+                const emp = t.employees.find(e => e.id === req.empId);
+                if(emp) {
+                    if(req.type === 'folga') emp.exceptions[req.date] = { type: 'folga' };
+                    else emp.exceptions[req.date] = { type: 'plantao', start: req.start, end: req.end };
+                }
+            } saveDB();
+        };
+
+        window.saveWorkingHours = function() {
+            for(let i=0; i<7; i++) {
+                t.admin.workingHours[i].active = document.getElementById(`wh-cb-${i}`).checked;
+                t.admin.workingHours[i].start = document.getElementById(`wh-s-${i}`).value;
+                t.admin.workingHours[i].end = document.getElementById(`wh-e-${i}`).value;
+            } saveDB(); showModal('Salvo', 'Horários atualizados!', 'success');
+        };
+
+        window.addException = function() {
+            const date = document.getElementById('exc-date').value; const type = document.getElementById('exc-type').value;
+            if(!date) return showModal('Erro', 'Selecione uma data.', 'error');
+            if(type === 'folga') t.admin.exceptions[date] = { type: 'folga' };
+            else {
+                const s = document.getElementById('exc-start').value; const e = document.getElementById('exc-end').value;
+                t.admin.exceptions[date] = { type: 'plantao', start: s, end: e };
+            } saveDB();
+        };
+        window.removeException = function(dateStr) { delete t.admin.exceptions[dateStr]; saveDB(); };
+
+        window.selectListMonth = function(val, name) { listFilterMonth = val; listFilterDate = ''; render(); };
+
+        function renderListView(role, user) {
+            let apps = t.appointments || [];
+            if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
+            if(listFilterMonth) apps = apps.filter(a => a.date.split('-')[1] === listFilterMonth);
+            if(listFilterDate) apps = apps.filter(a => a.date === listFilterDate);
+            apps.sort((a,b) => new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time));
+
+            const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
+            const hasEmployees = t.employees.length > 0;
+
+            return `
+                <div class="bg-white p-4 md:p-6 rounded-2xl border shadow-sm ${isCalendarFullscreen ? 'calendar-fullscreen' : ''}">
+                    <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-5 mb-6 bg-slate-50 p-4 rounded-xl border">
+                        <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Mês</label>
+                            <select onchange="selectListMonth(this.value)" class="w-full px-4 py-2.5 bg-white border rounded-xl text-sm font-semibold outline-none">
+                                <option value="">Todos os Meses</option>
+                                ${meses.map(m => `<option value="${m.v}" ${listFilterMonth===m.v?'selected':''}>${m.n}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Data Específica</label><input type="date" value="${listFilterDate}" onchange="listFilterDate=this.value; listFilterMonth=''; render()" class="w-full px-4 py-2 bg-white border rounded-xl text-sm font-semibold outline-none"></div>
+                        <div class="flex items-end w-full md:w-auto"><button onclick="listFilterDate=''; listFilterMonth=''; render()" class="w-full px-4 py-2 bg-white border text-slate-600 hover:bg-rose-50 hover:text-rose-600 rounded-xl text-sm font-bold">Limpar</button></div>
+                    </div>
+                    <div class="space-y-4">
+                        ${apps.length === 0 ? '<div class="text-center py-16 bg-slate-50 rounded-2xl border-dashed border"><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>' : apps.map(a => {
+                            const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
+                            const titleText = (role === 'admin' && hasEmployees) ? `${emp?emp.name:'Equipe'} - {${a.clientName}}` : a.clientName;
+                            return `
+                            <div class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-300 bg-white gap-4">
+                                <div class="flex items-start space-x-4">
+                                    <div class="bg-indigo-50 text-indigo-600 w-14 h-14 rounded-xl flex flex-col items-center justify-center border shrink-0"><span class="text-[10px] font-bold uppercase">${a.date.split('-')[1]}</span><span class="text-xl font-bold">${a.date.split('-')[2]}</span></div>
+                                    <div><p class="font-bold text-slate-900 text-base">${titleText}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} -${a.proceduresNames.join(', ')}</p></div>
+                                </div>
+                                <div class="flex items-center justify-between md:justify-end space-x-4 border-t md:border-0 pt-4 md:pt-0 w-full md:w-auto">
+                                    <p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">R$ ${a.totalPrice.toFixed(2)}</p>
+                                    <button onclick="cancelarAgendamento('${a.id}')" class="text-xs text-rose-600 bg-rose-50 px-4 py-2 rounded-xl hover:bg-rose-100 font-bold border">Cancelar</button>
+                                </div>
+                            </div>
+                        `}).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        window.jumpToMonth = function(monthIndexStr) {
+            const m = parseInt(monthIndexStr); const today = new Date(); const tgt = new Date(today.getFullYear(), m, 1);
+            currentWeekOffset = Math.floor((tgt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 7)); render();
+        };
+        window.toggleFullscreen = function() { isCalendarFullscreen = !isCalendarFullscreen; render(); };
+
+        function renderWeeklyCalendar(role, user) {
+            const today = new Date(); const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + (currentWeekOffset * 7));
+            const weekDays = []; for(let i=0; i<7; i++) { const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i); weekDays.push(d); }
+            const viewMonth = weekDays[0].getMonth(); const viewYear = weekDays[0].getFullYear();
+            const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            const hours = []; for(let i=7; i<=20; i++) hours.push(`${i.toString().padStart(2, '0')}:00`);
+
+            const weekApps = t.appointments.filter(a => {
+                if(role === 'employee' && a.employeeId !== user.id) return false;
+                const aDate = new Date(a.date + 'T00:00:00'); return aDate >= weekDays[0] && aDate <= weekDays[6];
+            });
+
+            const currentProfile = role === 'admin' ? t.admin : user;
+            const appsByDayAndSlot = {};
+            
+            weekApps.forEach(a => {
+                const aDate = new Date(a.date + 'T00:00:00'); const dayIdx = aDate.getDay();
+                const [h, m] = a.time.split(':').map(Number);
+                if(h < 7 || h > 20) return;
+                const startMins = timeToMins(a.time); const endMins = startMins + a.totalDuration;
+                if (!appsByDayAndSlot[dayIdx]) appsByDayAndSlot[dayIdx] = [];
+                appsByDayAndSlot[dayIdx].push({ ...a, startMins, endMins, h, m });
+            });
+
+            const postitsHtml = [];
+            Object.keys(appsByDayAndSlot).forEach(dayIdxStr => {
+                const dayIdx = parseInt(dayIdxStr); const dayApps = appsByDayAndSlot[dayIdxStr];
+                dayApps.forEach((a) => {
+                    const overlapping = dayApps.filter(o => (a.startMins < o.endMins && a.endMins > o.startMins));
+                    const totalOverlaps = overlapping.length; const overlapIndex = overlapping.findIndex(o => o.id === a.id);
+                    const gridRowStart = a.h - 7 + 2; 
+                    const height = Math.max((a.totalDuration / 60) * 51, 22);
+
+                    const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
+                    const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
+                    const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${a.time} - ${emp?emp.name:'Equipe'} - {${a.clientName}}` : `${a.time} - ${a.clientName}`;
+
+                    let styleWidth = 'calc(100% - 6px)'; let styleLeft = '3px';
+                    if (totalOverlaps > 1) {
+                        const widthPct = (100 / totalOverlaps); styleWidth = `calc(${widthPct}% - 4px)`; styleLeft = `calc(${overlapIndex * widthPct}% + 2px)`;
+                    }
+
+                    postitsHtml.push(`
+                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${a.proceduresNames.join(', ')}" class="appointment-postit" 
+                             style="grid-column: ${dayIdx + 2} / span 1; grid-row: ${gridRowStart}; margin-top: ${(a.m/60)*51}px; height: ${height}px; min-height: 22px; width: ${styleWidth} !important; max-width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
+                            <p class="font-bold truncate text-[10px] text-white">${postitTitle}</p>
+                        </div>
+                    `);
+                });
+            });
+
+            return `
+                <div class="bg-white border rounded-2xl shadow-sm overflow-hidden flex flex-col relative ${isCalendarFullscreen ? 'calendar-fullscreen' : 'h-[600px]'}">
+                    <div class="p-3 border-b flex justify-between bg-slate-50 shrink-0">
+                        <div class="flex space-x-2">
+                            <button onclick="currentWeekOffset--;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                            <div class="flex items-center px-4 bg-white border rounded-xl font-bold">${monthNames[viewMonth]} ${viewYear}</div>
+                            <button onclick="currentWeekOffset++;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button onclick="currentWeekOffset=0;render()" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl font-bold">Hoje</button>
+                            <button onclick="toggleFullscreen()" class="p-2.5 bg-slate-800 text-white rounded-xl"><i data-lucide="${isCalendarFullscreen ? 'minimize' : 'maximize'}" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-auto custom-scrollbar p-2 bg-slate-100/50">
+                        <div class="calendar-grid relative bg-white border">
+                            <div class="calendar-header-cell border-b border-r bg-slate-50 sticky top-0 left-0 z-30"></div>
+                            ${weekDays.map(d => {
+                                const isWorking = doesEmployeeWorkOnDate(currentProfile, d.toISOString().split('T')[0]);
+                                return `<div class="calendar-header-cell border-b border-r sticky top-0 ${isWorking?'bg-white/95':'bg-slate-200/95 opacity-60'} z-20"><p class="text-xs text-slate-500 uppercase font-bold">${d.toLocaleDateString('pt-BR', {weekday:'short'})}</p><p class="text-xl font-bold text-slate-800">${d.getDate()}</p></div>`;
+                            }).join('')}
+                            ${hours.map((h) => `
+                                <div class="calendar-time-col border-b border-r pt-2 sticky left-0 bg-white/95 z-10">${h}</div>${weekDays.map(d => `<div class="calendar-cell border-b border-r ${doesEmployeeWorkOnDate(currentProfile, d.toISOString().split('T')[0])?'bg-white':'bg-slate-200 opacity-60'}"></div>`).join('')}
+                            `).join('')}
+                            ${postitsHtml.join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.showAppDetails = function(appId) {
+            const app = t.appointments.find(a => a.id === appId); if(!app) return;
+            const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
+            const msg = `
+                <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
+                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">{${app.clientName}}</span></div></div>
+                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${emp?emp.name:'Equipe'}</span></div></div>
+                    <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
+                    <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${app.proceduresNames.join(', ')}</span></div>
+                    <div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>
+                </div>`;
+            showModal('Detalhes do Agendamento', msg, 'info');
+        };
+
+        window.salvarOrg = function() { t.name = document.getElementById('org-name').value; saveDB(); showModal('Sucesso', 'Organização atualizada!', 'success'); };
+        window.handleImageUpload = function(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { if(type === 'logo') t.logo = event.target.result; else { let user = t.admin.id === userId ? t.admin : t.employees.find(emp=>emp.id===userId); user.avatar = event.target.result; } saveDB(); }; reader.readAsDataURL(file); };
+        window.salvarPerfil = function(userId) { const role = session.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'Senha atual incorreta.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
+        window.saveEmployee = function(e) { e.preventDefault(); const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); };
+        window.addProcedure = function(e) { e.preventDefault(); t.procedures.push({ id: 'p-'+Date.now(), name: document.getElementById('p-name').value, duration: parseInt(document.getElementById('p-time').value), price: parseFloat(document.getElementById('p-price').value) }); saveDB(); };
+        window.cancelarAgendamento = function(id) { showModal('Cancelar', 'Deseja cancelar este agendamento?', 'error', () => { t.appointments = t.appointments.filter(a => a.id !== id); saveDB(); }); };
+    </script>
+</body>
+</html>
