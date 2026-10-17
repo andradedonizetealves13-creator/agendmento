@@ -12,7 +12,6 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
@@ -22,7 +21,6 @@
         .calendar-time-col { background: #f8fafc; text-align: right; padding-right: 6px; font-size: 11px; color: #64748b; font-weight: 500; }
         .calendar-cell { background: #ffffff; min-height: 50px; position: relative; }
         
-        /* BARRAS E TRACINHOS DE AGENDAMENTO COM SUPORTE A COLISÃO */
         .appointment-postit {
             position: absolute;
             box-sizing: border-box;
@@ -48,15 +46,16 @@
             min-width: 130px;
             max-width: 220px !important;
         }
-        
-        input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; transition: 0.2s; }
-        input[type="date"]::-webkit-calendar-picker-indicator:hover, input[type="time"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
-        .calendar-fullscreen { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: #f8fafc; height: 100vh !important; border-radius: 0 !important; }
     </style>
 </head>
 <body class="h-full bg-slate-50 text-slate-800 antialiased overflow-hidden">
 
-    <div id="app" class="h-full flex flex-col"></div>
+    <div id="app" class="h-full flex flex-col items-center justify-center p-6">
+        <div class="text-center space-y-3">
+            <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p class="text-slate-600 font-medium text-sm">Carregando sistema e conectando ao Firebase...</p>
+        </div>
+    </div>
 
     <div id="custom-modal" class="hidden fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
@@ -74,6 +73,23 @@
         </div>
     </div>
 
+    <!-- Capturador de Erros Globais -->
+    <script>
+        window.addEventListener('error', function(e) {
+            const app = document.getElementById('app');
+            if (app) {
+                app.innerHTML = `
+                    <div class="max-w-md w-full bg-white p-6 rounded-2xl shadow-xl border border-rose-200 text-center">
+                        <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-xl">!</div>
+                        <h2 class="text-lg font-bold text-rose-700 mb-2">Erro na Inicialização</h2>
+                        <p class="text-xs text-slate-600 bg-slate-100 p-3 rounded-xl break-words font-mono text-left mb-4">${e.message || 'Falha ao carregar script de dependência.'}</p>
+                        <button onclick="location.reload()" class="bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Recarregar Página</button>
+                    </div>
+                `;
+            }
+        });
+    </script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -87,10 +103,6 @@
           messagingSenderId: "865554229500",
           appId: "1:865554229500:web:f786ebd6f0d0781019cf79"
         };
-
-        const firebaseApp = initializeApp(firebaseConfig);
-        const rtdb = getDatabase(firebaseApp);
-        const dbRef = ref(rtdb, 'agendapro_saas');
 
         const COLOR_PALETTE = [
             '#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', 
@@ -134,36 +146,51 @@
         window.clientCalYear = new Date().getFullYear();
         window.clientCalMonth = new Date().getMonth();
 
-        onValue(dbRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                window.db = data;
-                if(!window.db.tenants) window.db.tenants = {};
-                for(let k in window.db.tenants) {
-                    if(!window.db.tenants[k].admin.workingHours) window.db.tenants[k].admin.workingHours = getDefWH();
-                    if(!window.db.tenants[k].admin.exceptions) window.db.tenants[k].admin.exceptions = {};
-                    if(!window.db.tenants[k].admin.color) window.db.tenants[k].admin.color = COLOR_PALETTE[0];
-                    if(!window.db.tenants[k].requests) window.db.tenants[k].requests = [];
-                    if(!window.db.tenants[k].employees) window.db.tenants[k].employees = [];
-                    if(!window.db.tenants[k].procedures) window.db.tenants[k].procedures = [];
-                    if(!window.db.tenants[k].appointments) window.db.tenants[k].appointments = [];
-                    if(!window.db.tenants[k].clients) window.db.tenants[k].clients = [];
-                    
-                    window.db.tenants[k].employees.forEach((e, idx) => {
-                        if(!e.workingHours) e.workingHours = getDefWH();
-                        if(!e.exceptions) e.exceptions = {};
-                        if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
-                    });
-                }
-            } else {
-                window.db = { tenants: {}, currentUser: null, currentTenantSlug: null, currentClient: null };
-            }
-            render();
-        });
+        try {
+            const firebaseApp = initializeApp(firebaseConfig);
+            const rtdb = getDatabase(firebaseApp);
+            const dbRef = ref(rtdb, 'agendapro_saas');
 
-        window.saveDB = function() {
-            set(dbRef, window.db);
-        };
+            onValue(dbRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    window.db = data;
+                    if(!window.db.tenants) window.db.tenants = {};
+                    for(let k in window.db.tenants) {
+                        if(!window.db.tenants[k].admin.workingHours) window.db.tenants[k].admin.workingHours = getDefWH();
+                        if(!window.db.tenants[k].admin.exceptions) window.db.tenants[k].admin.exceptions = {};
+                        if(!window.db.tenants[k].admin.color) window.db.tenants[k].admin.color = COLOR_PALETTE[0];
+                        if(!window.db.tenants[k].requests) window.db.tenants[k].requests = [];
+                        if(!window.db.tenants[k].employees) window.db.tenants[k].employees = [];
+                        if(!window.db.tenants[k].procedures) window.db.tenants[k].procedures = [];
+                        if(!window.db.tenants[k].appointments) window.db.tenants[k].appointments = [];
+                        if(!window.db.tenants[k].clients) window.db.tenants[k].clients = [];
+                        
+                        window.db.tenants[k].employees.forEach((e, idx) => {
+                            if(!e.workingHours) e.workingHours = getDefWH();
+                            if(!e.exceptions) e.exceptions = {};
+                            if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
+                        });
+                    }
+                }
+                render();
+            }, (error) => {
+                console.error("Erro no Firebase:", error);
+                document.getElementById('app').innerHTML = `
+                    <div class="max-w-md w-full bg-white p-6 rounded-2xl shadow-xl border border-amber-200 text-center">
+                        <h2 class="text-lg font-bold text-amber-800 mb-2">Bloqueio de Regras no Firebase</h2>
+                        <p class="text-xs text-slate-600 mb-4">${error.message}</p>
+                    </div>
+                `;
+            });
+
+            window.saveDB = function() {
+                set(dbRef, window.db);
+            };
+        } catch(e) {
+            console.error("Erro na inicialização:", e);
+            render();
+        }
 
         window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
         window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
@@ -237,10 +264,10 @@
                 buttonsContainer.innerHTML = `<button onclick="closeModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 md:py-2.5 rounded-xl font-medium">Cancelar</button><button id="btn-confirm" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 md:py-2.5 rounded-xl font-medium shadow-sm">Confirmar</button>`;
                 document.getElementById('btn-confirm').onclick = () => { closeModal(); onConfirm(); };
             } else { buttonsContainer.innerHTML = `<button onclick="closeModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 md:py-2.5 rounded-xl font-medium shadow-sm">OK</button>`; }
-            modal.classList.remove('hidden'); lucide.createIcons();
+            modal.classList.remove('hidden'); if(window.lucide) lucide.createIcons();
         };
         window.closeModal = function() { document.getElementById('custom-modal').classList.add('hidden'); };
-        window.showImageModal = function(src) { if(!src) return; document.getElementById('image-modal-content').src = src; document.getElementById('image-modal').classList.remove('hidden'); lucide.createIcons(); };
+        window.showImageModal = function(src) { if(!src) return; document.getElementById('image-modal-content').src = src; document.getElementById('image-modal').classList.remove('hidden'); if(window.lucide) lucide.createIcons(); };
         window.closeImageModal = function() { document.getElementById('image-modal').classList.add('hidden'); };
         
         window.openClientSimulator = function() { simulatedTenantSlug = db.currentUser.slug; render(); };
@@ -257,7 +284,10 @@
             const tenantSlug = simulatedTenantSlug || urlParams.get('b');
 
             if (tenantSlug) {
-                if (!db.tenants || !db.tenants[tenantSlug]) { app.innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-slate-500 font-medium">Empresa não encontrada.</p></div>`; return; }
+                if (!db.tenants || !db.tenants[tenantSlug]) { 
+                    app.innerHTML = `<div class="flex items-center justify-center h-full p-4 text-center"><p class="text-slate-500 font-medium">Empresa não encontrada ou a carregar...</p></div>`; 
+                    return; 
+                }
                 db.currentTenantSlug = tenantSlug; 
                 renderClientApp();
             } else {
@@ -1248,4 +1278,55 @@
             t.appointments.push(newApp);
             saveDB();
 
-            showModal('
+            showModal('Sucesso!', `Seu agendamento para ${formatDateBR(clientBooking.date)} às ${clientBooking.time} foi confirmado com sucesso!`, 'success', () => {
+                clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null };
+                clientActiveTab = 'appointments';
+            });
+        };
+
+        function renderClientApp() {
+            const t = db.tenants[db.currentTenantSlug];
+            
+            if (!db.currentClient || db.currentClient.slug !== db.currentTenantSlug) {
+                document.getElementById('app').innerHTML = renderClientAuth(t);
+                return;
+            }
+
+            const client = (t.clients || []).find(c => c.id === db.currentClient.id);
+            if (!client) {
+                db.currentClient = null; saveDB(); document.getElementById('app').innerHTML = renderClientAuth(t); return;
+            }
+
+            const logoHtml = t.logo ? `<img src="${t.logo}" class="h-10 w-auto rounded-lg object-contain">` : `<div class="h-10 w-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-md">O</div>`;
+
+            let content = '';
+            if(clientActiveTab === 'appointments') content = renderClientAppointments(t, client);
+            else content = renderClientBookingWizard(t, client);
+
+            document.getElementById('app').innerHTML = `
+                <div class="h-full flex flex-col bg-slate-50 fade-in">
+                    <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-3 flex flex-col md:flex-row md:items-center justify-between z-10 shrink-0 shadow-sm gap-4">
+                        <div class="flex items-center space-x-3">
+                            ${logoHtml}
+                            <div><h1 class="font-bold text-slate-800 leading-tight">${t.name}</h1><p class="text-[10px] text-indigo-600 uppercase tracking-wider font-bold">Área do Cliente</p></div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-4">
+                            ${simulatedTenantSlug ? `<button onclick="voltarAoAdmin()" class="text-sm font-bold text-slate-800 bg-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-300 transition-colors flex items-center shadow-sm"><i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Voltar</button>` : ''}
+                            <button onclick="clientActiveTab='book';render()" class="text-sm font-bold ${clientActiveTab==='book'?'text-indigo-600':'text-slate-500 hover:text-slate-800'}">Novo Agendamento</button>
+                            <button onclick="clientActiveTab='appointments';render()" class="text-sm font-bold ${clientActiveTab==='appointments'?'text-indigo-600':'text-slate-500 hover:text-slate-800'}">Meus Agendamentos</button>
+                            <div class="w-px h-5 bg-slate-300 hidden sm:block"></div>
+                            <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                                <span class="text-xs font-bold text-slate-700">${client.name}</span>
+                                <button onclick="clientLogout()" class="text-slate-400 hover:text-rose-600 ml-2" title="Sair da Conta"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    </header>
+                    <div class="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+                        ${content}
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
