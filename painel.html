@@ -134,6 +134,20 @@
         window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
         window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
 
+        // Helper para determinar se o agendamento já passou e está concluído
+        window.getEffectiveAppStatus = function(appItem) {
+            if (appItem.status === 'cancelado') return 'cancelado';
+            if (appItem.status === 'nao_compareceu') return 'nao_compareceu';
+            if (appItem.status === 'realizado') return 'realizado';
+
+            // Se não foi cancelado nem marcado como não compareceu, e a data/hora já passaram, é considerado REALIZADO/CONCLUÍDO
+            const appDateTime = new Date(appItem.date + 'T' + appItem.time);
+            if (appDateTime < new Date()) {
+                return 'realizado';
+            }
+            return 'agendado';
+        };
+
         window.doesEmployeeWorkOnDate = function(emp, dateStr) {
             const [y, m, d] = dateStr.split('-'); const dayOfWeek = new Date(y, m - 1, d).getDay(); 
             const exc = emp.exceptions?.[dateStr];
@@ -184,7 +198,6 @@
                 <div class="flex min-h-screen w-full bg-slate-100 fade-in relative">
                     ${overlayMobile}
                     <aside class="flex flex-col border-r border-slate-200 overflow-hidden ${sidebarClasses}">
-                        <!-- Cabeçalho do Workspace (Clica ao redor para abrir o Dashboard) -->
                         <div onclick="activeTab='dashboard'; render()" class="p-5 md:p-4 border-b border-slate-100 flex items-center space-x-3 bg-slate-50 min-w-max h-20 cursor-pointer hover:bg-indigo-50/50 transition-colors">
                             ${logoHtml}
                             <div class="md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300">
@@ -194,7 +207,6 @@
                             <button onclick="event.stopPropagation(); toggleMobileMenu()" class="ml-auto md:hidden p-2 text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-6 h-6"></i></button>
                         </div>
 
-                        <!-- Menu de Navegação -->
                         <nav class="flex-1 p-4 md:p-3 space-y-2 overflow-y-auto custom-scrollbar min-w-max">
                             <button onclick="activeTab='agenda'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='agenda'?'bg-indigo-50 text-indigo-700':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="calendar" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300">Minha Agenda</span></button>
                             <button onclick="activeTab='dashboard'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='dashboard'?'bg-indigo-50 text-indigo-700':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="bar-chart-2" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300">Dashboard</span></button>
@@ -206,14 +218,12 @@
                             <button onclick="activeTab='profile'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='profile'?'bg-indigo-50 text-indigo-700':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="settings" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300">Configurações</span></button>
                         </nav>
 
-                        <!-- Rodapé Perfil (Clicável para editar o perfil) -->
                         <div onclick="activeTab='profile'; render()" class="p-4 border-t border-slate-100 flex items-center bg-white min-w-max overflow-hidden cursor-pointer hover:bg-indigo-50/50 transition-colors">
                             ${userAvatarHtml}
                             <div class="ml-3 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 w-28">
                                 <p class="text-sm font-bold text-slate-900 truncate">${userProfile.name}</p>
                                 <p class="text-[10px] text-indigo-600 uppercase font-bold tracking-wider truncate">${role === 'admin' ? 'Administrador' : 'Profissional'}</p>
                             </div>
-                            <!-- Logout aparece SOMENTE com hover na sidebar -->
                             <button onclick="event.stopPropagation(); logout()" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all ml-auto opacity-0 group-hover:opacity-100 shrink-0" title="Sair"><i data-lucide="log-out" class="w-5 h-5"></i></button>
                         </div>
                     </aside>
@@ -225,7 +235,6 @@
                                 <h1 class="font-bold text-slate-800 text-sm md:text-base hidden sm:block">Painel de Controle</h1>
                             </div>
                             <div class="flex items-center space-x-3">
-                                <!-- Clicar no nome do usuário no topo leva para o Perfil -->
                                 <button onclick="activeTab='profile'; render()" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors hidden sm:block">${userProfile.name}</button>
                                 ${role === 'admin' ? `
                                     <button onclick="copiarLinkCliente()" class="text-xs md:text-sm bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg font-bold flex items-center space-x-2 hover:bg-indigo-100 border border-indigo-100 transition-colors shadow-sm"><i data-lucide="external-link" class="w-4 h-4"></i> <span class="hidden sm:inline">Copiar Link do Cliente</span><span class="sm:hidden">Link Cliente</span></button>
@@ -432,7 +441,6 @@
                                             <p class="font-bold text-sm text-slate-900">${p.name}</p>
                                             <p class="text-xs text-slate-500 mt-1">${p.duration} minutos — <b class="text-emerald-600">R$ ${p.price.toFixed(2)}</b></p>
                                         </div>
-                                        <!-- BOTOES DE EDITAR (LAPIS) E EXCLUIR (LIXEIRA) -->
                                         <div class="flex items-center space-x-2">
                                             <button onclick="editProcedureId='${p.id}'; render()" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button>
                                             <button onclick="deleteProcedure('${p.id}')" class="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -446,7 +454,7 @@
             return '';
         }
 
-        // NOVO RENDER DO DASHBOARD (METRICAS E RELATORIOS)
+        // RENDER DO DASHBOARD ANALYTICS COM LISTA DE AGENDAMENTOS E CONCLUÍDOS AUTOMÁTICOS
         function renderDashboardAnalytics(role, user) {
             const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
             
@@ -459,14 +467,14 @@
                 return m === dashboardFilterMonth && y === dashboardFilterYear;
             });
 
-            // Métricas
-            const completedApps = filteredApps.filter(a => a.status === 'realizado' || (!a.status && new Date(a.date+'T'+a.time) < new Date()));
-            const canceledApps = filteredApps.filter(a => a.status === 'cancelado');
-            const noShowApps = filteredApps.filter(a => a.status === 'nao_compareceu');
+            // Agendamentos Concluídos (Realizados explicitamente ou cujo horário/dia já passou)
+            const completedApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'realizado');
+            const canceledApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'cancelado');
+            const noShowApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'nao_compareceu');
 
             const totalRevenue = completedApps.reduce((s, a) => s + (a.totalPrice || 0), 0);
 
-            // Mapeamento por Procedimento
+            // Estatísticas por Procedimento
             const procStats = {};
             t.procedures.forEach(p => { procStats[p.name] = 0; });
             completedApps.forEach(a => {
@@ -475,7 +483,7 @@
                 });
             });
 
-            // Métricas por Colaborador (Para ADM)
+            // Estatísticas por Colaborador (Visão ADM)
             const staffStats = {};
             if(role === 'admin') {
                 t.employees.forEach(e => {
@@ -485,9 +493,10 @@
 
                 filteredApps.forEach(a => {
                     if(!staffStats[a.employeeId]) return;
-                    if(a.status === 'cancelado') staffStats[a.employeeId].canceled++;
-                    else if(a.status === 'nao_compareceu') staffStats[a.employeeId].noShow++;
-                    else if(a.status === 'realizado') staffStats[a.employeeId].completed++;
+                    const st = getEffectiveAppStatus(a);
+                    if(st === 'cancelado') staffStats[a.employeeId].canceled++;
+                    else if(st === 'nao_compareceu') staffStats[a.employeeId].noShow++;
+                    else if(st === 'realizado') staffStats[a.employeeId].completed++;
                 });
             }
 
@@ -497,7 +506,7 @@
                     <div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <h2 class="text-xl font-bold text-slate-800">Dashboard de Desempenho</h2>
-                            <p class="text-xs text-slate-500">Métricas financeiras e de frequência</p>
+                            <p class="text-xs text-slate-500">${role === 'admin' ? 'Visão consolidada da empresa' : 'Visão dos seus atendimentos pessoais'}</p>
                         </div>
                         <div class="flex items-center space-x-3 self-start sm:self-auto">
                             <select onchange="dashboardFilterMonth=this.value; render()" class="px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-bold text-slate-800 outline-none">
@@ -520,7 +529,7 @@
                         <div class="bg-white p-5 rounded-2xl border shadow-sm flex items-center space-x-4">
                             <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-bold shrink-0"><i data-lucide="check-circle" class="w-6 h-6"></i></div>
                             <div>
-                                <p class="text-xs text-slate-400 font-bold uppercase">Atendimentos Realizados</p>
+                                <p class="text-xs text-slate-400 font-bold uppercase">Atendimentos Concluídos</p>
                                 <h3 class="text-2xl font-black text-slate-800 mt-0.5">${completedApps.length}</h3>
                             </div>
                         </div>
@@ -542,8 +551,43 @@
                         </div>
                     </div>
 
+                    <!-- LISTA DE AGENDAMENTOS DO PERÍODO SELECIONADO NO DASHBOARD -->
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                        <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center justify-between">
+                            <span class="flex items-center"><i data-lucide="list" class="w-5 h-5 mr-2 text-indigo-600"></i> Agendamentos do Mês (${filteredApps.length})</span>
+                            <span class="text-xs text-slate-400 font-normal">Status atualizados em tempo real</span>
+                        </h3>
+                        <div class="space-y-3 max-h-80 overflow-y-auto custom-scrollbar pr-2">
+                            ${filteredApps.length === 0 ? '<p class="text-xs text-slate-400 py-4 text-center">Nenhum agendamento encontrado para este mês.</p>' : filteredApps.map(a => {
+                                const st = getEffectiveAppStatus(a);
+                                const emp = a.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e=>e.id===a.employeeId);
+                                const empName = emp ? emp.name : 'Equipe';
+                                
+                                let statusBadge = `<span class="bg-indigo-50 text-indigo-700 border-indigo-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Agendado</span>`;
+                                if (st === 'realizado') statusBadge = `<span class="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Concluído</span>`;
+                                else if (st === 'cancelado') statusBadge = `<span class="bg-rose-50 text-rose-700 border-rose-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Cancelado</span>`;
+                                else if (st === 'nao_compareceu') statusBadge = `<span class="bg-amber-50 text-amber-700 border-amber-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Não Compareceu</span>`;
+
+                                return `
+                                    <div class="p-3.5 bg-slate-50 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white transition-colors">
+                                        <div class="flex items-start space-x-3">
+                                            <div class="bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1.5 rounded-lg text-xs shrink-0">${formatDateBR(a.date)}<br>${a.time}</div>
+                                            <div>
+                                                <p class="font-bold text-slate-800 text-sm">{${a.clientName}}${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded">Para: ${a.beneficiaryName}</span>` : ''}</p>
+                                                <p class="text-xs text-slate-500">${a.proceduresNames.join(', ')} — <b>${empName}</b></p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between sm:justify-end space-x-3 border-t sm:border-0 pt-2 sm:pt-0">
+                                            <span class="font-bold text-emerald-600 text-xs">R$ ${a.totalPrice.toFixed(2)}</span>${statusBadge}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- RELATORIO DE ATENDIMENTOS POR PROCEDIMENTO -->
+                        <!-- RELATÓRIO DE ATENDIMENTOS POR PROCEDIMENTO -->
                         <div class="bg-white p-6 rounded-2xl border shadow-sm">
                             <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="scissors" class="w-5 h-5 mr-2 text-indigo-600"></i> Atendimentos por Procedimento</h3>
                             <div class="space-y-3 max-h-72 overflow-y-auto custom-scrollbar pr-2">
@@ -756,7 +800,6 @@
             `;
         }
 
-        // DETALHES DO AGENDAMENTO (COM OPÇÕES CANCELAR E NÃO COMPARECEU)
         window.showAppDetails = function(appId) {
             const app = t.appointments.find(a => a.id === appId); if(!app) return;
             const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
@@ -788,7 +831,6 @@
         window.salvarPerfil = function(userId) { const role = session.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'Senha atual incorreta.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
         window.saveEmployee = function(e) { e.preventDefault(); const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); };
         
-        // SALVAR PROCEDIMENTO (CRIAR OU EDITAR)
         window.saveProcedure = function(e) { 
             e.preventDefault(); 
             const name = document.getElementById('p-name').value;
@@ -805,7 +847,6 @@
             saveDB();
         };
 
-        // EXCLUIR PROCEDIMENTO (LIXEIRA)
         window.deleteProcedure = function(id) {
             showModal('Excluir Procedimento', 'Tem certeza que deseja excluir este procedimento?', 'error', () => {
                 t.procedures = t.procedures.filter(p => p.id !== id);
