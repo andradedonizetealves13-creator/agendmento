@@ -103,6 +103,7 @@
             window.clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null, isForOther: false, beneficiaryName: '' };
             window.clientCalYear = new Date().getFullYear();
             window.clientCalMonth = new Date().getMonth();
+            window.showHistoryApps = false; // Controle da exibição dos agendamentos antigos
 
             const savedClient = localStorage.getItem('agendaProClient_' + orgSlug);
             window.currentClient = savedClient ? JSON.parse(savedClient) : null;
@@ -136,6 +137,15 @@
             window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
             window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
             window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
+
+            window.getEffectiveAppStatus = function(appItem) {
+                if (appItem.status === 'cancelado') return 'cancelado';
+                if (appItem.status === 'nao_compareceu') return 'nao_compareceu';
+                if (appItem.status === 'realizado') return 'realizado';
+                const appDateTime = new Date(appItem.date + 'T' + appItem.time);
+                if (appDateTime < new Date()) return 'realizado';
+                return 'agendado';
+            };
 
             window.doesEmployeeWorkOnDate = function(emp, dateStr) {
                 if (emp.exceptions && emp.exceptions[dateStr]) {
@@ -296,31 +306,108 @@
                     </div>`;
             }
 
+            // EXIBIÇÃO DE AGENDAMENTOS SEPARADOS EM ATIVOS E HISTÓRICO
             function renderClientAppointments() {
-                const apps = (t.appointments || []).filter(a => a.clientId === currentClient.id).sort((a,b) => new Date(b.date+'T'+b.time) - new Date(a.date+'T'+a.time));
+                const allApps = (t.appointments || [])
+                    .filter(a => a.clientId === currentClient.id)
+                    .sort((a,b) => new Date(b.date+'T'+b.time) - new Date(a.date+'T'+a.time));
+
+                // Filtrar Ativos (Futuros e Status Agendado)
+                const activeApps = allApps.filter(a => getEffectiveAppStatus(a) === 'agendado');
+
+                // Filtrar Histórico (Passados, Concluídos, Cancelados ou Não Compareceu)
+                const historyApps = allApps.filter(a => getEffectiveAppStatus(a) !== 'agendado');
+
                 return `
-                    <div class="max-w-2xl mx-auto mt-6 fade-in"><h2 class="text-2xl font-black mb-6">Meus Agendamentos</h2>
-                        <div class="space-y-4">${apps.length === 0 ? `<div class="bg-white p-8 rounded-2xl border text-center"><p class="text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>` : apps.map(a => {
-                            const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e=>e.id===a.employeeId);
-                            const isDependent = a.beneficiaryName && a.beneficiaryName.trim() !== '' && a.beneficiaryName !== currentClient.name;
-                            return `<div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div>
-                                    <div class="flex space-x-2 mb-1">
-                                        <span class="bg-theme-secondary text-theme-primary text-xs font-bold px-2 py-1 rounded">${formatDateBR(a.date)} às ${a.time}</span>
-                                        <span class="text-xs text-slate-500">${a.totalDuration} min</span>
+                    <div class="max-w-2xl mx-auto mt-6 fade-in space-y-6">
+                        <div>
+                            <h2 class="text-2xl font-black mb-4 text-slate-900">Meus Agendamentos Próximos</h2>
+                            <div class="space-y-4">
+                                ${activeApps.length === 0 ? `
+                                    <div class="bg-white p-8 rounded-2xl border text-center shadow-sm">
+                                        <p class="text-slate-500 font-medium">Você não possui agendamentos futuros pendentes.</p>
+                                        <button onclick="clientActiveTab='book';render()" class="mt-3 text-sm font-bold text-theme-primary hover:underline">Fazer novo agendamento agora</button>
                                     </div>
-                                    <p class="font-bold text-slate-800 text-lg">${a.proceduresNames.join(', ')}</p>
-                                    <p class="text-sm text-slate-500 mt-1">Com <b>${emp?emp.name:'Equipe'}</b> ${isDependent ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${a.beneficiaryName}</span>` : ''}</p>
+                                ` : activeApps.map(a => {
+                                    const emp = a.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e=>e.id===a.employeeId);
+                                    const isDependent = a.beneficiaryName && a.beneficiaryName.trim() !== '' && a.beneficiaryName !== currentClient.name;
+                                    return `
+                                        <div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 hover:border-slate-300 transition-colors">
+                                            <div>
+                                                <div class="flex items-center space-x-2 mb-1">
+                                                    <span class="bg-theme-secondary text-theme-primary text-xs font-bold px-2.5 py-1 rounded-lg">${formatDateBR(a.date)} às ${a.time}</span>
+                                                    <span class="text-xs text-slate-500 font-medium">${a.totalDuration} min</span>
+                                                </div>
+                                                <p class="font-bold text-slate-800 text-lg leading-tight mt-1">${a.proceduresNames.join(', ')}</p>
+                                                <p class="text-sm text-slate-500 mt-1">Com <b>${emp?emp.name:'Equipe'}</b> ${isDependent ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${a.beneficiaryName}</span>` : ''}</p>
+                                            </div>
+                                            <div class="flex md:flex-col items-end justify-between w-full md:w-auto border-t md:border-0 pt-3 md:pt-0">
+                                                <span class="font-black text-emerald-600 text-lg mb-2">R$ ${a.totalPrice.toFixed(2)}</span>
+                                                <button onclick="cancelClientApp('${a.id}')" class="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold px-4 py-2 rounded-xl border border-rose-200 transition-colors">Cancelar</button>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <!-- BOTÃO DE CARREGAR HISTÓRICO / AGENDAMENTOS ANTIGOS -->
+                        <div class="pt-4 text-center">
+                            <button onclick="showHistoryApps = !showHistoryApps; render()" class="bg-white hover:bg-slate-50 text-slate-700 border font-bold px-6 py-3 rounded-2xl text-xs shadow-sm transition-all flex items-center justify-center mx-auto space-x-2">
+                                <i data-lucide="${showHistoryApps ? 'chevron-up' : 'history'}" class="w-4 h-4"></i>
+                                <span>${showHistoryApps ? 'Ocultar Histórico' : 'Carregar Agendamentos Antigos / Histórico'}</span>
+                            </button>
+                        </div>
+
+                        <!-- BLOCO DO HISTÓRICO (EXIBIDO QUANDO SOLICITADO) -->
+                        ${showHistoryApps ? `
+                            <div class="pt-4 border-t border-slate-200/60 fade-in">
+                                <h3 class="text-lg font-bold text-slate-700 mb-3 flex items-center">
+                                    <i data-lucide="archive" class="w-5 h-5 mr-2 text-slate-400"></i>
+                                    Histórico (Concluídos, Cancelados ou Faltas)
+                                </h3>
+                                <div class="space-y-3">
+                                    ${historyApps.length === 0 ? `
+                                        <p class="text-xs text-slate-400 text-center py-4 bg-white/60 rounded-xl border">Nenhum histórico de agendamentos antigos registrado.</p>
+                                    ` : historyApps.map(a => {
+                                        const st = getEffectiveAppStatus(a);
+                                        const emp = a.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e=>e.id===a.employeeId);
+                                        
+                                        let statusTag = `<span class="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Concluído</span>`;
+                                        if (st === 'cancelado') statusTag = `<span class="bg-rose-50 text-rose-700 border-rose-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Cancelado</span>`;
+                                        else if (st === 'nao_compareceu') statusTag = `<span class="bg-amber-50 text-amber-700 border-amber-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Não Compareceu</span>`;
+
+                                        return `
+                                            <div class="bg-white/80 p-4 rounded-2xl border shadow-xs flex justify-between items-center opacity-85">
+                                                <div>
+                                                    <div class="flex items-center space-x-2 mb-1">
+                                                        <span class="text-xs font-bold text-slate-600">${formatDateBR(a.date)} às ${a.time}</span>
+                                                        ${statusTag}
+                                                    </div>
+                                                    <p class="font-bold text-slate-800 text-sm">${a.proceduresNames.join(', ')}</p>
+                                                    <p class="text-xs text-slate-500 mt-0.5">Com ${emp?emp.name:'Equipe'}</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <span class="font-bold text-slate-700 text-sm">R$ ${a.totalPrice.toFixed(2)}</span>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
                                 </div>
-                                <div class="flex md:flex-col items-end justify-between w-full md:w-auto border-t md:border-0 pt-3 md:pt-0"><span class="font-black text-emerald-600 text-lg mb-2">R$ ${a.totalPrice.toFixed(2)}</span><button onclick="cancelClientApp('${a.id}')" class="text-xs bg-rose-50 text-rose-600 font-bold px-4 py-2 rounded-lg hover:bg-rose-100">Cancelar</button></div>
-                            </div>`;
-                        }).join('')}</div>
-                    </div>`;
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
             }
 
             window.cancelClientApp = function(id) {
-                showModal('Cancelar', 'Deseja cancelar o agendamento?', 'error', () => {
-                    t.appointments = t.appointments.filter(a => a.id !== id); saveDB();
+                showModal('Cancelar Agendamento', 'Tem certeza que deseja cancelar este agendamento?', 'error', () => {
+                    const app = t.appointments.find(a => a.id === id);
+                    if (app) {
+                        app.status = 'cancelado';
+                        saveDB();
+                        showModal('Sucesso', 'O agendamento foi cancelado.', 'success');
+                    }
                 });
             };
 
