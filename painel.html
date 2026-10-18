@@ -19,9 +19,14 @@
             --bg-blur: 0px;
         }
         html, body { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            font-family: 'Inter', sans-serif; background-color: var(--theme-bg) !important; 
-            overflow: hidden; transition: background-color 0.3s ease; 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%; 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--theme-bg) !important; 
+            overflow: hidden; 
+            transition: background-color 0.3s ease;
             position: relative;
         }
         #custom-bg-layer {
@@ -68,14 +73,6 @@
         .btn-theme-primary:hover { background-color: var(--theme-primary-hover); }
         .bg-theme-secondary { background-color: var(--theme-secondary); }
         .text-theme-primary { color: var(--theme-primary); }
-
-        .preview-interactive-canvas {
-            cursor: grab;
-            user-select: none;
-        }
-        .preview-interactive-canvas:active {
-            cursor: grabbing;
-        }
     </style>
 </head>
 <body class="text-slate-800 antialiased h-full w-full">
@@ -154,599 +151,615 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // VALIDAÇÃO DA SESSÃO LOCAL SEM BLOQUEIO SILENCIOSO
         const sessionStr = localStorage.getItem('agendaProSession');
-        let session = null;
-        try {
-            session = JSON.parse(sessionStr);
-        } catch (err) {
-            session = null;
+        if (!sessionStr) { window.location.href = 'index.html'; }
+        const session = JSON.parse(sessionStr);
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
+            authDomain: "agenda-16a31.firebaseapp.com",
+            databaseURL: "https://agenda-16a31-default-rtdb.firebaseio.com",
+            projectId: "agenda-16a31",
+            storageBucket: "agenda-16a31.firebasestorage.app",
+            messagingSenderId: "865554229500",
+            appId: "1:865554229500:web:f786ebd6f0d0781019cf79"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const rtdb = getDatabase(app);
+        const tenantRef = ref(rtdb, 'agendapro_saas/tenants/' + session.slug);
+
+        const COLOR_PALETTE = ['#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', '#7c3aed', '#c026d3', '#db2777', '#0891b2', '#4b5563'];
+
+        window.THEME_PALETTES = [
+            { id: 'wine_velvet', name: 'Vinho & Rosa Seco', bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515', previewBg: '#E8C5D0', previewPrimary: '#4A0E2E', previewAccent: '#B56B82' },
+            { id: 'indigo_classic', name: 'Índigo Clássico', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b', previewBg: '#f8fafc', previewPrimary: '#4f46e5', previewAccent: '#e0e7ff' },
+            { id: 'emerald_nature', name: 'Esmeralda Sofisticado', bg: '#e6f4ea', primary: '#059669', primaryHover: '#047857', secondary: '#a7f3d0', dark: '#064e3b', previewBg: '#e6f4ea', previewPrimary: '#059669', previewAccent: '#a7f3d0' },
+            { id: 'amber_gold', name: 'Âmbar Dourado', bg: '#fef3c7', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f', previewBg: '#fef3c7', previewPrimary: '#d97706', previewAccent: '#fde68a' },
+            { id: 'slate_dark', name: 'Grafite Elegante', bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a', previewBg: '#f1f5f9', previewPrimary: '#334155', previewAccent: '#cbd5e1' }
+        ];
+
+        function getDefWH() {
+            return {
+                0: { active: false, start: '09:00', end: '13:00' }, 1: { active: true,  start: '09:00', end: '18:00' },
+                2: { active: true,  start: '09:00', end: '18:00' }, 3: { active: true,  start: '09:00', end: '18:00' },
+                4: { active: true,  start: '09:00', end: '18:00' }, 5: { active: true,  start: '09:00', end: '18:00' },
+                6: { active: true,  start: '09:00', end: '14:00' }
+            };
         }
 
-        if (!session || !session.slug) {
-            document.getElementById('app').innerHTML = `
-                <div class="bg-white p-8 rounded-3xl shadow-xl border text-center max-w-md w-full">
-                    <h2 class="text-xl font-bold text-rose-600 mb-2">Sessão Expirada</h2>
-                    <p class="text-slate-500 text-sm mb-4">Você precisa fazer login novamente para acessar o painel.</p>
-                    <a href="index.html" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-all shadow-md">Ir para a Tela de Login</a>
-                </div>`;
-        } else {
-            const firebaseConfig = {
-                apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
-                authDomain: "agenda-16a31.firebaseapp.com",
-                databaseURL: "https://agenda-16a31-default-rtdb.firebaseio.com",
-                projectId: "agenda-16a31",
-                storageBucket: "agenda-16a31.firebasestorage.app",
-                messagingSenderId: "865554229500",
-                appId: "1:865554229500:web:f786ebd6f0d0781019cf79"
-            };
+        window.t = null;
+        window.activeTab = 'agenda'; 
+        window.editEmployeeId = null;
+        window.editProcedureId = null;
+        window.currentWeekOffset = 0;
+        window.dashboardViewMode = 'calendar'; 
+        window.dashboardFilterMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+        window.dashboardFilterYear = new Date().getFullYear().toString();
+        window.listFilterMonth = ''; window.listFilterDate = '';
+        window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
 
-            const app = initializeApp(firebaseConfig);
-            const rtdb = getDatabase(app);
-            const tenantRef = ref(rtdb, 'agendapro_saas/tenants/' + session.slug);
+        let isDragging = false;
+        let activeColumnEl = null;
+        let startY = 0;
+        let currentY = 0;
+        let dragDateStr = null;
 
-            const COLOR_PALETTE = ['#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', '#7c3aed', '#c026d3', '#db2777', '#0891b2', '#4b5563'];
-
-            window.THEME_PALETTES = [
-                { id: 'wine_velvet', name: 'Vinho & Rosa Seco', bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515', previewBg: '#E8C5D0', previewPrimary: '#4A0E2E', previewAccent: '#B56B82' },
-                { id: 'indigo_classic', name: 'Índigo Clássico', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b', previewBg: '#f8fafc', previewPrimary: '#4f46e5', previewAccent: '#e0e7ff' },
-                { id: 'emerald_nature', name: 'Esmeralda Sofisticado', bg: '#e6f4ea', primary: '#059669', primaryHover: '#047857', secondary: '#a7f3d0', dark: '#064e3b', previewBg: '#e6f4ea', previewPrimary: '#059669', previewAccent: '#a7f3d0' },
-                { id: 'amber_gold', name: 'Âmbar Dourado', bg: '#fef3c7', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f', previewBg: '#fef3c7', previewPrimary: '#d97706', previewAccent: '#fde68a' },
-                { id: 'slate_dark', name: 'Grafite Elegante', bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a', previewBg: '#f1f5f9', previewPrimary: '#334155', previewAccent: '#cbd5e1' }
-            ];
-
-            function getDefWH() {
-                return {
-                    0: { active: false, start: '09:00', end: '13:00' }, 1: { active: true,  start: '09:00', end: '18:00' },
-                    2: { active: true,  start: '09:00', end: '18:00' }, 3: { active: true,  start: '09:00', end: '18:00' },
-                    4: { active: true,  start: '09:00', end: '18:00' }, 5: { active: true,  start: '09:00', end: '18:00' },
-                    6: { active: true,  start: '09:00', end: '14:00' }
-                };
+        onValue(tenantRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                localStorage.removeItem('agendaProSession');
+                window.location.href = 'index.html';
+                return;
             }
-
-            window.t = null;
-            window.activeTab = 'agenda'; 
-            window.editEmployeeId = null;
-            window.editProcedureId = null;
-            window.currentWeekOffset = 0;
-            window.dashboardViewMode = 'calendar'; 
-            window.dashboardFilterMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
-            window.dashboardFilterYear = new Date().getFullYear().toString();
-            window.listFilterMonth = ''; window.listFilterDate = '';
-            window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
-            window.activeBgMode = 'mobile';
-
-            let isDragging = false;
-            let activeColumnEl = null;
-            let startY = 0;
-            let currentY = 0;
-            let dragDateStr = null;
-
-            let isImgDragging = false;
-            let imgStartX = 0, imgStartY = 0;
-
-            onValue(tenantRef, (snapshot) => {
-                const data = snapshot.val();
-                if (!data) {
-                    document.getElementById('app').innerHTML = `
-                        <div class="bg-white p-8 rounded-3xl shadow-xl border text-center max-w-md w-full">
-                            <h2 class="text-xl font-bold text-rose-600 mb-2">Empresa Não Encontrada</h2>
-                            <p class="text-slate-500 text-sm mb-4">Esta organização não existe no banco de dados.</p>
-                            <a href="index.html" class="inline-block bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl text-sm">Voltar ao Login</a>
-                        </div>`;
-                    return;
-                }
-                window.t = data;
-                
-                if(!t.themePalette) t.themePalette = 'wine_velvet';
-                if(t.bgCustomPosX === undefined) t.bgCustomPosX = 50;
-                if(t.bgCustomPosY === undefined) t.bgCustomPosY = 50;
-                if(t.bgCustomScale === undefined) t.bgCustomScale = 100;
-                
-                if(t.bgMobilePosX === undefined) t.bgMobilePosX = 50;
-                if(t.bgMobilePosY === undefined) t.bgMobilePosY = 50;
-                if(t.bgMobileScale === undefined) t.bgMobileScale = 100;
-
-                if(!t.admin.workingHours) t.admin.workingHours = getDefWH();
-                if(!t.admin.exceptions) t.admin.exceptions = {};
-                if(!t.admin.color) t.admin.color = COLOR_PALETTE[0];
-                if(!t.requests) t.requests = [];
-                if(!t.employees) t.employees = [];
-                if(!t.procedures) t.procedures = [];
-                if(!t.appointments) t.appointments = [];
-                if(!t.clients) t.clients = [];
-                
-                t.employees.forEach((e, idx) => {
-                    if(!e.workingHours) e.workingHours = getDefWH();
-                    if(!e.exceptions) e.exceptions = {};
-                    if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
-                });
-
-                applyThemeCSS(t.themePalette);
-                render();
-            }, (error) => {
-                document.getElementById('app').innerHTML = `<div class="p-6 text-center text-rose-600 font-bold">Erro de conexão ao Firebase: ${error.message}</div>`;
+            window.t = data;
+            
+            if(!t.themePalette) t.themePalette = 'wine_velvet';
+            if(!t.admin.workingHours) t.admin.workingHours = getDefWH();
+            if(!t.admin.exceptions) t.admin.exceptions = {};
+            if(!t.admin.color) t.admin.color = COLOR_PALETTE[0];
+            if(!t.requests) t.requests = [];
+            if(!t.employees) t.employees = [];
+            if(!t.procedures) t.procedures = [];
+            if(!t.appointments) t.appointments = [];
+            if(!t.clients) t.clients = [];
+            
+            t.employees.forEach((e, idx) => {
+                if(!e.workingHours) e.workingHours = getDefWH();
+                if(!e.exceptions) e.exceptions = {};
+                if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
             });
 
-            function applyThemeCSS(paletteId) {
-                const palette = THEME_PALETTES.find(p => p.id === paletteId) || THEME_PALETTES[0];
-                document.documentElement.style.setProperty('--theme-bg', palette.bg);
-                document.documentElement.style.setProperty('--theme-primary', palette.primary);
-                document.documentElement.style.setProperty('--theme-primary-hover', palette.primaryHover);
-                document.documentElement.style.setProperty('--theme-secondary', palette.secondary);
-                document.documentElement.style.setProperty('--theme-text-primary', palette.dark);
+            applyThemeCSS(t.themePalette);
+            applyBgImageSettings();
+            render();
+        }, (error) => {
+            document.getElementById('app').innerHTML = `<div class="p-6 text-center text-rose-600 font-bold">Erro de conexão ao Firebase: ${error.message}</div>`;
+        });
+
+        function applyThemeCSS(paletteId) {
+            const palette = THEME_PALETTES.find(p => p.id === paletteId) || THEME_PALETTES[0];
+            document.documentElement.style.setProperty('--theme-bg', palette.bg);
+            document.documentElement.style.setProperty('--theme-primary', palette.primary);
+            document.documentElement.style.setProperty('--theme-primary-hover', palette.primaryHover);
+            document.documentElement.style.setProperty('--theme-secondary', palette.secondary);
+            document.documentElement.style.setProperty('--theme-text-primary', palette.dark);
+        }
+
+        function applyBgImageSettings() {
+            if (t.bgCustomImage) {
+                document.documentElement.style.setProperty('--bg-image', `url(${t.bgCustomImage})`);
+                document.documentElement.style.setProperty('--bg-opacity', t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.15);
+                document.documentElement.style.setProperty('--bg-blur', (t.bgCustomBlur || 0) + 'px');
+            } else {
+                document.documentElement.style.setProperty('--bg-image', 'none');
             }
+        }
 
-            window.saveDB = function() { set(tenantRef, window.t); };
-            window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
-            window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
-            window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
+        window.saveDB = function() { set(tenantRef, window.t); };
+        window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
+        window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
+        window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
 
-            window.getEffectiveAppStatus = function(appItem) {
-                if (appItem.status === 'cancelado') return 'cancelado';
-                if (appItem.status === 'nao_compareceu') return 'nao_compareceu';
-                if (appItem.status === 'realizado') return 'realizado';
-                const appDateTime = new Date(appItem.date + 'T' + appItem.time);
-                if (appDateTime < new Date()) return 'realizado';
-                return 'agendado';
-            };
+        window.getEffectiveAppStatus = function(appItem) {
+            if (appItem.status === 'cancelado') return 'cancelado';
+            if (appItem.status === 'nao_compareceu') return 'nao_compareceu';
+            if (appItem.status === 'realizado') return 'realizado';
+            const appDateTime = new Date(appItem.date + 'T' + appItem.time);
+            if (appDateTime < new Date()) return 'realizado';
+            return 'agendado';
+        };
 
-            window.doesEmployeeWorkOnDate = function(emp, dateStr) {
-                if (emp.exceptions && emp.exceptions[dateStr]) {
-                    if (emp.exceptions[dateStr].type === 'folga') return false;
-                    if (emp.exceptions[dateStr].type === 'plantao') return true;
-                }
-                if (t.admin.exceptions && t.admin.exceptions[dateStr]) {
-                    if (t.admin.exceptions[dateStr].type === 'folga') return false;
-                    if (t.admin.exceptions[dateStr].type === 'plantao') return true;
-                }
-                const [y, m, d] = dateStr.split('-'); 
-                const dayOfWeek = new Date(y, m - 1, d).getDay(); 
-                const whSource = emp.workingHours || t.admin.workingHours;
-                return whSource?.[dayOfWeek]?.active !== false;
-            };
+        window.doesEmployeeWorkOnDate = function(emp, dateStr) {
+            if (emp.exceptions && emp.exceptions[dateStr]) {
+                if (emp.exceptions[dateStr].type === 'folga') return false;
+                if (emp.exceptions[dateStr].type === 'plantao') return true;
+            }
+            if (t.admin.exceptions && t.admin.exceptions[dateStr]) {
+                if (t.admin.exceptions[dateStr].type === 'folga') return false;
+                if (t.admin.exceptions[dateStr].type === 'plantao') return true;
+            }
+            const [y, m, d] = dateStr.split('-'); 
+            const dayOfWeek = new Date(y, m - 1, d).getDay(); 
+            const whSource = emp.workingHours || t.admin.workingHours;
+            return whSource?.[dayOfWeek]?.active !== false;
+        };
 
-            window.showModal = function(title, message, type = 'info', onConfirm = null) {
-                const modal = document.getElementById('custom-modal');
-                const iconContainer = document.getElementById('modal-icon-container');
-                const buttonsContainer = document.getElementById('modal-buttons');
-                iconContainer.classList.remove('hidden');
-                document.getElementById('modal-title').textContent = title;
-                document.getElementById('modal-message').innerHTML = message;
-                if (type === 'success') { iconContainer.className = 'mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mx-auto'; iconContainer.innerHTML = '<i data-lucide="check-circle" class="w-6 h-6"></i>'; }
-                else if (type === 'error') { iconContainer.className = 'mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-rose-50 text-rose-600 mx-auto'; iconContainer.innerHTML = '<i data-lucide="alert-triangle" class="w-6 h-6"></i>'; }
-                else { iconContainer.className = 'mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 mx-auto'; iconContainer.innerHTML = '<i data-lucide="info" class="w-6 h-6"></i>'; }
+        window.showModal = function(title, message, type = 'info', onConfirm = null) {
+            const modal = document.getElementById('custom-modal');
+            const iconContainer = document.getElementById('modal-icon-container');
+            const buttonsContainer = document.getElementById('modal-buttons');
+            iconContainer.classList.remove('hidden');
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').innerHTML = message;
+            if (type === 'success') { iconContainer.className = 'mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mx-auto'; iconContainer.innerHTML = '<i data-lucide="check-circle" class="w-6 h-6"></i>'; }
+            else if (type === 'error') { iconContainer.className = 'mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-rose-50 text-rose-600 mx-auto'; iconContainer.innerHTML = '<i data-lucide="alert-triangle" class="w-6 h-6"></i>'; }
+            else { iconContainer.className = 'mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 mx-auto'; iconContainer.innerHTML = '<i data-lucide="info" class="w-6 h-6"></i>'; }
 
-                if (onConfirm) {
-                    buttonsContainer.innerHTML = `<button onclick="closeModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 md:py-2.5 rounded-xl font-medium">Cancelar</button><button id="btn-confirm" class="flex-1 btn-theme-primary py-3 md:py-2.5 rounded-xl font-medium shadow-sm">Confirmar</button>`;
-                    document.getElementById('btn-confirm').onclick = () => { closeModal(); onConfirm(); };
-                } else { buttonsContainer.innerHTML = `<button onclick="closeModal()" class="w-full btn-theme-primary py-3 md:py-2.5 rounded-xl font-medium shadow-sm">OK</button>`; }
-                modal.classList.remove('hidden'); if(window.lucide) lucide.createIcons();
-            };
-            window.closeModal = function() { document.getElementById('custom-modal').classList.add('hidden'); };
-            window.showImageModal = function(src) { if(!src) return; document.getElementById('image-modal-content').src = src; document.getElementById('image-modal').classList.remove('hidden'); if(window.lucide) lucide.createIcons(); };
-            window.closeImageModal = function() { document.getElementById('image-modal').classList.add('hidden'); };
-            window.toggleDropdown = function(id) { document.querySelectorAll('.custom-dropdown-menu').forEach(el => { if(el.id !== id) el.classList.add('hidden'); }); document.getElementById(id).classList.toggle('hidden'); };
-            window.toggleMobileMenu = function() { isSidebarOpenMobile = !isSidebarOpenMobile; render(); };
-            
-            window.logout = function() { localStorage.removeItem('agendaProSession'); window.location.href = 'index.html'; };
+            if (onConfirm) {
+                buttonsContainer.innerHTML = `<button onclick="closeModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 md:py-2.5 rounded-xl font-medium">Cancelar</button><button id="btn-confirm" class="flex-1 btn-theme-primary py-3 md:py-2.5 rounded-xl font-medium shadow-sm">Confirmar</button>`;
+                document.getElementById('btn-confirm').onclick = () => { closeModal(); onConfirm(); };
+            } else { buttonsContainer.innerHTML = `<button onclick="closeModal()" class="w-full btn-theme-primary py-3 md:py-2.5 rounded-xl font-medium shadow-sm">OK</button>`; }
+            modal.classList.remove('hidden'); if(window.lucide) lucide.createIcons();
+        };
+        window.closeModal = function() { document.getElementById('custom-modal').classList.add('hidden'); };
+        window.showImageModal = function(src) { if(!src) return; document.getElementById('image-modal-content').src = src; document.getElementById('image-modal').classList.remove('hidden'); if(window.lucide) lucide.createIcons(); };
+        window.closeImageModal = function() { document.getElementById('image-modal').classList.add('hidden'); };
+        window.toggleDropdown = function(id) { document.querySelectorAll('.custom-dropdown-menu').forEach(el => { if(el.id !== id) el.classList.add('hidden'); }); document.getElementById(id).classList.toggle('hidden'); };
+        window.toggleMobileMenu = function() { isSidebarOpenMobile = !isSidebarOpenMobile; render(); };
+        
+        window.logout = function() { localStorage.removeItem('agendaProSession'); window.location.href = 'index.html'; };
 
-            window.render = function() {
-                if(!window.t) return;
-                const role = session.role || 'admin';
-                const userProfile = role === 'admin' ? t.admin : (t.employees || []).find(e=>e.id === session.id);
-                if(!userProfile) return logout();
+        window.render = function() {
+            if(!window.t) return;
+            const role = session.role;
+            const userProfile = role === 'admin' ? t.admin : (t.employees || []).find(e=>e.id === session.id);
+            if(!userProfile) return logout();
 
-                const logoHtml = t.logo ? `<img src="${t.logo}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-lg shadow-sm">O</div>`;
-                const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${userProfile.name ? userProfile.name.charAt(0) : 'A'}</div>`;
+            const logoHtml = t.logo ? `<img src="${t.logo}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-lg shadow-sm">O</div>`;
+            const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${userProfile.name.charAt(0)}</div>`;
 
-                const sidebarClasses = isSidebarOpenMobile ? "fixed inset-y-0 left-0 z-50 w-72 bg-white/90 backdrop-blur-md shadow-2xl translate-x-0 flex flex-col h-full" : "fixed inset-y-0 left-0 z-50 w-72 bg-white/90 backdrop-blur-md shadow-2xl -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:w-20 hover:md:w-64 transition-all duration-300 group flex flex-col shrink-0 overflow-hidden z-20";
-                const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-40 md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
+            const sidebarClasses = isSidebarOpenMobile ? "fixed inset-y-0 left-0 z-50 w-72 bg-white/90 backdrop-blur-md shadow-2xl translate-x-0 flex flex-col h-full" : "fixed inset-y-0 left-0 z-50 w-72 bg-white/90 backdrop-blur-md shadow-2xl -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:w-20 hover:md:w-64 transition-all duration-300 group flex flex-col shrink-0 overflow-hidden z-20";
+            const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-40 md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
 
-                document.getElementById('app').innerHTML = `
-                    <div class="flex h-screen w-screen fade-in relative overflow-hidden bg-slate-100">
-                        ${overlayMobile}
-                        
-                        <aside class="${sidebarClasses} border-r border-slate-200">
-                            <div onclick="activeTab='dashboard'; render()" class="p-5 md:p-4 border-b border-slate-100 flex items-center space-x-3 bg-slate-50/50 w-full h-20 cursor-pointer hover:bg-slate-100/80 transition-colors shrink-0 overflow-hidden">
-                                ${logoHtml}
-                                <div class="md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 overflow-hidden">
-                                    <h2 class="font-bold text-slate-800 text-sm truncate w-36">${t.name}</h2>
-                                    <span class="text-[10px] text-theme-primary font-bold uppercase tracking-wider block truncate">Ver Dashboard</span>
-                                </div>
-                                <button onclick="event.stopPropagation(); toggleMobileMenu()" class="ml-auto md:hidden p-2 text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-6 h-6"></i></button>
+            document.getElementById('app').innerHTML = `
+                <div class="flex h-screen w-screen fade-in relative overflow-hidden">
+                    ${overlayMobile}
+                    
+                    <aside class="${sidebarClasses} border-r border-slate-200">
+                        <div onclick="activeTab='dashboard'; render()" class="p-5 md:p-4 border-b border-slate-100 flex items-center space-x-3 bg-slate-50/50 w-full h-20 cursor-pointer hover:bg-slate-100/80 transition-colors shrink-0 overflow-hidden">
+                            ${logoHtml}
+                            <div class="md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 overflow-hidden">
+                                <h2 class="font-bold text-slate-800 text-sm truncate w-36">${t.name}</h2>
+                                <span class="text-[10px] text-theme-primary font-bold uppercase tracking-wider block truncate">Ver Dashboard</span>
                             </div>
-
-                            <nav class="flex-1 p-4 md:p-3 space-y-2 overflow-y-auto custom-scrollbar w-full overflow-x-hidden">
-                                <button onclick="activeTab='agenda'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='agenda'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="calendar" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Minha Agenda</span></button>
-                                <button onclick="activeTab='dashboard'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='dashboard'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="bar-chart-2" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Dashboard</span></button>
-                                <button onclick="activeTab='horarios'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='horarios'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="clock" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Horários & Plantões</span></button>
-                                ${role === 'admin' ? `
-                                    <button onclick="activeTab='procedures'; editProcedureId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='procedures'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="scissors" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Procedimentos</span></button>
-                                    <button onclick="activeTab='employees'; editEmployeeId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='employees'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="users" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Equipe</span></button>
-                                ` : ''}
-                                <button onclick="activeTab='profile'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='profile'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="settings" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Configurações & Estilos</span></button>
-                            </nav>
-
-                            <div onclick="activeTab='profile'; render()" class="p-3.5 border-t border-slate-100 flex items-center bg-white/90 w-full overflow-hidden cursor-pointer hover:bg-slate-50 transition-colors shrink-0">
-                                ${userAvatarHtml}
-                                <div class="ml-3 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 w-28 overflow-hidden">
-                                    <p class="text-sm font-bold text-slate-900 truncate">${userProfile.name}</p>
-                                    <p class="text-[10px] text-theme-primary uppercase font-bold tracking-wider truncate">${role === 'admin' ? 'Administrador' : 'Profissional'}</p>
-                                </div>
-                                <button onclick="event.stopPropagation(); logout()" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all ml-auto opacity-0 group-hover:opacity-100 shrink-0" title="Sair"><i data-lucide="log-out" class="w-5 h-5"></i></button>
-                            </div>
-                        </aside>
-
-                        <main class="flex-1 flex flex-col h-full overflow-hidden w-full relative z-10">
-                            <header class="h-16 md:h-14 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-10 shrink-0">
-                                <div class="flex items-center">
-                                    <button onclick="toggleMobileMenu()" class="md:hidden mr-3 p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><i data-lucide="menu" class="w-6 h-6"></i></button>
-                                    <h1 class="font-bold text-slate-800 text-sm md:text-base hidden sm:block">Painel de Controle</h1>
-                                </div>
-                                <div class="flex items-center space-x-3">
-                                    <button onclick="openCreateModal()" class="btn-theme-primary px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm transition-all"><i data-lucide="plus" class="w-4 h-4 mr-1"></i> Agendar Manual</button>
-                                    <button onclick="activeTab='profile'; render()" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors hidden sm:block">${userProfile.name}</button>
-                                    ${role === 'admin' ? `
-                                        <button onclick="copiarLinkCliente()" class="text-xs md:text-sm bg-theme-secondary text-theme-primary px-4 py-2 rounded-lg font-bold flex items-center space-x-2 border border-slate-200 transition-colors shadow-sm"><i data-lucide="external-link" class="w-4 h-4"></i> <span class="hidden sm:inline">Copiar Link do Cliente</span><span class="sm:hidden">Link Cliente</span></button>
-                                    ` : ''}
-                                </div>
-                            </header>
-
-                            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 w-full">
-                                ${renderDashboardContent(role, userProfile)}
-                            </div>
-                        </main>
-                    </div>`;
-                if(window.lucide) lucide.createIcons();
-                attachDragHandlers();
-                attachCanvasInteractivity();
-            };
-
-            window.copiarLinkCliente = function() { 
-                const baseUrl = window.location.href.replace('painel.html', 'cliente.html').split('?')[0];
-                const link = baseUrl + '?org=' + session.slug; 
-                navigator.clipboard.writeText(link); 
-                showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); 
-            };
-
-            function attachDragHandlers() {
-                const dayColumns = document.querySelectorAll('.calendar-day-column');
-                dayColumns.forEach(col => {
-                    col.addEventListener('mousedown', (e) => {
-                        if (e.target.closest('.appointment-postit')) return;
-                        isDragging = true;
-                        activeColumnEl = col;
-                        dragDateStr = col.getAttribute('data-date');
-                        const rect = col.getBoundingClientRect();
-                        startY = e.clientY - rect.top;
-                        currentY = startY;
-                        updateDragSelectionBox();
-                    });
-
-                    col.addEventListener('mousemove', (e) => {
-                        if (isDragging && activeColumnEl === col) {
-                            const rect = col.getBoundingClientRect();
-                            currentY = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
-                            updateDragSelectionBox();
-                        }
-                    });
-                });
-
-                document.addEventListener('mouseup', () => {
-                    if (isDragging && activeColumnEl) {
-                        isDragging = false;
-                        const topY = Math.min(startY, currentY);
-                        const bottomY = Math.max(startY, currentY);
-                        const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
-                        let endMinsTotal = Math.floor((bottomY / 51) * 60) + 420;
-                        if (endMinsTotal - startMinsTotal < 15) endMinsTotal = startMinsTotal + 30;
-                        const roundedStartMins = Math.floor(startMinsTotal / 15) * 15;
-                        const roundedEndMins = Math.ceil(endMinsTotal / 15) * 15;
-                        removeDragSelectionBox();
-                        openCreateModal(dragDateStr, minsToTime(roundedStartMins), minsToTime(roundedEndMins));
-                    }
-                });
-            }
-
-            function updateDragSelectionBox() {
-                if (!activeColumnEl) return;
-                let box = activeColumnEl.querySelector('.drag-selection-box');
-                if (!box) {
-                    box = document.createElement('div');
-                    box.className = 'drag-selection-box';
-                    activeColumnEl.appendChild(box);
-                }
-                const topY = Math.min(startY, currentY);
-                const heightY = Math.max(Math.abs(currentY - startY), 15);
-                box.style.top = topY + 'px';
-                box.style.height = heightY + 'px';
-                const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
-                const endMinsTotal = Math.floor(((topY + heightY) / 51) * 60) + 420;
-                box.innerText = `${minsToTime(Math.floor(startMinsTotal/15)*15)} - ${minsToTime(Math.ceil(endMinsTotal/15)*15)}`;
-            }
-
-            function removeDragSelectionBox() {
-                document.querySelectorAll('.drag-selection-box').forEach(b => b.remove());
-                activeColumnEl = null;
-            }
-
-            window.openCreateModal = function(defaultDate = null, defaultStart = '09:00', defaultEnd = '10:00') {
-                const role = session.role || 'admin';
-                const empSelect = document.getElementById('manual-employee-id');
-                empSelect.innerHTML = '';
-                if (role === 'admin') {
-                    empSelect.disabled = false;
-                    empSelect.innerHTML += `<option value="${t.admin.id}">${t.admin.name} (ADM)</option>`;
-                    (t.employees || []).forEach(e => { empSelect.innerHTML += `<option value="${e.id}">${e.name}</option>`; });
-                } else {
-                    const userProfile = t.employees.find(e => e.id === session.id);
-                    empSelect.innerHTML = `<option value="${userProfile.id}" selected>${userProfile.name}</option>`;
-                    empSelect.disabled = true;
-                }
-                document.getElementById('manual-date').value = defaultDate || new Date().toISOString().split('T')[0];
-                document.getElementById('manual-start-time').value = defaultStart;
-                document.getElementById('manual-end-time').value = defaultEnd;
-                document.getElementById('manual-client-name').value = '';
-                const procList = document.getElementById('manual-procedures-list');
-                procList.innerHTML = (t.procedures || []).map(p => `
-                    <label class="flex items-center justify-between p-2.5 bg-white border rounded-xl hover:bg-indigo-50 cursor-pointer">
-                        <div class="flex items-center space-x-2">
-                            <input type="checkbox" value="${p.id}" class="manual-proc-cb w-4 h-4 text-indigo-600 rounded">
-                            <span class="text-xs font-bold text-slate-800">${p.name} (${p.duration} min)</span>
+                            <button onclick="event.stopPropagation(); toggleMobileMenu()" class="ml-auto md:hidden p-2 text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-6 h-6"></i></button>
                         </div>
-                        <span class="text-xs font-bold text-emerald-600">R$ ${p.price.toFixed(2)}</span>
-                    </label>
-                `).join('') || '<p class="text-xs text-slate-400">Nenhum procedimento cadastrado.</p>';
-                document.getElementById('create-modal').classList.remove('hidden');
-                if(window.lucide) lucide.createIcons();
-            };
 
-            window.closeCreateModal = function() { document.getElementById('create-modal').classList.add('hidden'); };
-
-            window.handleManualAppSave = function(e) {
-                e.preventDefault();
-                const clientName = document.getElementById('manual-client-name').value.trim();
-                const employeeId = document.getElementById('manual-employee-id').value;
-                const date = document.getElementById('manual-date').value;
-                const startTime = document.getElementById('manual-start-time').value;
-                const endTime = document.getElementById('manual-end-time').value;
-                const selectedProcIds = Array.from(document.querySelectorAll('.manual-proc-cb:checked')).map(cb => cb.value);
-                if (selectedProcIds.length === 0) return showModal('Aviso', 'Selecione pelo menos um procedimento.', 'info');
-                const selectedProcs = t.procedures.filter(p => selectedProcIds.includes(p.id));
-                const totalDuration = Math.max(timeToMins(endTime) - timeToMins(startTime), 15);
-                const totalPrice = selectedProcs.reduce((s, p) => s + p.price, 0);
-
-                const newApp = {
-                    id: 'app-' + Date.now(), clientId: 'manual-cli-' + Date.now(), clientName, beneficiaryName: clientName,
-                    employeeId, date, time: startTime, proceduresNames: selectedProcs.map(p => p.name), totalDuration, totalPrice, createdAt: new Date().toISOString()
-                };
-                if(!t.appointments) t.appointments = [];
-                t.appointments.push(newApp);
-                saveDB(); closeCreateModal();
-                showModal('Sucesso!', 'Agendamento cadastrado com sucesso.', 'success');
-            };
-
-            function renderDashboardContent(role, user) {
-                if(activeTab === 'agenda') {
-                    return `
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
-                            <h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2>
-                            <div class="flex space-x-2 bg-white/90 rounded-lg p-1 border shadow-sm self-start">
-                                <button onclick="dashboardViewMode='calendar'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='calendar'?'bg-theme-secondary text-theme-primary':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="layout-grid" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Calendário</span></button>
-                                <button onclick="dashboardViewMode='list'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='list'?'bg-theme-secondary text-theme-primary':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="list" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Lista</span></button>
-                            </div>
-                        </div>
-                        ${dashboardViewMode === 'calendar' ? renderWeeklyCalendar(role, user) : renderListView(role, user)}
-                    `;
-                }
-
-                if(activeTab === 'dashboard') return renderDashboardAnalytics(role, user);
-                
-                if(activeTab === 'horarios') {
-                    const isAdm = role === 'admin';
-                    const daysMap = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-                    const pendingRequests = t.requests ? t.requests.filter(r => r.status === 'pending') : [];
-
-                    if (isAdm) {
-                        const wh = t.admin.workingHours;
-                        const excs = Object.keys(t.admin.exceptions || {}).sort().map(d => ({ date: d, ...t.admin.exceptions[d] }));
-
-                        return `
-                            <div class="max-w-4xl mx-auto space-y-6 fade-in">
-                                ${pendingRequests.length > 0 ? `
-                                    <div class="bg-amber-50/90 border-2 border-amber-200 p-6 rounded-2xl shadow-sm">
-                                        <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes (${pendingRequests.length})</h3>
-                                        <div class="space-y-3">
-                                            ${pendingRequests.map(r => `
-                                                <div class="bg-white p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-                                                    <div><p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência':'Plantão'}</span></p><p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b></p></div>
-                                                    <div class="flex items-center space-x-2">
-                                                        <button onclick="handleApproveRequest('${r.id}', true)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Aprovar</button>
-                                                        <button onclick="handleApproveRequest('${r.id}', false)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Recusar</button>
-                                                    </div>
-                                                </div>
-                                            `).join('')}
-                                        </div>
-                                    </div>
-                                ` : ''}
-
-                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                        <h3 class="font-bold text-lg mb-2">Horários Padrão</h3>
-                                        <div class="space-y-4">
-                                            ${daysMap.map((day, i) => `
-                                                <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 ${wh[i].active ? 'bg-indigo-50/30 border' : 'bg-slate-50 border opacity-60'} rounded-xl gap-3">
-                                                    <div class="flex items-center space-x-3 w-32"><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" id="wh-cb-${i}" class="sr-only peer" ${wh[i].active ? 'checked' : ''}><div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div></label><span class="text-sm font-bold">${day}</span></div>
-                                                    <div class="flex items-center space-x-2"><input type="time" id="wh-s-${i}" value="${wh[i].start}" class="px-2 py-1.5 border rounded-lg text-sm bg-white"><span class="text-xs text-slate-400">até</span><input type="time" id="wh-e-${i}" value="${wh[i].end}" class="px-2 py-1.5 border rounded-lg text-sm bg-white"></div>
-                                                </div>
-                                            `).join('')}
-                                        </div>
-                                        <button onclick="saveWorkingHours()" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-6 text-sm uppercase">Salvar Horários</button>
-                                    </div>
-
-                                    <div class="space-y-6">
-                                        <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                            <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral</h3>
-                                            <div class="space-y-4 mt-4">
-                                                <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
-                                                <div><label class="block text-xs font-bold mb-1.5">Tipo</label><select id="exc-type" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium"><option value="folga">Ausência / Folga Geral</option><option value="plantao">Plantão Geral</option></select></div>
-                                                <button onclick="addException()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl shadow-md mt-2">Adicionar Exceção Geral</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                }
-
-                if(activeTab === 'profile') {
-                    const currentPalette = t.themePalette || 'wine_velvet';
-                    const isMobileMode = activeBgMode === 'mobile';
-
-                    const imgUrl = isMobileMode ? t.bgMobileImage : t.bgCustomImage;
-                    const imgScale = isMobileMode ? (t.bgMobileScale || 100) : (t.bgCustomScale || 100);
-                    const imgOpacity = isMobileMode ? (t.bgMobileOpacity !== undefined ? t.bgMobileOpacity : 0.2) : (t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.2);
-                    const imgBlur = isMobileMode ? (t.bgMobileBlur || 0) : (t.bgCustomBlur || 0);
-                    const imgPosX = isMobileMode ? (t.bgMobilePosX !== undefined ? t.bgMobilePosX : 50) : (t.bgCustomPosX !== undefined ? t.bgCustomPosX : 50);
-                    const imgPosY = isMobileMode ? (t.bgMobilePosY !== undefined ? t.bgMobilePosY : 50) : (t.bgCustomPosY !== undefined ? t.bgCustomPosY : 50);
-
-                    return `
-                        <div class="space-y-6 max-w-5xl mx-auto fade-in">
+                        <nav class="flex-1 p-4 md:p-3 space-y-2 overflow-y-auto custom-scrollbar w-full overflow-x-hidden">
+                            <button onclick="activeTab='agenda'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='agenda'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="calendar" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Minha Agenda</span></button>
+                            <button onclick="activeTab='dashboard'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='dashboard'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="bar-chart-2" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Dashboard</span></button>
+                            <button onclick="activeTab='horarios'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='horarios'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="clock" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Horários & Plantões</span></button>
                             ${role === 'admin' ? `
-                                <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm">
-                                    <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="palette" class="w-5 h-5 mr-2 text-theme-primary"></i> Estilos e Tema da Organização</h3>
-                                    <p class="text-xs text-slate-500 mb-6">Escolha a paleta de cores exclusiva para a sua empresa.</p>
+                                <button onclick="activeTab='procedures'; editProcedureId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='procedures'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="scissors" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Procedimentos</span></button>
+                                <button onclick="activeTab='employees'; editEmployeeId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='employees'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="users" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Equipe</span></button>
+                            ` : ''}
+                            <button onclick="activeTab='profile'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='profile'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="settings" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Configurações & Estilos</span></button>
+                        </nav>
 
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                        ${THEME_PALETTES.map(p => `
-                                            <div onclick="selectThemePalette('${p.id}')" class="p-4 border-2 ${currentPalette === p.id ? 'border-indigo-600 bg-indigo-50/20' : 'border-slate-200 bg-white'} rounded-2xl cursor-pointer hover:border-indigo-400 transition-all shadow-sm">
-                                                <div class="flex items-center justify-between mb-3"><span class="font-bold text-sm text-slate-800">${p.name}</span>${currentPalette === p.id ? '<span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Ativo</span>' : ''}</div>
-                                                <div class="flex h-10 rounded-xl overflow-hidden border shadow-inner">
-                                                    <div class="flex-1" style="background-color: ${p.previewBg}"></div>
-                                                    <div class="flex-1" style="background-color: ${p.previewAccent}"></div>
-                                                    <div class="flex-1" style="background-color: ${p.previewPrimary}"></div>
+                        <div onclick="activeTab='profile'; render()" class="p-3.5 border-t border-slate-100 flex items-center bg-white/90 w-full overflow-hidden cursor-pointer hover:bg-slate-50 transition-colors shrink-0">
+                            ${userAvatarHtml}
+                            <div class="ml-3 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 w-28 overflow-hidden">
+                                <p class="text-sm font-bold text-slate-900 truncate">${userProfile.name}</p>
+                                <p class="text-[10px] text-theme-primary uppercase font-bold tracking-wider truncate">${role === 'admin' ? 'Administrador' : 'Profissional'}</p>
+                            </div>
+                            <button onclick="event.stopPropagation(); logout()" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all ml-auto opacity-0 group-hover:opacity-100 shrink-0" title="Sair"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+                        </div>
+                    </aside>
+
+                    <main class="flex-1 flex flex-col h-full overflow-hidden w-full relative z-10">
+                        <header class="h-16 md:h-14 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-10 shrink-0">
+                            <div class="flex items-center">
+                                <button onclick="toggleMobileMenu()" class="md:hidden mr-3 p-2 text-slate-600 hover:bg-slate-100 rounded-lg"><i data-lucide="menu" class="w-6 h-6"></i></button>
+                                <h1 class="font-bold text-slate-800 text-sm md:text-base hidden sm:block">Painel de Controle</h1>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <button onclick="openCreateModal()" class="btn-theme-primary px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm transition-all"><i data-lucide="plus" class="w-4 h-4 mr-1"></i> Agendar Manual</button>
+                                <button onclick="activeTab='profile'; render()" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors hidden sm:block">${userProfile.name}</button>
+                                ${role === 'admin' ? `
+                                    <button onclick="copiarLinkCliente()" class="text-xs md:text-sm bg-theme-secondary text-theme-primary px-4 py-2 rounded-lg font-bold flex items-center space-x-2 border border-slate-200 transition-colors shadow-sm"><i data-lucide="external-link" class="w-4 h-4"></i> <span class="hidden sm:inline">Copiar Link do Cliente</span><span class="sm:hidden">Link Cliente</span></button>
+                                ` : ''}
+                            </div>
+                        </header>
+
+                        <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 w-full">
+                            ${renderDashboardContent(role, userProfile)}
+                        </div>
+                    </main>
+                </div>`;
+            if(window.lucide) lucide.createIcons();
+            attachDragHandlers();
+        };
+
+        window.copiarLinkCliente = function() { 
+            const baseUrl = window.location.href.replace('painel.html', 'cliente.html').split('?')[0];
+            const link = baseUrl + '?org=' + session.slug; 
+            navigator.clipboard.writeText(link); 
+            showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); 
+        };
+
+        function attachDragHandlers() {
+            const dayColumns = document.querySelectorAll('.calendar-day-column');
+            
+            dayColumns.forEach(col => {
+                col.addEventListener('mousedown', (e) => {
+                    if (e.target.closest('.appointment-postit')) return;
+                    isDragging = true;
+                    activeColumnEl = col;
+                    dragDateStr = col.getAttribute('data-date');
+                    
+                    const rect = col.getBoundingClientRect();
+                    startY = e.clientY - rect.top;
+                    currentY = startY;
+
+                    updateDragSelectionBox();
+                });
+
+                col.addEventListener('mousemove', (e) => {
+                    if (isDragging && activeColumnEl === col) {
+                        const rect = col.getBoundingClientRect();
+                        currentY = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+                        updateDragSelectionBox();
+                    }
+                });
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging && activeColumnEl) {
+                    isDragging = false;
+                    
+                    const topY = Math.min(startY, currentY);
+                    const bottomY = Math.max(startY, currentY);
+                    
+                    const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
+                    let endMinsTotal = Math.floor((bottomY / 51) * 60) + 420;
+                    
+                    if (endMinsTotal - startMinsTotal < 15) {
+                        endMinsTotal = startMinsTotal + 30;
+                    }
+
+                    const roundedStartMins = Math.floor(startMinsTotal / 15) * 15;
+                    const roundedEndMins = Math.ceil(endMinsTotal / 15) * 15;
+
+                    const startTimeStr = minsToTime(roundedStartMins);
+                    const endTimeStr = minsToTime(roundedEndMins);
+
+                    removeDragSelectionBox();
+                    openCreateModal(dragDateStr, startTimeStr, endTimeStr);
+                }
+            });
+        }
+
+        function updateDragSelectionBox() {
+            if (!activeColumnEl) return;
+            let box = activeColumnEl.querySelector('.drag-selection-box');
+            if (!box) {
+                box = document.createElement('div');
+                box.className = 'drag-selection-box';
+                activeColumnEl.appendChild(box);
+            }
+
+            const topY = Math.min(startY, currentY);
+            const heightY = Math.max(Math.abs(currentY - startY), 15);
+
+            box.style.top = topY + 'px';
+            box.style.height = heightY + 'px';
+
+            const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
+            const endMinsTotal = Math.floor(((topY + heightY) / 51) * 60) + 420;
+            box.innerText = `${minsToTime(Math.floor(startMinsTotal/15)*15)} - ${minsToTime(Math.ceil(endMinsTotal/15)*15)}`;
+        }
+
+        function removeDragSelectionBox() {
+            document.querySelectorAll('.drag-selection-box').forEach(b => b.remove());
+            activeColumnEl = null;
+        }
+
+        window.openCreateModal = function(defaultDate = null, defaultStart = '09:00', defaultEnd = '10:00') {
+            const role = session.role;
+            const empSelect = document.getElementById('manual-employee-id');
+            empSelect.innerHTML = '';
+
+            if (role === 'admin') {
+                empSelect.disabled = false;
+                empSelect.innerHTML += `<option value="${t.admin.id}">${t.admin.name} (ADM)</option>`;
+                (t.employees || []).forEach(e => {
+                    empSelect.innerHTML += `<option value="${e.id}">${e.name}</option>`;
+                });
+            } else {
+                const userProfile = t.employees.find(e => e.id === session.id);
+                empSelect.innerHTML = `<option value="${userProfile.id}" selected>${userProfile.name}</option>`;
+                empSelect.disabled = true;
+            }
+
+            document.getElementById('manual-date').value = defaultDate || new Date().toISOString().split('T')[0];
+            document.getElementById('manual-start-time').value = defaultStart;
+            document.getElementById('manual-end-time').value = defaultEnd;
+            document.getElementById('manual-client-name').value = '';
+
+            const procList = document.getElementById('manual-procedures-list');
+            procList.innerHTML = (t.procedures || []).map(p => `
+                <label class="flex items-center justify-between p-2.5 bg-white border rounded-xl hover:bg-indigo-50 cursor-pointer">
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" value="${p.id}" class="manual-proc-cb w-4 h-4 text-indigo-600 rounded">
+                        <span class="text-xs font-bold text-slate-800">${p.name} (${p.duration} min)</span>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-600">R$ ${p.price.toFixed(2)}</span>
+                </label>
+            `).join('') || '<p class="text-xs text-slate-400">Nenhum procedimento cadastrado.</p>';
+
+            document.getElementById('create-modal').classList.remove('hidden');
+            if(window.lucide) lucide.createIcons();
+        };
+
+        window.closeCreateModal = function() {
+            document.getElementById('create-modal').classList.add('hidden');
+        };
+
+        window.handleManualAppSave = function(e) {
+            e.preventDefault();
+            const clientName = document.getElementById('manual-client-name').value.trim();
+            const employeeId = document.getElementById('manual-employee-id').value;
+            const date = document.getElementById('manual-date').value;
+            const startTime = document.getElementById('manual-start-time').value;
+            const endTime = document.getElementById('manual-end-time').value;
+
+            const selectedProcIds = Array.from(document.querySelectorAll('.manual-proc-cb:checked')).map(cb => cb.value);
+            if (selectedProcIds.length === 0) return showModal('Aviso', 'Selecione pelo menos um procedimento.', 'info');
+
+            const selectedProcs = t.procedures.filter(p => selectedProcIds.includes(p.id));
+            const totalDuration = Math.max(timeToMins(endTime) - timeToMins(startTime), 15);
+            const totalPrice = selectedProcs.reduce((s, p) => s + p.price, 0);
+
+            const newApp = {
+                id: 'app-' + Date.now(),
+                clientId: 'manual-cli-' + Date.now(),
+                clientName: clientName,
+                beneficiaryName: clientName,
+                employeeId: employeeId,
+                date: date,
+                time: startTime,
+                proceduresNames: selectedProcs.map(p => p.name),
+                totalDuration: totalDuration,
+                totalPrice: totalPrice,
+                createdAt: new Date().toISOString()
+            };
+
+            if(!t.appointments) t.appointments = [];
+            t.appointments.push(newApp);
+            saveDB();
+            closeCreateModal();
+            showModal('Sucesso!', 'Agendamento cadastrado com sucesso.', 'success');
+        };
+
+        function renderDashboardContent(role, user) {
+            if(activeTab === 'agenda') {
+                return `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
+                        <h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2>
+                        <div class="flex space-x-2 bg-white/90 rounded-lg p-1 border shadow-sm self-start">
+                            <button onclick="dashboardViewMode='calendar'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='calendar'?'bg-theme-secondary text-theme-primary':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="layout-grid" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Calendário</span></button>
+                            <button onclick="dashboardViewMode='list'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='list'?'bg-theme-secondary text-theme-primary':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="list" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Lista</span></button>
+                        </div>
+                    </div>
+                    ${dashboardViewMode === 'calendar' ? renderWeeklyCalendar(role, user) : renderListView(role, user)}
+                `;
+            }
+
+            if(activeTab === 'dashboard') {
+                return renderDashboardAnalytics(role, user);
+            }
+            
+            if(activeTab === 'horarios') {
+                const isAdm = role === 'admin';
+                const daysMap = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                const pendingRequests = t.requests ? t.requests.filter(r => r.status === 'pending') : [];
+
+                if (isAdm) {
+                    const wh = t.admin.workingHours;
+                    const excs = Object.keys(t.admin.exceptions || {}).sort().map(d => ({ date: d, ...t.admin.exceptions[d] }));
+
+                    return `
+                        <div class="max-w-4xl mx-auto space-y-6 fade-in">
+                            ${pendingRequests.length > 0 ? `
+                                <div class="bg-amber-50/90 border-2 border-amber-200 p-6 rounded-2xl shadow-sm">
+                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes de Folga / Plantão (${pendingRequests.length})</h3>
+                                    <div class="space-y-3">
+                                        ${pendingRequests.map(r => `
+                                            <div class="bg-white p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                                                <div>
+                                                    <p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência/Folga':'Hora a mais (Plantão)'}</span></p>
+                                                    <p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b> ${r.type==='plantao'? `(${r.start} às ${r.end})`:''}</p>
+                                                </div>
+                                                <div class="flex items-center space-x-2">
+                                                    <button onclick="handleApproveRequest('${r.id}', true)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Aprovar</button>
+                                                    <button onclick="handleApproveRequest('${r.id}', false)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Recusar</button>
                                                 </div>
                                             </div>
                                         `).join('')}
                                     </div>
                                 </div>
-
-                                <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm space-y-6">
-                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-                                        <div>
-                                            <h3 class="font-bold text-lg text-slate-900 flex items-center"><i data-lucide="image" class="w-5 h-5 mr-2 text-theme-primary"></i> Fotos de Fundo da Tela do Cliente</h3>
-                                            <p class="text-xs text-slate-500">Configure papéis de parede independentes para Telemóvel e Computador.</p>
-                                        </div>
-
-                                        <div class="flex bg-slate-100 p-1 rounded-2xl border shrink-0">
-                                            <button onclick="activeBgMode='mobile'; render();" class="px-4 py-2 rounded-xl text-xs font-bold transition-all ${isMobileMode ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">
-                                                <i data-lucide="smartphone" class="w-3.5 h-3.5 inline mr-1"></i> Mobile
-                                            </button>
-                                            <button onclick="activeBgMode='desktop'; render();" class="px-4 py-2 rounded-xl text-xs font-bold transition-all ${!isMobileMode ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">
-                                                <i data-lucide="monitor" class="w-3.5 h-3.5 inline mr-1"></i> Computador
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                                        <div class="lg:col-span-5 space-y-4">
-                                            <label class="block text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-3.5 rounded-xl cursor-pointer text-center hover:bg-indigo-100 transition-colors shadow-xs">
-                                                <i data-lucide="upload" class="w-4 h-4 inline mr-2"></i> Upload Foto (${isMobileMode ? 'Mobile' : 'Computador'})
-                                                <input type="file" class="hidden" accept="image/*" onchange="handleBgUpload(event)">
-                                            </label>
-
-                                            ${imgUrl ? `
-                                                <div class="p-4 bg-slate-50 border rounded-2xl space-y-4">
-                                                    <div>
-                                                        <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
-                                                            <span>Zoom / Escala</span>
-                                                            <span id="scale-val-label">${imgScale}%</span>
-                                                        </div>
-                                                        <input type="range" min="100" max="300" step="5" value="${imgScale}" oninput="updateBgScale(this.value)" class="w-full">
-                                                    </div>
-
-                                                    <div>
-                                                        <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
-                                                            <span>Opacidade</span>
-                                                            <span id="opacity-val-label">${Math.round(imgOpacity * 100)}%</span>
-                                                        </div>
-                                                        <input type="range" min="0.05" max="0.7" step="0.05" value="${imgOpacity}" oninput="updateBgOpacity(this.value)" class="w-full">
-                                                    </div>
-
-                                                    <div>
-                                                        <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
-                                                            <span>Efeito Desfocar (Blur)</span>
-                                                            <span id="blur-val-label">${imgBlur}px</span>
-                                                        </div>
-                                                        <input type="range" min="0" max="10" step="1" value="${imgBlur}" oninput="updateBgBlur(this.value)" class="w-full">
-                                                    </div>
-
-                                                    <p class="text-[11px] text-slate-400 italic">💡 Clique e arraste com o rato na pré-visualização ao lado para ajustar a posição.</p>
-
-                                                    <button onclick="removeBgImage()" class="w-full text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 py-2.5 rounded-xl hover:bg-rose-100 transition-colors">Remover Esta Foto</button>
-                                                </div>
-                                            ` : `<p class="text-xs text-slate-400 text-center py-6 border border-dashed rounded-2xl">Nenhuma imagem cadastrada para ${isMobileMode ? 'Mobile' : 'Computador'}.</p>`}
-                                        </div>
-
-                                        <div class="lg:col-span-7 flex justify-center">
-                                            <div class="border-2 border-slate-300 rounded-3xl overflow-hidden shadow-md relative ${isMobileMode ? 'w-[230px] h-[400px]' : 'w-full h-[380px]'} bg-slate-200 flex flex-col select-none transition-all">
-                                                <div class="bg-slate-800 text-white text-[10px] font-bold px-3 py-1 flex items-center justify-between z-20 shrink-0">
-                                                    <span>Preview (${isMobileMode ? 'Telemóvel' : 'Computador'})</span>
-                                                    <span class="text-slate-400">Arraste a foto</span>
-                                                </div>
-
-                                                <div id="preview-interactive-canvas" class="absolute inset-0 z-0 preview-interactive-canvas" style="background-image: ${imgUrl ? `url("${imgUrl}")` : 'none'}; background-size: ${imgScale}%; background-position: ${imgPosX}% ${imgPosY}%; opacity: ${imgOpacity}; filter: blur(${imgBlur}px);"></div>
-
-                                                <div class="relative z-10 flex flex-col ${!isMobileMode ? 'flex-row' : ''} h-full pointer-events-none">
-                                                    ${!isMobileMode ? `
-                                                        <div class="w-12 bg-white/90 border-r border-slate-200 h-full flex flex-col items-center py-4 space-y-4 shrink-0 shadow-xs">
-                                                            <div class="w-7 h-7 rounded-lg btn-theme-primary flex items-center justify-center font-bold text-xs">${t.name.charAt(0)}</div>
-                                                            <div class="p-2 rounded-lg bg-theme-secondary text-theme-primary"><i data-lucide="calendar-plus" class="w-4 h-4"></i></div>
-                                                            <div class="p-2 rounded-lg text-slate-400"><i data-lucide="list" class="w-4 h-4"></i></div>
-                                                        </div>
-                                                    ` : ''}
-
-                                                    <div class="flex-1 p-3 overflow-hidden flex flex-col items-center justify-start">
-                                                        <div class="text-center mb-2">
-                                                            ${t.logo ? `<img src="${t.logo}" class="w-9 h-9 rounded-xl object-cover border mx-auto shadow-xs">` : `<div class="w-9 h-9 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-xs mx-auto">O</div>`}
-                                                            <p class="font-black text-[11px] text-slate-900 mt-1">${t.name}</p>
-                                                        </div>
-
-                                                        <div class="w-full bg-white/90 backdrop-blur-xs p-2.5 rounded-2xl border shadow-xs text-center space-y-1.5">
-                                                            <p class="font-bold text-[10px] text-slate-800">Escolha o Dia</p>
-                                                            <div class="grid grid-cols-7 gap-1 text-[8px] font-bold text-slate-400">
-                                                                <span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span>
-                                                            </div>
-                                                            <div class="grid grid-cols-7 gap-1 text-[9px]">
-                                                                <span class="p-1 rounded bg-slate-100 text-slate-300">1</span>
-                                                                <span class="p-1 rounded bg-white border font-bold">2</span>
-                                                                <span class="p-1 rounded btn-theme-primary font-bold">3</span>
-                                                                <span class="p-1 rounded bg-white border font-bold">4</span>
-                                                                <span class="p-1 rounded bg-white border font-bold">5</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    ${isMobileMode ? `
-                                                        <div class="w-full h-10 bg-white/90 border-t border-slate-200 flex items-center justify-around px-4 shrink-0 shadow-xs">
-                                                            <div class="w-5 h-5 rounded bg-theme-secondary text-theme-primary flex items-center justify-center"><i data-lucide="calendar-plus" class="w-3 h-3"></i></div>
-                                                            <div class="w-5 h-5 rounded text-slate-400 flex items-center justify-center"><i data-lucide="list" class="w-3 h-3"></i></div>
-                                                        </div>
-                                                    ` : ''}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             ` : ''}
 
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                ${role === 'admin' ? `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${t.logo ? `<img src="${t.logo}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${t.name}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>` : ''}
-                                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${user.avatar ? `<img src="${user.avatar}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar', '${user.id}')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${user.name}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${user.email}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="btn-theme-primary font-bold px-4 py-3.5 rounded-xl text-sm w-full mt-4">Salvar Meu Perfil</button></div></div>
+                                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                                    <h3 class="font-bold text-lg mb-2">Horários Padrão da Empresa</h3>
+                                    <p class="text-xs text-slate-500 mb-6">Defina os dias de funcionamento.</p>
+                                    <div class="space-y-4">
+                                        ${daysMap.map((day, i) => `
+                                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-3 ${wh[i].active ? 'bg-indigo-50/30 border border-indigo-100' : 'bg-slate-50 border border-slate-100 opacity-60'} rounded-xl transition-all gap-3">
+                                                <div class="flex items-center space-x-3 w-32">
+                                                    <label class="relative inline-flex items-center cursor-pointer">
+                                                      <input type="checkbox" id="wh-cb-${i}" class="sr-only peer" ${wh[i].active ? 'checked' : ''} onchange="document.getElementById('wh-row-${i}').classList.toggle('opacity-60');">
+                                                      <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
+                                                    </label>
+                                                    <span class="text-sm font-bold ${wh[i].active?'text-slate-800':'text-slate-500'}">${day}</span>
+                                                </div>
+                                                <div id="wh-row-${i}" class="flex items-center justify-between sm:justify-start space-x-2">
+                                                    <input type="time" id="wh-s-${i}" value="${wh[i].start}" class="px-2 py-1.5 border rounded-lg text-sm bg-white">
+                                                    <span class="text-xs text-slate-400">até</span>
+                                                    <input type="time" id="wh-e-${i}" value="${wh[i].end}" class="px-2 py-1.5 border rounded-lg text-sm bg-white">
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    <button onclick="saveWorkingHours()" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-6 transition-all text-sm uppercase">Salvar Horários</button>
+                                </div>
+
+                                <div class="space-y-6">
+                                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                                        <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral (Empresa)</h3>
+                                        <div class="space-y-4 mt-4">
+                                            <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
+                                            <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
+                                                <select id="exc-type" onchange="document.getElementById('exc-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium">
+                                                    <option value="folga">Ausência / Folga Geral</option>
+                                                    <option value="plantao">Plantão Geral</option>
+                                                </select>
+                                            </div>
+                                            <div id="exc-times" class="hidden flex items-center space-x-4">
+                                                <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="exc-start" value="08:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
+                                                <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="exc-end" value="20:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
+                                            </div>
+                                            <button onclick="addException()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-md mt-2">Adicionar Exceção Geral</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                                        <h3 class="font-bold text-base mb-4">Exceções Gerais Registradas</h3>
+                                        <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                                            ${excs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma cadastrada.</p>' : excs.map(e => `
+                                                <div class="p-3 border rounded-xl flex items-center justify-between ${e.type==='folga'?'bg-rose-50/50 border-rose-100':'bg-emerald-50/50 border-emerald-100'}">
+                                                    <div>
+                                                        <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} - ${e.type==='folga'?'Folga Geral':'Plantão Geral'}</p>
+                                                        ${e.type==='plantao' ? `<p class="text-xs text-emerald-600 font-medium">${e.start} às ${e.end}</p>` : ''}
+                                                    </div>
+                                                    <button onclick="removeException('${e.date}')" class="text-rose-500 bg-white hover:bg-rose-50 p-2 rounded-lg shadow-sm border border-transparent hover:border-rose-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>`;
+                        </div>
+                    `;
+                } else {
+                    const myReqs = t.requests ? t.requests.filter(r => r.empId === user.id) : [];
+                    return `
+                        <div class="max-w-2xl mx-auto space-y-6 fade-in">
+                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                                <h3 class="font-bold text-lg mb-1">Solicitar Ausência ou Hora a Mais</h3>
+                                <form onsubmit="handleCreateRequest(event, '${user.id}', '${user.name}')" class="space-y-4 mt-4">
+                                    <div><label class="block text-xs font-bold mb-1.5">Tipo de Solicitação</label>
+                                        <select id="req-type" onchange="document.getElementById('req-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-3 border rounded-xl text-sm bg-white font-medium">
+                                            <option value="folga">Solicitar Folga / Ausência (Dia inteiro)</option>
+                                            <option value="plantao">Solicitar Hora a Mais (Plantão)</option>
+                                        </select>
+                                    </div>
+                                    <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="req-date" required class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div>
+                                    <div id="req-times" class="hidden flex items-center space-x-4"><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="req-start" value="08:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="req-end" value="20:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div></div>
+                                    <button type="submit" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-2">Enviar Solicitação</button>
+                                </form>
+                            </div>
+                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                                <h3 class="font-bold text-base mb-4">Minhas Solicitações</h3>
+                                <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                                    ${myReqs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma solicitação enviada.</p>' : myReqs.map(r => `
+                                        <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
+                                            <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Ausência/Folga':'Hora a mais'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
+                                            <span class="text-xs font-bold px-3 py-1.5 rounded-full border ${r.status==='approved'?'bg-emerald-50 text-emerald-700 border-emerald-200':(r.status==='rejected'?'bg-rose-50 text-rose-700 border-rose-200':'bg-amber-50 text-amber-700 border-amber-200')}">${r.status==='approved'?'Aprovado':(r.status==='rejected'?'Recusado':'Pendente')}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            if(activeTab === 'profile') {
+                const currentPalette = t.themePalette || 'wine_velvet';
+
+                return `
+                    <div class="space-y-6 max-w-5xl mx-auto fade-in">
+                        <!-- PALETAS DE CORES -->
+                        ${role === 'admin' ? `
+                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm">
+                                <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="palette" class="w-5 h-5 mr-2 text-theme-primary"></i> Estilos e Tema da Organização</h3>
+                                <p class="text-xs text-slate-500 mb-6">Escolha a paleta de cores exclusiva para a sua empresa.</p>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                    ${THEME_PALETTES.map(p => `
+                                        <div onclick="selectThemePalette('${p.id}')" class="p-4 border-2 ${currentPalette === p.id ? 'border-indigo-600 bg-indigo-50/20' : 'border-slate-200 bg-white'} rounded-2xl cursor-pointer hover:border-indigo-400 transition-all shadow-sm">
+                                            <div class="flex items-center justify-between mb-3">
+                                                <span class="font-bold text-sm text-slate-800">${p.name}</span>
+                                                ${currentPalette === p.id ? '<span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Ativo</span>' : ''}
+                                            </div>
+                                            <div class="flex h-10 rounded-xl overflow-hidden border shadow-inner">
+                                                <div class="flex-1" style="background-color: ${p.previewBg}" title="Cor de Fundo"></div>
+                                                <div class="flex-1" style="background-color: ${p.previewAccent}" title="Cor Secundária"></div>
+                                                <div class="flex-1" style="background-color: ${p.previewPrimary}" title="Cor Principal"></div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- FOTO DE PLANO DE FUNDO DO PAINEL E ÁREA DO CLIENTE COM PRÉ-VISUALIZAÇÃO EM TEMPO REAL -->
+                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm">
+                                <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="image" class="w-5 h-5 mr-2 text-theme-primary"></i> Foto de Plano de Fundo Personalizada</h3>
+                                <p class="text-xs text-slate-500 mb-6">Insira uma foto para servir de fundo nas telas do painel e do cliente.</p>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                                    <div class="space-y-4">
+                                        <label class="block text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-3 rounded-xl cursor-pointer text-center hover:bg-indigo-100 transition-colors">
+                                            <i data-lucide="upload" class="w-4 h-4 inline mr-2"></i> Selecionar Imagem de Fundo
+                                            <input type="file" class="hidden" accept="image/*" onchange="handleBgUpload(event)">
+                                        </label>
+
+                                        ${t.bgCustomImage ? `
+                                            <button onclick="removeBgImage()" class="w-full text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 py-2.5 rounded-xl hover:bg-rose-100 transition-colors">Remover Foto de Fundo</button>
+                                        ` : ''}
+
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1">Opacidade da Imagem (${Math.round((t.bgCustomOpacity || 0.15) * 100)}%)</label>
+                                            <input type="range" min="0.05" max="0.6" step="0.05" value="${t.bgCustomOpacity || 0.15}" oninput="updateBgOpacity(this.value)" class="w-full">
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1">Efeito de Desfocar/Blur (${t.bgCustomBlur || 0}px)</label>
+                                            <input type="range" min="0" max="10" step="1" value="${t.bgCustomBlur || 0}" oninput="updateBgBlur(this.value)" class="w-full">
+                                        </div>
+                                    </div>
+
+                                    <!-- ÁREA DE PRÉ-VISUALIZAÇÃO DA FOTO DE FUNDO -->
+                                    <div class="border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[180px] relative overflow-hidden bg-slate-100">
+                                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 relative z-10 bg-white/80 px-3 py-1 rounded-full border">Pré-visualização</p>
+                                        <div id="preview-bg-box" class="absolute inset-0 bg-cover bg-center transition-all" style="background-image: ${t.bgCustomImage ? `url(${t.bgCustomImage})` : 'none'}; opacity: ${t.bgCustomOpacity || 0.15}; filter: blur(${(t.bgCustomBlur || 0)}px);"></div>
+                                        <div class="relative z-10 bg-white/90 p-4 rounded-xl border shadow-sm text-center">
+                                            <p class="font-bold text-xs text-slate-800">Card Exemplo</p>
+                                            <p class="text-[10px] text-slate-500">Visual como o cliente verá</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            ${role === 'admin' ? `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${t.logo ? `<img src="${t.logo}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${t.name}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>` : ''}
+                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${user.avatar ? `<img src="${user.avatar}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar', '${user.id}')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${user.name}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${user.email}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="btn-theme-primary font-bold px-4 py-3.5 rounded-xl text-sm w-full mt-4">Salvar Meu Perfil</button></div></div>
+                        </div>
+                    </div>`;
             }
 
             if(role === 'admin' && activeTab === 'employees') {
@@ -795,50 +808,6 @@
             return '';
         }
 
-        function attachCanvasInteractivity() {
-            const canvas = document.getElementById('preview-interactive-canvas');
-            if (!canvas) return;
-
-            canvas.onmousedown = (e) => {
-                isImgDragging = true;
-                imgStartX = e.clientX;
-                imgStartY = e.clientY;
-            };
-
-            document.onmousemove = (e) => {
-                if (!isImgDragging || !canvas) return;
-                const deltaX = (e.clientX - imgStartX) * 0.2;
-                const deltaY = (e.clientY - imgStartY) * 0.2;
-
-                const isMobile = activeBgMode === 'mobile';
-                const currentX = isMobile ? (t.bgMobilePosX || 50) : (t.bgCustomPosX || 50);
-                const currentY = isMobile ? (t.bgMobilePosY || 50) : (t.bgCustomPosY || 50);
-
-                let newX = Math.max(0, Math.min(100, currentX + deltaX));
-                let newY = Math.max(0, Math.min(100, currentY + deltaY));
-
-                if (isMobile) {
-                    t.bgMobilePosX = newX;
-                    t.bgMobilePosY = newY;
-                } else {
-                    t.bgCustomPosX = newX;
-                    t.bgCustomPosY = newY;
-                }
-
-                canvas.style.backgroundPosition = `${newX}% ${newY}%`;
-
-                imgStartX = e.clientX;
-                imgStartY = e.clientY;
-            };
-
-            document.onmouseup = () => {
-                if (isImgDragging) {
-                    isImgDragging = false;
-                    saveDB();
-                }
-            };
-        }
-
         window.selectThemePalette = function(paletteId) {
             t.themePalette = paletteId;
             applyThemeCSS(paletteId);
@@ -851,69 +820,39 @@
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                const isMobile = activeBgMode === 'mobile';
-                if (isMobile) {
-                    t.bgMobileImage = event.target.result;
-                    if(t.bgMobileOpacity === undefined) t.bgMobileOpacity = 0.2;
-                    if(t.bgMobileBlur === undefined) t.bgMobileBlur = 0;
-                    if(t.bgMobileScale === undefined) t.bgMobileScale = 100;
-                    if(t.bgMobilePosX === undefined) t.bgMobilePosX = 50;
-                    if(t.bgMobilePosY === undefined) t.bgMobilePosY = 50;
-                } else {
-                    t.bgCustomImage = event.target.result;
-                    if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.2;
-                    if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
-                    if(t.bgCustomScale === undefined) t.bgCustomScale = 100;
-                    if(t.bgCustomPosX === undefined) t.bgCustomPosX = 50;
-                    if(t.bgCustomPosY === undefined) t.bgCustomPosY = 50;
-                }
+                t.bgCustomImage = event.target.result;
+                if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.15;
+                if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
+                applyBgImageSettings();
                 saveDB();
                 render();
-                showModal('Imagem Salva!', `Foto de fundo salva para a aba ${isMobile ? 'Mobile' : 'Computador'}.`, 'success');
+                showModal('Imagem Salva!', 'Foto de fundo personalizada com sucesso.', 'success');
             };
             reader.readAsDataURL(file);
         };
 
         window.removeBgImage = function() {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) delete t.bgMobileImage;
-            else delete t.bgCustomImage;
+            delete t.bgCustomImage;
+            applyBgImageSettings();
             saveDB();
             render();
             showModal('Removido', 'Foto de fundo removida.', 'info');
         };
 
-        window.updateBgScale = function(val) {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) t.bgMobileScale = parseInt(val);
-            else t.bgCustomScale = parseInt(val);
-            saveDB();
-            const canvas = document.getElementById('preview-interactive-canvas');
-            const lbl = document.getElementById('scale-val-label');
-            if (canvas) canvas.style.backgroundSize = `${val}%`;
-            if (lbl) lbl.innerText = val + '%';
-        };
-
         window.updateBgOpacity = function(val) {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) t.bgMobileOpacity = parseFloat(val);
-            else t.bgCustomOpacity = parseFloat(val);
+            t.bgCustomOpacity = parseFloat(val);
+            applyBgImageSettings();
             saveDB();
-            const canvas = document.getElementById('preview-interactive-canvas');
-            const lbl = document.getElementById('opacity-val-label');
-            if (canvas) canvas.style.opacity = val;
-            if (lbl) lbl.innerText = Math.round(val * 100) + '%';
+            const previewBox = document.getElementById('preview-bg-box');
+            if (previewBox) previewBox.style.opacity = val;
         };
 
         window.updateBgBlur = function(val) {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) t.bgMobileBlur = parseInt(val);
-            else t.bgCustomBlur = parseInt(val);
+            t.bgCustomBlur = parseInt(val);
+            applyBgImageSettings();
             saveDB();
-            const canvas = document.getElementById('preview-interactive-canvas');
-            const lbl = document.getElementById('blur-val-label');
-            if (canvas) canvas.style.filter = `blur(${val}px)`;
-            if (lbl) lbl.innerText = val + 'px';
+            const previewBox = document.getElementById('preview-bg-box');
+            if (previewBox) previewBox.style.filter = `blur(${val}px)`;
         };
 
         function renderDashboardAnalytics(role, user) {
@@ -1319,127 +1258,6 @@
                 t.procedures = t.procedures.filter(p => p.id !== id);
                 saveDB();
             });
-        };
-
-        function attachCanvasInteractivity() {
-            const canvas = document.getElementById('preview-interactive-canvas');
-            if (!canvas) return;
-
-            canvas.onmousedown = (e) => {
-                isImgDragging = true;
-                imgStartX = e.clientX;
-                imgStartY = e.clientY;
-            };
-
-            document.onmousemove = (e) => {
-                if (!isImgDragging || !canvas) return;
-                const deltaX = (e.clientX - imgStartX) * 0.2;
-                const deltaY = (e.clientY - imgStartY) * 0.2;
-
-                const isMobile = activeBgMode === 'mobile';
-                const currentX = isMobile ? (t.bgMobilePosX || 50) : (t.bgCustomPosX || 50);
-                const currentY = isMobile ? (t.bgMobilePosY || 50) : (t.bgCustomPosY || 50);
-
-                let newX = Math.max(0, Math.min(100, currentX + deltaX));
-                let newY = Math.max(0, Math.min(100, currentY + deltaY));
-
-                if (isMobile) {
-                    t.bgMobilePosX = newX;
-                    t.bgMobilePosY = newY;
-                } else {
-                    t.bgCustomPosX = newX;
-                    t.bgCustomPosY = newY;
-                }
-
-                canvas.style.backgroundPosition = `${newX}% ${newY}%`;
-
-                imgStartX = e.clientX;
-                imgStartY = e.clientY;
-            };
-
-            document.onmouseup = () => {
-                if (isImgDragging) {
-                    isImgDragging = false;
-                    saveDB();
-                }
-            };
-        }
-
-        window.selectThemePalette = function(paletteId) {
-            t.themePalette = paletteId;
-            applyThemeCSS(paletteId);
-            saveDB();
-            showModal('Estilo Aplicado!', 'A nova paleta de cores foi salva para toda a organização.', 'success');
-        };
-
-        window.handleBgUpload = function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const isMobile = activeBgMode === 'mobile';
-                if (isMobile) {
-                    t.bgMobileImage = event.target.result;
-                    if(t.bgMobileOpacity === undefined) t.bgMobileOpacity = 0.2;
-                    if(t.bgMobileBlur === undefined) t.bgMobileBlur = 0;
-                    if(t.bgMobileScale === undefined) t.bgMobileScale = 100;
-                    if(t.bgMobilePosX === undefined) t.bgMobilePosX = 50;
-                    if(t.bgMobilePosY === undefined) t.bgMobilePosY = 50;
-                } else {
-                    t.bgCustomImage = event.target.result;
-                    if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.2;
-                    if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
-                    if(t.bgCustomScale === undefined) t.bgCustomScale = 100;
-                    if(t.bgCustomPosX === undefined) t.bgCustomPosX = 50;
-                    if(t.bgCustomPosY === undefined) t.bgCustomPosY = 50;
-                }
-                saveDB();
-                render();
-                showModal('Imagem Salva!', `Foto de fundo salva para a aba ${isMobile ? 'Mobile' : 'Computador'}.`, 'success');
-            };
-            reader.readAsDataURL(file);
-        };
-
-        window.removeBgImage = function() {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) delete t.bgMobileImage;
-            else delete t.bgCustomImage;
-            saveDB();
-            render();
-            showModal('Removido', 'Foto de fundo removida.', 'info');
-        };
-
-        window.updateBgScale = function(val) {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) t.bgMobileScale = parseInt(val);
-            else t.bgCustomScale = parseInt(val);
-            saveDB();
-            const canvas = document.getElementById('preview-interactive-canvas');
-            const lbl = document.getElementById('scale-val-label');
-            if (canvas) canvas.style.backgroundSize = `${val}%`;
-            if (lbl) lbl.innerText = val + '%';
-        };
-
-        window.updateBgOpacity = function(val) {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) t.bgMobileOpacity = parseFloat(val);
-            else t.bgCustomOpacity = parseFloat(val);
-            saveDB();
-            const canvas = document.getElementById('preview-interactive-canvas');
-            const lbl = document.getElementById('opacity-val-label');
-            if (canvas) canvas.style.opacity = val;
-            if (lbl) lbl.innerText = Math.round(val * 100) + '%';
-        };
-
-        window.updateBgBlur = function(val) {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) t.bgMobileBlur = parseInt(val);
-            else t.bgCustomBlur = parseInt(val);
-            saveDB();
-            const canvas = document.getElementById('preview-interactive-canvas');
-            const lbl = document.getElementById('blur-val-label');
-            if (canvas) canvas.style.filter = `blur(${val}px)`;
-            if (lbl) lbl.innerText = val + 'px';
         };
 
         window.cancelarAgendamento = function(id) { updateAppStatus(id, 'cancelado'); };
