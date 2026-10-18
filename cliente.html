@@ -466,15 +466,20 @@
                             </button>
                         </aside>
 
-                        <main class="flex-1 md:ml-20 p-4 sm:p-6 md:p-8 pb-24 md:pb-8 min-h-full">
-                            <div class="max-w-3xl mx-auto flex flex-col items-center text-center mb-6 sm:mb-8">
+                        <main class="flex-1 md:ml-20 p-4 sm:p-6 md:p-8 min-h-full flex flex-col">
+                            <div class="max-w-3xl mx-auto flex flex-col items-center text-center mb-6 sm:mb-8 w-full">
                                 ${logoHtml}
                                 <h1 class="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">${t.name}</h1>
                                 <p class="text-[11px] sm:text-xs font-bold text-theme-primary uppercase tracking-wider mt-0.5">Área de Agendamento</p>
                                 <span class="text-[11px] text-slate-600 font-semibold bg-white/80 px-3 py-1 rounded-full border mt-2 shadow-xs">Conectado como: <b>${currentClient.name}</b></span>
                             </div>
 
-                            ${clientActiveTab === 'profile' ? renderClientProfileTab() : (clientActiveTab === 'appointments' ? renderClientAppointments() : renderClientBookingWizard())}
+                            <div class="w-full flex-1">
+                                ${clientActiveTab === 'profile' ? renderClientProfileTab() : (clientActiveTab === 'appointments' ? renderClientAppointments() : renderClientBookingWizard())}
+                            </div>
+
+                            <!-- ESPAÇO EXTRA GARANTIDO PARA O MENU MOBILE NÃO COBRIR O BOTÃO -->
+                            <div class="h-28 sm:h-32 md:h-8 w-full shrink-0"></div>
                         </main>
                     </div>`;
             }
