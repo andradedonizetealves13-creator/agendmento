@@ -137,9 +137,12 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+        // VERIFICAÇÃO DE SESSÃO COM FALLBACK DE SEGURANÇA
         const sessionStr = localStorage.getItem('agendaProSession');
-        if (!sessionStr) { window.location.href = 'index.html'; }
-        const session = JSON.parse(sessionStr);
+        if (!sessionStr) { 
+            window.location.href = 'index.html';
+        }
+        const session = JSON.parse(sessionStr || '{}');
 
         const firebaseConfig = {
             apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
@@ -153,7 +156,7 @@
 
         const app = initializeApp(firebaseConfig);
         const rtdb = getDatabase(app);
-        const tenantRef = ref(rtdb, 'agendapro_saas/tenants/' + session.slug);
+        const tenantRef = ref(rtdb, 'agendapro_saas/tenants/' + (session.slug || 'demo'));
 
         const COLOR_PALETTE = ['#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', '#7c3aed', '#c026d3', '#db2777', '#0891b2', '#4b5563'];
 
@@ -174,6 +177,7 @@
             };
         }
 
+        // DECLARAÇÃO GLOBAL DE TODAS AS VARIÁVEIS DE ESTADO DO PAINEL
         window.t = null;
         window.activeTab = 'agenda'; 
         window.editEmployeeId = null;
@@ -293,12 +297,12 @@
 
         window.render = function() {
             if(!window.t) return;
-            const role = session.role;
+            const role = session.role || 'admin';
             const userProfile = role === 'admin' ? t.admin : (t.employees || []).find(e=>e.id === session.id);
             if(!userProfile) return logout();
 
             const logoHtml = t.logo ? `<img src="${t.logo}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-lg shadow-sm">O</div>`;
-            const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${userProfile.name.charAt(0)}</div>`;
+            const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${userProfile.name ? userProfile.name.charAt(0) : 'A'}</div>`;
 
             const sidebarClasses = isSidebarOpenMobile ? "fixed inset-y-0 left-0 z-50 w-72 bg-white/90 backdrop-blur-md shadow-2xl translate-x-0 flex flex-col h-full" : "fixed inset-y-0 left-0 z-50 w-72 bg-white/90 backdrop-blur-md shadow-2xl -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:w-20 hover:md:w-64 transition-all duration-300 group flex flex-col shrink-0 overflow-hidden z-20";
             const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-40 md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
@@ -432,7 +436,7 @@
         }
 
         window.openCreateModal = function(defaultDate = null, defaultStart = '09:00', defaultEnd = '10:00') {
-            const role = session.role;
+            const role = session.role || 'admin';
             const empSelect = document.getElementById('manual-employee-id');
             empSelect.innerHTML = '';
             if (role === 'admin') {
@@ -638,7 +642,7 @@
                                                 <span class="text-slate-400">Arraste a foto abaixo para mover</span>
                                             </div>
 
-                                            <div id="preview-interactive-canvas" class="absolute inset-0 z-0 preview-interactive-canvas" style="background-image: ${t.bgCustomImage ? `url(${t.bgCustomImage})` : 'none'}; background-size: ${t.bgCustomScale || 100}%; background-position: ${t.bgCustomPosX \vert{}\vert{} 50}\%${t.bgCustomPosY || 50}%; opacity: ${t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.2}; filter: blur(${(t.bgCustomBlur || 0)}px);"></div>
+                                            <div id="preview-interactive-canvas" class="absolute inset-0 z-0 preview-interactive-canvas" style="background-image: ${t.bgCustomImage ? `url(${t.bgCustomImage})` : 'none'}; background-size: ${t.bgCustomScale || 100}%; background-position: ${t.bgCustomPosX || 50}% ${t.bgCustomPosY || 50}%; opacity: ${t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.2}; filter: blur(${(t.bgCustomBlur || 0)}px);"></div>
 
                                             <div class="relative z-10 flex h-full pointer-events-none">
                                                 <div class="w-12 bg-white/90 backdrop-blur-xs border-r border-slate-200 h-full flex flex-col items-center py-4 space-y-4 shrink-0 shadow-xs">
@@ -1201,7 +1205,7 @@
 
         window.salvarOrg = function() { t.name = document.getElementById('org-name').value; saveDB(); showModal('Sucesso', 'Organização atualizada!', 'success'); };
         window.handleImageUpload = function(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { if(type === 'logo') t.logo = event.target.result; else { let user = t.admin.id === userId ? t.admin : t.employees.find(emp=>emp.id===userId); user.avatar = event.target.result; } saveDB(); }; reader.readAsDataURL(file); };
-        window.salvarPerfil = function(userId) { const role = session.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'Senha atual incorreta.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
+        window.salvarPerfil = function(userId) { const role = session.role || 'admin'; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'Senha atual incorreta.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
         window.saveEmployee = function(e) { e.preventDefault(); const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); };
         
         window.saveProcedure = function(e) { 
@@ -1225,6 +1229,99 @@
                 t.procedures = t.procedures.filter(p => p.id !== id);
                 saveDB();
             });
+        };
+
+        function attachCanvasInteractivity() {
+            const canvas = document.getElementById('preview-interactive-canvas');
+            if (!canvas) return;
+
+            canvas.onmousedown = (e) => {
+                isImgDragging = true;
+                imgStartX = e.clientX;
+                imgStartY = e.clientY;
+            };
+
+            document.onmousemove = (e) => {
+                if (!isImgDragging || !canvas) return;
+                const deltaX = (e.clientX - imgStartX) * 0.2;
+                const deltaY = (e.clientY - imgStartY) * 0.2;
+
+                let newX = Math.max(0, Math.min(100, (t.bgCustomPosX || 50) + deltaX));
+                let newY = Math.max(0, Math.min(100, (t.bgCustomPosY || 50) + deltaY));
+
+                t.bgCustomPosX = newX;
+                t.bgCustomPosY = newY;
+                canvas.style.backgroundPosition = `${newX}% ${newY}%`;
+
+                imgStartX = e.clientX;
+                imgStartY = e.clientY;
+            };
+
+            document.onmouseup = () => {
+                if (isImgDragging) {
+                    isImgDragging = false;
+                    saveDB();
+                }
+            };
+        }
+
+        window.selectThemePalette = function(paletteId) {
+            t.themePalette = paletteId;
+            applyThemeCSS(paletteId);
+            saveDB();
+            showModal('Estilo Aplicado!', 'A nova paleta de cores foi salva para toda a organização.', 'success');
+        };
+
+        window.handleBgUpload = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                t.bgCustomImage = event.target.result;
+                if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.2;
+                if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
+                if(t.bgCustomScale === undefined) t.bgCustomScale = 100;
+                if(t.bgCustomPosX === undefined) t.bgCustomPosX = 50;
+                if(t.bgCustomPosY === undefined) t.bgCustomPosY = 50;
+                saveDB();
+                render();
+                showModal('Imagem Salva!', 'Foto de fundo cadastrada. Use os controles para ajustar.', 'success');
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.removeBgImage = function() {
+            delete t.bgCustomImage;
+            saveDB();
+            render();
+            showModal('Removido', 'Foto de fundo removida com sucesso.', 'info');
+        };
+
+        window.updateBgScale = function(val) {
+            t.bgCustomScale = parseInt(val);
+            saveDB();
+            const canvas = document.getElementById('preview-interactive-canvas');
+            const lbl = document.getElementById('scale-val-label');
+            if (canvas) canvas.style.backgroundSize = `${val}%`;
+            if (lbl) lbl.innerText = val + '%';
+        };
+
+        window.updateBgOpacity = function(val) {
+            t.bgCustomOpacity = parseFloat(val);
+            saveDB();
+            const canvas = document.getElementById('preview-interactive-canvas');
+            const lbl = document.getElementById('opacity-val-label');
+            if (canvas) canvas.style.opacity = val;
+            if (lbl) lbl.innerText = Math.round(val * 100) + '%';
+        };
+
+        window.updateBgBlur = function(val) {
+            t.bgCustomBlur = parseInt(val);
+            saveDB();
+            const canvas = document.getElementById('preview-interactive-canvas');
+            const lbl = document.getElementById('blur-val-label');
+            if (canvas) canvas.style.filter = `blur(${val}px)`;
+            if (lbl) lbl.innerText = val + 'px';
         };
 
         window.cancelarAgendamento = function(id) { updateAppStatus(id, 'cancelado'); };
