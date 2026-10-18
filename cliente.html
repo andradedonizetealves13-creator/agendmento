@@ -161,12 +161,12 @@
                 return whSource?.[dayOfWeek]?.active !== false;
             };
 
-            // LÓGICA DE ABERTURA MENSAL CONTROLADA COM LIBERAÇÃO NA ÚLTIMA SEMANA
+            // REGRA: EXIBE APENAS 2 MESES (MÊS ATUAL E MÊS SEGUINTE) COM A ÚLTIMA SEMANA DO PRÓXIMO MÊS BLOQUEADA
             window.isDateAllowedByMonthlyRule = function(cellDate) {
                 const today = new Date();
                 today.setHours(0,0,0,0);
 
-                if (cellDate < today) return false; // Dias passados são bloqueados
+                if (cellDate < today) return false;
 
                 const currentYear = today.getFullYear();
                 const currentMonth = today.getMonth();
@@ -174,31 +174,22 @@
                 const cellMonth = cellDate.getMonth();
                 const cellDay = cellDate.getDate();
 
-                const totalDaysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-                const isLastWeekOfCurrentMonth = today.getDate() > (totalDaysInCurrentMonth - 7);
-
-                // 1. Mês Atual: Totalmente Liberado
+                // 1. Mês Atual: Totalmente Disponível
                 if (cellYear === currentYear && cellMonth === currentMonth) {
                     return true;
                 }
 
-                // 2. Mês Seguinte: Liberado Apenas se estivermos na Última Semana do Mês Atual
+                // 2. Próximo Mês: Disponível, Exceto a Última Semana do Próximo Mês
                 const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
                 if (cellYear === nextMonthDate.getFullYear() && cellMonth === nextMonthDate.getMonth()) {
-                    if (!isLastWeekOfCurrentMonth) {
-                        return false; // Mês seguinte ainda bloqueado
-                    }
-                    
-                    // Se abriu o próximo mês, a última semana do próximo mês fica bloqueada
-                    const totalDaysInNextMonth = new Date(cellYear, cellMonth + 1, 0).getDate();
-                    if (cellDay > (totalDaysInNextMonth - 7)) {
-                        return false; // Última semana do próximo mês bloqueada
+                    const daysInNextMonth = new Date(cellYear, cellMonth + 1, 0).getDate();
+                    if (cellDay > (daysInNextMonth - 7)) {
+                        return false; // Bloqueia os últimos 7 dias do próximo mês
                     }
                     return true;
                 }
 
-                // Meses futuros além do próximo ficam bloqueados
-                return false;
+                return false; // Bloqueia qualquer mês além dos 2 meses ativos
             };
 
             window.isCompanyOpenOnDate = function(dateStr) {
@@ -453,6 +444,15 @@
                     const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
                     const weekShortDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
                     const today = new Date(); today.setHours(0,0,0,0);
+                    
+                    const currentYear = today.getFullYear();
+                    const currentMonth = today.getMonth();
+
+                    // Limites de navegação do calendário: Mês Atual e Mês Seguinte
+                    const canGoPrev = clientCalYear > currentYear || (clientCalYear === currentYear && clientCalMonth > currentMonth);
+                    const nextMonthCalc = new Date(currentYear, currentMonth + 1, 1);
+                    const canGoNext = clientCalYear < nextMonthCalc.getFullYear() || (clientCalYear === nextMonthCalc.getFullYear() && clientCalMonth < nextMonthCalc.getMonth());
+
                     const firstDay = new Date(clientCalYear, clientCalMonth, 1).getDay();
                     const daysInMonth = new Date(clientCalYear, clientCalMonth + 1, 0).getDate();
                     const cells = [];
@@ -467,9 +467,9 @@
                     return `
                         <div class="max-w-lg mx-auto bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in"><h2 class="text-2xl font-black text-center mb-6">Escolha o Dia</h2>
                             <div class="flex justify-between items-center mb-6 bg-slate-50 p-2.5 rounded-2xl border">
-                                <button onclick="clientCalMonth--; render()"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                                <button onclick="if(${canGoPrev}) { clientCalMonth--; if(clientCalMonth<0){clientCalMonth=11; clientCalYear--;} render(); }" class="${canGoPrev ? 'text-slate-700 hover:bg-slate-200' : 'text-slate-300 cursor-not-allowed'} p-1.5 rounded-xl"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
                                 <span class="text-sm font-black">${monthNames[clientCalMonth]} ${clientCalYear}</span>
-                                <button onclick="clientCalMonth++; render()"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                                <button onclick="if(${canGoNext}) { clientCalMonth++; if(clientCalMonth>11){clientCalMonth=0; clientCalYear++;} render(); }" class="${canGoNext ? 'text-slate-700 hover:bg-slate-200' : 'text-slate-300 cursor-not-allowed'} p-1.5 rounded-xl"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                             </div>
                             <div class="grid grid-cols-7 gap-1 text-center mb-2">${weekShortDays.map(w => `<span class="text-[11px] font-bold text-slate-400 uppercase">${w}</span>`).join('')}</div>
                             <div class="grid grid-cols-7 gap-1.5">${cells.map(c => c.empty ? `<div></div>` : c.isBlocked ? `<div class="h-11 flex items-center justify-center rounded-xl bg-slate-100 text-slate-300 text-xs select-none" title="Indisponível">${c.day}</div>` : `<button onclick="clientBooking.date='${c.dateStr}'; render()" class="h-11 flex items-center justify-center rounded-xl text-xs font-bold ${c.isSelected?'btn-theme-primary':'bg-white border text-slate-700 hover:bg-slate-50'}">${c.day}</button>`).join('')}</div>
