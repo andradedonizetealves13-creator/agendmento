@@ -15,14 +15,18 @@
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        .calendar-grid { display: grid; grid-template-columns: 60px repeat(7, minmax(140px, 1fr)); background: #e2e8f0; gap: 1px; border: 1px solid #e2e8f0; user-select: none; }
+        .calendar-grid { display: grid; grid-template-columns: 60px repeat(7, minmax(140px, 1fr)); background: #e2e8f0; gap: 1px; border: 1px solid #e2e8f0; user-select: none; position: relative; }
         @media (max-width: 768px) { .calendar-grid { grid-template-columns: 50px repeat(7, minmax(calc(50vw - 30px), 1fr)); } }
         .calendar-header-cell { background: #f8fafc; padding: 12px 4px; text-align: center; }
         .calendar-time-col { background: #f8fafc; text-align: right; padding-right: 6px; font-size: 11px; color: #64748b; font-weight: 500; }
-        .calendar-cell { background: #ffffff; min-height: 50px; position: relative; cursor: pointer; }
-        .calendar-cell:hover { background-color: #f0fdf4 !important; }
-        .calendar-cell.drag-over { background-color: #e0e7ff !important; }
+        .calendar-day-column { background: #ffffff; position: relative; cursor: crosshair; }
         
+        .drag-selection-box {
+            position: absolute; left: 2px; right: 2px; background-color: rgba(79, 70, 229, 0.25);
+            border: 2px solid #4f46e5; border-radius: 6px; pointer-events: none; z-index: 30;
+            display: flex; items-center; justify-content: center; color: #3730a3; font-weight: 700; font-size: 11px;
+        }
+
         .appointment-postit {
             position: absolute; box-sizing: border-box; border-radius: 4px; padding: 2px 6px; font-size: 10px; overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.2); color: #fff; z-index: 10; cursor: pointer; transition: all 0.2s ease;
@@ -42,12 +46,12 @@
         <p class="text-sm text-slate-500 font-medium">Sincronizando com a sua empresa...</p>
     </div>
 
-    <!-- MODAL DE AGENDAMENTO MANUAL (CLIQUE OU CLIQUE E ARRASTE NO CALENDÁRIO) -->
+    <!-- MODAL DE CRIAÇÃO MANUAL ESTILO GOOGLE CALENDAR -->
     <div id="create-modal" class="hidden fixed inset-0 z-[115] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 relative">
             <button onclick="closeCreateModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
-            <h3 class="text-xl font-black text-slate-900 mb-1 flex items-center"><i data-lucide="calendar-plus" class="w-5 h-5 mr-2 text-indigo-600"></i> Novo Agendamento Manual</h3>
-            <p class="text-xs text-slate-500 mb-6">Preencha os dados do atendimento presencial ou telefônico</p>
+            <h3 class="text-xl font-black text-slate-900 mb-1 flex items-center"><i data-lucide="calendar-plus" class="w-5 h-5 mr-2 text-indigo-600"></i> Novo Agendamento</h3>
+            <p class="text-xs text-slate-500 mb-6">Preencha os detalhes do horário selecionado</p>
 
             <form onsubmit="handleManualAppSave(event)" class="space-y-4">
                 <div>
@@ -149,11 +153,12 @@
         window.listFilterMonth = ''; window.listFilterDate = '';
         window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
 
-        // Variaveis globais para controle de clique e arraste
+        // Variaveis de arraste por píxel/minuto
         let isDragging = false;
+        let activeColumnEl = null;
+        let startY = 0;
+        let currentY = 0;
         let dragDateStr = null;
-        let dragStartHour = null;
-        let dragEndHour = null;
 
         onValue(tenantRef, (snapshot) => {
             const data = snapshot.val();
@@ -306,7 +311,7 @@
                     </main>
                 </div>`;
             if(window.lucide) lucide.createIcons();
-            attachCellEvents();
+            attachDragHandlers();
         };
 
         window.copiarLinkCliente = function() { 
@@ -316,55 +321,84 @@
             showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); 
         };
 
-        // GESTÃO DE EVENTOS DE CLIQUE E DRAG NAS CÉLULAS DO CALENDÁRIO
-        function attachCellEvents() {
-            const cells = document.querySelectorAll('.calendar-cell[data-date]');
-            cells.forEach(cell => {
-                cell.onmousedown = (e) => {
+        // LÓGICA PRECISA DE MANIPULAÇÃO DE CLIQUE E ARRASTE POR COORDENADAS Y (IGUAL GOOGLE CALENDAR)
+        function attachDragHandlers() {
+            const dayColumns = document.querySelectorAll('.calendar-day-column');
+            
+            dayColumns.forEach(col => {
+                col.addEventListener('mousedown', (e) => {
                     if (e.target.closest('.appointment-postit')) return;
                     isDragging = true;
-                    dragDateStr = cell.getAttribute('data-date');
-                    dragStartHour = parseInt(cell.getAttribute('data-hour'));
-                    dragEndHour = dragStartHour + 1;
-                    highlightSelectedCells();
-                };
+                    activeColumnEl = col;
+                    dragDateStr = col.getAttribute('data-date');
+                    
+                    const rect = col.getBoundingClientRect();
+                    startY = e.clientY - rect.top;
+                    currentY = startY;
 
-                cell.onmouseenter = () => {
-                    if (isDragging && cell.getAttribute('data-date') === dragDateStr) {
-                        const currentHour = parseInt(cell.getAttribute('data-hour'));
-                        if (currentHour >= dragStartHour) {
-                            dragEndHour = currentHour + 1;
-                        } else {
-                            dragEndHour = dragStartHour + 1;
-                            dragStartHour = currentHour;
-                        }
-                        highlightSelectedCells();
+                    updateDragSelectionBox();
+                });
+
+                col.addEventListener('mousemove', (e) => {
+                    if (isDragging && activeColumnEl === col) {
+                        const rect = col.getBoundingClientRect();
+                        currentY = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+                        updateDragSelectionBox();
                     }
-                };
+                });
             });
 
-            document.onmouseup = () => {
-                if (isDragging) {
+            document.addEventListener('mouseup', () => {
+                if (isDragging && activeColumnEl) {
                     isDragging = false;
-                    const startTime = `${dragStartHour.toString().padStart(2, '0')}:00`;
-                    const endTime = `${dragEndHour.toString().padStart(2, '0')}:00`;
-                    clearDragHighlights();
-                    openCreateModal(dragDateStr, startTime, endTime);
+                    
+                    const topY = Math.min(startY, currentY);
+                    const bottomY = Math.max(startY, currentY);
+                    
+                    // Cada hora possui 51px na grelha. Começa às 07:00 (420 min).
+                    const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
+                    let endMinsTotal = Math.floor((bottomY / 51) * 60) + 420;
+                    
+                    if (endMinsTotal - startMinsTotal < 15) {
+                        endMinsTotal = startMinsTotal + 30; // Mínimo de 30 min se for apenas clique simples
+                    }
+
+                    // Arredondar para múltiplos de 15 minutos
+                    const roundedStartMins = Math.floor(startMinsTotal / 15) * 15;
+                    const roundedEndMins = Math.ceil(endMinsTotal / 15) * 15;
+
+                    const startTimeStr = minsToTime(roundedStartMins);
+                    const endTimeStr = minsToTime(roundedEndMins);
+
+                    removeDragSelectionBox();
+                    openCreateModal(dragDateStr, startTimeStr, endTimeStr);
                 }
-            };
+            });
         }
 
-        function highlightSelectedCells() {
-            clearDragHighlights();
-            if (!dragDateStr) return;
-            for (let h = dragStartHour; h < dragEndHour; h++) {
-                const targetCell = document.querySelector(`.calendar-cell[data-date="${dragDateStr}"][data-hour="${h}"]`);
-                if (targetCell) targetCell.classList.add('drag-over');
+        function updateDragSelectionBox() {
+            if (!activeColumnEl) return;
+            let box = activeColumnEl.querySelector('.drag-selection-box');
+            if (!box) {
+                box = document.createElement('div');
+                box.className = 'drag-selection-box';
+                activeColumnEl.appendChild(box);
             }
+
+            const topY = Math.min(startY, currentY);
+            const heightY = Math.max(Math.abs(currentY - startY), 15);
+
+            box.style.top = topY + 'px';
+            box.style.height = heightY + 'px';
+
+            const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
+            const endMinsTotal = Math.floor(((topY + heightY) / 51) * 60) + 420;
+            box.innerText = `${minsToTime(Math.floor(startMinsTotal/15)*15)} - ${minsToTime(Math.ceil(endMinsTotal/15)*15)}`;
         }
 
-        function clearDragHighlights() {
-            document.querySelectorAll('.calendar-cell.drag-over').forEach(c => c.classList.remove('drag-over'));
+        function removeDragSelectionBox() {
+            document.querySelectorAll('.drag-selection-box').forEach(b => b.remove());
+            activeColumnEl = null;
         }
 
         window.openCreateModal = function(defaultDate = null, defaultStart = '09:00', defaultEnd = '10:00') {
@@ -898,6 +932,7 @@
         };
         window.toggleFullscreen = function() { isCalendarFullscreen = !isCalendarFullscreen; render(); };
 
+        // DESENHO DAS COLUNAS MENSURADAS EM PIXELS PARA PERMITIR SELEÇÃO DINÂMICA
         function renderWeeklyCalendar(role, user) {
             const today = new Date(); const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + (currentWeekOffset * 7));
             const weekDays = []; for(let i=0; i<7; i++) { const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i); weekDays.push(d); }
@@ -923,14 +958,16 @@
                 appsByDayAndSlot[dayIdx].push({ ...a, startMins, endMins, h, m });
             });
 
-            const postitsHtml = [];
+            const postitsHtmlByDay = {};
             Object.keys(appsByDayAndSlot).forEach(dayIdxStr => {
                 const dayIdx = parseInt(dayIdxStr); const dayApps = appsByDayAndSlot[dayIdxStr];
+                postitsHtmlByDay[dayIdx] = [];
+
                 dayApps.forEach((a) => {
                     const overlapping = dayApps.filter(o => (a.startMins < o.endMins && a.endMins > o.startMins));
                     const totalOverlaps = overlapping.length; const overlapIndex = overlapping.findIndex(o => o.id === a.id);
-                    const gridRowStart = a.h - 7 + 2; 
-                    const height = Math.max((a.totalDuration / 60) * 51, 22);
+                    const topPixels = ((a.startMins - 420) / 60) * 51;
+                    const heightPixels = Math.max((a.totalDuration / 60) * 51, 22);
 
                     const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
                     const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
@@ -941,9 +978,9 @@
                         const widthPct = (100 / totalOverlaps); styleWidth = `calc(${widthPct}% - 4px)`; styleLeft = `calc(${overlapIndex * widthPct}% + 2px)`;
                     }
 
-                    postitsHtml.push(`
+                    postitsHtmlByDay[dayIdx].push(`
                         <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${a.proceduresNames.join(', ')}" class="appointment-postit" 
-                             style="grid-column: ${dayIdx + 2} / span 1; grid-row: ${gridRowStart}; margin-top: ${(a.m/60)*51}px; height: ${height}px; min-height: 22px; width: ${styleWidth} !important; max-width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
+                             style="top: ${topPixels}px; height: ${heightPixels}px; width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
                             <p class="font-bold truncate text-[10px] text-white">${postitTitle}</p>
                         </div>
                     `);
@@ -971,17 +1008,23 @@
                                 const isWorking = doesEmployeeWorkOnDate(currentProfile, dateStr);
                                 return `<div class="calendar-header-cell border-b border-r sticky top-0 ${isWorking?'bg-white/95':'bg-slate-200/95 opacity-80'} z-20"><p class="text-xs text-slate-500 uppercase font-bold">${d.toLocaleDateString('pt-BR', {weekday:'short'})}</p><p class="text-xl font-bold text-slate-800">${d.getDate()}</p>${!isWorking ? `<span class="text-[9px] bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded uppercase">Folga</span>` : ''}</div>`;
                             }).join('')}
-                            ${hours.map((h, hIdx) => {
-                                const hourNum = hIdx + 7;
+                            
+                            <!-- COLUNA DE HORAS LATERAL -->
+                            <div class="flex flex-col border-r bg-slate-50">
+                                ${hours.map(h => `<div class="calendar-time-col h-[51px] border-b pt-1">${h}</div>`).join('')}
+                            </div>
+
+                            <!-- COLUNAS DOS DIAS COM SUPORTE A CLIQUE E ARRASTE -->
+                            ${weekDays.map((d, dayIdx) => {
+                                const dateStr = d.toISOString().split('T')[0];
+                                const isWorking = doesEmployeeWorkOnDate(currentProfile, dateStr);
                                 return `
-                                    <div class="calendar-time-col border-b border-r pt-2 sticky left-0 bg-white/95 z-10">${h}</div>${weekDays.map((d, dayIdx) => {
-                                        const dateStr = d.toISOString().split('T')[0];
-                                        const isWorking = doesEmployeeWorkOnDate(currentProfile, dateStr);
-                                        return `<div data-date="${dateStr}" data-hour="${hourNum}" data-day="${dayIdx}" class="calendar-cell border-b border-r ${isWorking?'bg-white':'bg-slate-200 opacity-60 pointer-events-none'}"></div>`;
-                                    }).join('')}
+                                    <div data-date="${dateStr}" class="calendar-day-column border-r relative ${isWorking?'bg-white':'bg-slate-200 opacity-60 pointer-events-none'}" style="height: ${14 * 51}px;">
+                                        ${hours.map(() => `<div class="h-[51px] border-b border-slate-100/80"></div>`).join('')}
+                                        ${(postitsHtmlByDay[dayIdx] || []).join('')}
+                                    </div>
                                 `;
                             }).join('')}
-                            ${postitsHtml.join('')}
                         </div>
                     </div>
                 </div>
