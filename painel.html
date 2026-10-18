@@ -134,25 +134,30 @@
         window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
         window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
 
-        // Helper para determinar se o agendamento já passou e está concluído
         window.getEffectiveAppStatus = function(appItem) {
             if (appItem.status === 'cancelado') return 'cancelado';
             if (appItem.status === 'nao_compareceu') return 'nao_compareceu';
             if (appItem.status === 'realizado') return 'realizado';
-
-            // Se não foi cancelado nem marcado como não compareceu, e a data/hora já passaram, é considerado REALIZADO/CONCLUÍDO
             const appDateTime = new Date(appItem.date + 'T' + appItem.time);
-            if (appDateTime < new Date()) {
-                return 'realizado';
-            }
+            if (appDateTime < new Date()) return 'realizado';
             return 'agendado';
         };
 
+        // CHECAGEM DE TRABALHO DO FUNCIONÁRIO (CHECANDO EXCEÇÃO INDIVIDUAL E DA EMPRESA)
         window.doesEmployeeWorkOnDate = function(emp, dateStr) {
-            const [y, m, d] = dateStr.split('-'); const dayOfWeek = new Date(y, m - 1, d).getDay(); 
-            const exc = emp.exceptions?.[dateStr];
-            if(exc && exc.type === 'folga') return false;
-            if(exc && exc.type === 'plantao') return true;
+            // 1. Checa Exceção Individual do Funcionário
+            if (emp.exceptions && emp.exceptions[dateStr]) {
+                if (emp.exceptions[dateStr].type === 'folga') return false;
+                if (emp.exceptions[dateStr].type === 'plantao') return true;
+            }
+            // 2. Checa Exceção Geral da Empresa
+            if (t.admin.exceptions && t.admin.exceptions[dateStr]) {
+                if (t.admin.exceptions[dateStr].type === 'folga') return false;
+                if (t.admin.exceptions[dateStr].type === 'plantao') return true;
+            }
+            // 3. Checa Horário Semanal Padrão
+            const [y, m, d] = dateStr.split('-'); 
+            const dayOfWeek = new Date(y, m - 1, d).getDay(); 
             const whSource = emp.workingHours || t.admin.workingHours;
             return whSource?.[dayOfWeek]?.active !== false;
         };
@@ -235,8 +240,7 @@
                                 <h1 class="font-bold text-slate-800 text-sm md:text-base hidden sm:block">Painel de Controle</h1>
                             </div>
                             <div class="flex items-center space-x-3">
-                                <button onclick="activeTab='profile'; render()" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors hidden sm:block">${userProfile.name}</button>
-                                ${role === 'admin' ? `
+                                <button onclick="activeTab='profile'; render()" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors hidden sm:block">${userProfile.name}</button>${role === 'admin' ? `
                                     <button onclick="copiarLinkCliente()" class="text-xs md:text-sm bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg font-bold flex items-center space-x-2 hover:bg-indigo-100 border border-indigo-100 transition-colors shadow-sm"><i data-lucide="external-link" class="w-4 h-4"></i> <span class="hidden sm:inline">Copiar Link do Cliente</span><span class="sm:hidden">Link Cliente</span></button>
                                 ` : ''}
                             </div>
@@ -287,13 +291,13 @@
                         <div class="max-w-4xl mx-auto space-y-6 fade-in">
                             ${pendingRequests.length > 0 ? `
                                 <div class="bg-amber-50 border-2 border-amber-200 p-6 rounded-2xl shadow-sm">
-                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes (${pendingRequests.length})</h3>
+                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes de Folga / Plantão (${pendingRequests.length})</h3>
                                     <div class="space-y-3">
                                         ${pendingRequests.map(r => `
                                             <div class="bg-white p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                                                 <div>
-                                                    <p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência/Folga':'Hora a mais'}</span></p>
-                                                    <p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b> ${r.type==='plantao'? `(${r.start} às ${r.end})`:''}</p>
+                                                    <p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência/Folga':'Hora a mais (Plantão)'}</span></p>
+                                                    <p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b>${r.type==='plantao'? `(${r.start} às ${r.end})`:''}</p>
                                                 </div>
                                                 <div class="flex items-center space-x-2">
                                                     <button onclick="handleApproveRequest('${r.id}', true)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Aprovar</button>
@@ -332,7 +336,7 @@
 
                                 <div class="space-y-6">
                                     <div class="bg-white p-6 rounded-2xl border shadow-sm">
-                                        <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral</h3>
+                                        <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral (Empresa)</h3>
                                         <div class="space-y-4 mt-4">
                                             <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
                                             <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
@@ -345,17 +349,17 @@
                                                 <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="exc-start" value="08:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
                                                 <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="exc-end" value="20:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
                                             </div>
-                                            <button onclick="addException()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-md mt-2">Adicionar Exceção</button>
+                                            <button onclick="addException()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-md mt-2">Adicionar Exceção Geral</button>
                                         </div>
                                     </div>
 
                                     <div class="bg-white p-6 rounded-2xl border shadow-sm">
-                                        <h3 class="font-bold text-base mb-4">Exceções Registradas</h3>
+                                        <h3 class="font-bold text-base mb-4">Exceções Gerais Registradas</h3>
                                         <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
                                             ${excs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma cadastrada.</p>' : excs.map(e => `
                                                 <div class="p-3 border rounded-xl flex items-center justify-between ${e.type==='folga'?'bg-rose-50/50 border-rose-100':'bg-emerald-50/50 border-emerald-100'}">
                                                     <div>
-                                                        <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} -${e.type==='folga'?'Folga':'Plantão'}</p>
+                                                        <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} - ${e.type==='folga'?'Folga Geral':'Plantão Geral'}</p>
                                                         ${e.type==='plantao' ? `<p class="text-xs text-emerald-600 font-medium">${e.start} às ${e.end}</p>` : ''}
                                                     </div>
                                                     <button onclick="removeException('${e.date}')" class="text-rose-500 bg-white hover:bg-rose-50 p-2 rounded-lg shadow-sm border border-transparent hover:border-rose-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -374,22 +378,23 @@
                             <div class="bg-white p-6 rounded-2xl border shadow-sm">
                                 <h3 class="font-bold text-lg mb-1">Solicitar Ausência ou Hora a Mais</h3>
                                 <form onsubmit="handleCreateRequest(event, '${user.id}', '${user.name}')" class="space-y-4 mt-4">
-                                    <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
+                                    <div><label class="block text-xs font-bold mb-1.5">Tipo de Solicitação</label>
                                         <select id="req-type" onchange="document.getElementById('req-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-3 border rounded-xl text-sm bg-white font-medium">
-                                            <option value="folga">Solicitar Folga (Dia inteiro)</option><option value="plantao">Solicitar Hora a Mais (Plantão)</option>
+                                            <option value="folga">Solicitar Folga / Ausência (Dia inteiro)</option>
+                                            <option value="plantao">Solicitar Hora a Mais (Plantão)</option>
                                         </select>
                                     </div>
                                     <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="req-date" required class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div>
                                     <div id="req-times" class="hidden flex items-center space-x-4"><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="req-start" value="08:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="req-end" value="20:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div></div>
-                                    <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl shadow-md mt-2">Enviar</button>
+                                    <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl shadow-md mt-2">Enviar Solicitação</button>
                                 </form>
                             </div>
                             <div class="bg-white p-6 rounded-2xl border shadow-sm">
                                 <h3 class="font-bold text-base mb-4">Minhas Solicitações</h3>
                                 <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                                    ${myReqs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma solicitação.</p>' : myReqs.map(r => `
+                                    ${myReqs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma solicitação enviada.</p>' : myReqs.map(r => `
                                         <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
-                                            <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Ausência':'Hora a mais'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
+                                            <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Ausência/Folga':'Hora a mais'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
                                             <span class="text-xs font-bold px-3 py-1.5 rounded-full border ${r.status==='approved'?'bg-emerald-50 text-emerald-700 border-emerald-200':(r.status==='rejected'?'bg-rose-50 text-rose-700 border-rose-200':'bg-amber-50 text-amber-700 border-amber-200')}">${r.status==='approved'?'Aprovado':(r.status==='rejected'?'Recusado':'Pendente')}</span>
                                         </div>
                                     `).join('')}
@@ -435,7 +440,7 @@
                         <div class="bg-white p-6 rounded-2xl border shadow-sm">
                             <h3 class="font-bold text-lg mb-4">Lista de Procedimentos</h3>
                             <div class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
-                                ${t.procedures.length === 0 ? '<p class="text-xs text-slate-400">Nenhum procedimento cadastrado.</p>' : t.procedures.map(p=>`
+                                ${t.procedures.length === 0 ? '<p class="text-xs text-slate-400">Nenum procedimento cadastrado.</p>' : t.procedures.map(p=>`
                                     <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50 hover:bg-white transition-all">
                                         <div>
                                             <p class="font-bold text-sm text-slate-900">${p.name}</p>
@@ -454,27 +459,23 @@
             return '';
         }
 
-        // RENDER DO DASHBOARD ANALYTICS COM LISTA DE AGENDAMENTOS E CONCLUÍDOS AUTOMÁTICOS
         function renderDashboardAnalytics(role, user) {
             const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
             
             let apps = t.appointments || [];
             if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
 
-            // Filtro de Mês e Ano
             const filteredApps = apps.filter(a => {
                 const [y, m] = a.date.split('-');
                 return m === dashboardFilterMonth && y === dashboardFilterYear;
             });
 
-            // Agendamentos Concluídos (Realizados explicitamente ou cujo horário/dia já passou)
             const completedApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'realizado');
             const canceledApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'cancelado');
             const noShowApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'nao_compareceu');
 
             const totalRevenue = completedApps.reduce((s, a) => s + (a.totalPrice || 0), 0);
 
-            // Estatísticas por Procedimento
             const procStats = {};
             t.procedures.forEach(p => { procStats[p.name] = 0; });
             completedApps.forEach(a => {
@@ -483,7 +484,6 @@
                 });
             });
 
-            // Estatísticas por Colaborador (Visão ADM)
             const staffStats = {};
             if(role === 'admin') {
                 t.employees.forEach(e => {
@@ -502,7 +502,6 @@
 
             return `
                 <div class="space-y-6 fade-in max-w-6xl mx-auto">
-                    <!-- FILTRO FIXO MENSAL -->
                     <div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <h2 class="text-xl font-bold text-slate-800">Dashboard de Desempenho</h2>
@@ -516,7 +515,6 @@
                         </div>
                     </div>
 
-                    <!-- CARDS DE METRICAS CHAVE -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="bg-white p-5 rounded-2xl border shadow-sm flex items-center space-x-4">
                             <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-bold shrink-0"><i data-lucide="wallet" class="w-6 h-6"></i></div>
@@ -551,7 +549,6 @@
                         </div>
                     </div>
 
-                    <!-- LISTA DE AGENDAMENTOS DO PERÍODO SELECIONADO NO DASHBOARD -->
                     <div class="bg-white p-6 rounded-2xl border shadow-sm">
                         <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center justify-between">
                             <span class="flex items-center"><i data-lucide="list" class="w-5 h-5 mr-2 text-indigo-600"></i> Agendamentos do Mês (${filteredApps.length})</span>
@@ -573,12 +570,13 @@
                                         <div class="flex items-start space-x-3">
                                             <div class="bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1.5 rounded-lg text-xs shrink-0">${formatDateBR(a.date)}<br>${a.time}</div>
                                             <div>
-                                                <p class="font-bold text-slate-800 text-sm">{${a.clientName}}${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded">Para: ${a.beneficiaryName}</span>` : ''}</p>
+                                                <p class="font-bold text-slate-800 text-sm">{${a.clientName}} ${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded">Para: ${a.beneficiaryName}</span>` : ''}</p>
                                                 <p class="text-xs text-slate-500">${a.proceduresNames.join(', ')} — <b>${empName}</b></p>
                                             </div>
                                         </div>
                                         <div class="flex items-center justify-between sm:justify-end space-x-3 border-t sm:border-0 pt-2 sm:pt-0">
-                                            <span class="font-bold text-emerald-600 text-xs">R$ ${a.totalPrice.toFixed(2)}</span>${statusBadge}
+                                            <span class="font-bold text-emerald-600 text-xs">R$ ${a.totalPrice.toFixed(2)}</span>
+                                            ${statusBadge}
                                         </div>
                                     </div>
                                 `;
@@ -587,7 +585,6 @@
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- RELATÓRIO DE ATENDIMENTOS POR PROCEDIMENTO -->
                         <div class="bg-white p-6 rounded-2xl border shadow-sm">
                             <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="scissors" class="w-5 h-5 mr-2 text-indigo-600"></i> Atendimentos por Procedimento</h3>
                             <div class="space-y-3 max-h-72 overflow-y-auto custom-scrollbar pr-2">
@@ -600,7 +597,6 @@
                             </div>
                         </div>
 
-                        <!-- VISÃO POR COLABORADOR (VISÃO ADM) -->
                         ${role === 'admin' ? `
                             <div class="bg-white p-6 rounded-2xl border shadow-sm">
                                 <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="users" class="w-5 h-5 mr-2 text-indigo-600"></i> Desempenho por Colaborador</h3>
@@ -628,20 +624,23 @@
             `;
         }
 
+        // SOLICITAÇÃO DE FOLGA / PLANTÃO PELO FUNCIONÁRIO
         window.handleCreateRequest = function(e, empId, empName) {
             e.preventDefault(); const date = document.getElementById('req-date').value; const type = document.getElementById('req-type').value;
             if(!date) return showModal('Erro', 'Selecione uma data.', 'error');
             const newReq = { id: 'req-' + Date.now(), empId, empName, date, type, status: 'pending' };
             if(type === 'plantao') { newReq.start = document.getElementById('req-start').value; newReq.end = document.getElementById('req-end').value; }
-            t.requests.push(newReq); saveDB(); showModal('Enviado', 'Solicitação enviada.', 'success');
+            t.requests.push(newReq); saveDB(); showModal('Enviado', 'Solicitação enviada ao Administrador com sucesso.', 'success');
         };
 
+        // APROVAÇÃO E APLICAÇÃO DA FOLGA OU PLANTÃO NA ESTRUTURA DO FUNCIONÁRIO
         window.handleApproveRequest = function(reqId, approved) {
             const req = t.requests.find(r => r.id === reqId); if(!req) return;
             req.status = approved ? 'approved' : 'rejected';
             if(approved) {
                 const emp = t.employees.find(e => e.id === req.empId);
                 if(emp) {
+                    if(!emp.exceptions) emp.exceptions = {};
                     if(req.type === 'folga') emp.exceptions[req.date] = { type: 'folga' };
                     else emp.exceptions[req.date] = { type: 'plantao', start: req.start, end: req.end };
                 }
@@ -688,173 +687,4 @@
                                 ${meses.map(m => `<option value="${m.v}" ${listFilterMonth===m.v?'selected':''}>${m.n}</option>`).join('')}
                             </select>
                         </div>
-                        <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Data Específica</label><input type="date" value="${listFilterDate}" onchange="listFilterDate=this.value; listFilterMonth=''; render()" class="w-full px-4 py-2 bg-white border rounded-xl text-sm font-semibold outline-none"></div>
-                        <div class="flex items-end w-full md:w-auto"><button onclick="listFilterDate=''; listFilterMonth=''; render()" class="w-full px-4 py-2 bg-white border text-slate-600 hover:bg-rose-50 hover:text-rose-600 rounded-xl text-sm font-bold">Limpar</button></div>
-                    </div>
-                    <div class="space-y-4">
-                        ${apps.length === 0 ? '<div class="text-center py-16 bg-slate-50 rounded-2xl border-dashed border"><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>' : apps.map(a => {
-                            const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
-                            const titleText = (role === 'admin' && hasEmployees) ? `${emp?emp.name:'Equipe'} - {${a.clientName}}` : a.clientName;
-                            return `
-                            <div class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-300 bg-white gap-4">
-                                <div class="flex items-start space-x-4">
-                                    <div class="bg-indigo-50 text-indigo-600 w-14 h-14 rounded-xl flex flex-col items-center justify-center border shrink-0"><span class="text-[10px] font-bold uppercase">${a.date.split('-')[1]}</span><span class="text-xl font-bold">${a.date.split('-')[2]}</span></div>
-                                    <div><p class="font-bold text-slate-900 text-base">${titleText}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} -${a.proceduresNames.join(', ')}</p></div>
-                                </div>
-                                <div class="flex items-center justify-between md:justify-end space-x-4 border-t md:border-0 pt-4 md:pt-0 w-full md:w-auto">
-                                    <p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">R$ ${a.totalPrice.toFixed(2)}</p>
-                                    <button onclick="cancelarAgendamento('${a.id}')" class="text-xs text-rose-600 bg-rose-50 px-4 py-2 rounded-xl hover:bg-rose-100 font-bold border">Cancelar</button>
-                                </div>
-                            </div>
-                        `}).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        window.jumpToMonth = function(monthIndexStr) {
-            const m = parseInt(monthIndexStr); const today = new Date(); const tgt = new Date(today.getFullYear(), m, 1);
-            currentWeekOffset = Math.floor((tgt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 7)); render();
-        };
-        window.toggleFullscreen = function() { isCalendarFullscreen = !isCalendarFullscreen; render(); };
-
-        function renderWeeklyCalendar(role, user) {
-            const today = new Date(); const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + (currentWeekOffset * 7));
-            const weekDays = []; for(let i=0; i<7; i++) { const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i); weekDays.push(d); }
-            const viewMonth = weekDays[0].getMonth(); const viewYear = weekDays[0].getFullYear();
-            const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-            const hours = []; for(let i=7; i<=20; i++) hours.push(`${i.toString().padStart(2, '0')}:00`);
-
-            const weekApps = t.appointments.filter(a => {
-                if(role === 'employee' && a.employeeId !== user.id) return false;
-                if(a.status === 'cancelado' || a.status === 'nao_compareceu') return false;
-                const aDate = new Date(a.date + 'T00:00:00'); return aDate >= weekDays[0] && aDate <= weekDays[6];
-            });
-
-            const currentProfile = role === 'admin' ? t.admin : user;
-            const appsByDayAndSlot = {};
-            
-            weekApps.forEach(a => {
-                const aDate = new Date(a.date + 'T00:00:00'); const dayIdx = aDate.getDay();
-                const [h, m] = a.time.split(':').map(Number);
-                if(h < 7 || h > 20) return;
-                const startMins = timeToMins(a.time); const endMins = startMins + a.totalDuration;
-                if (!appsByDayAndSlot[dayIdx]) appsByDayAndSlot[dayIdx] = [];
-                appsByDayAndSlot[dayIdx].push({ ...a, startMins, endMins, h, m });
-            });
-
-            const postitsHtml = [];
-            Object.keys(appsByDayAndSlot).forEach(dayIdxStr => {
-                const dayIdx = parseInt(dayIdxStr); const dayApps = appsByDayAndSlot[dayIdxStr];
-                dayApps.forEach((a) => {
-                    const overlapping = dayApps.filter(o => (a.startMins < o.endMins && a.endMins > o.startMins));
-                    const totalOverlaps = overlapping.length; const overlapIndex = overlapping.findIndex(o => o.id === a.id);
-                    const gridRowStart = a.h - 7 + 2; 
-                    const height = Math.max((a.totalDuration / 60) * 51, 22);
-
-                    const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
-                    const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
-                    const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${a.time} - ${emp?emp.name:'Equipe'} - {${a.clientName}}` : `${a.time} - ${a.clientName}`;
-
-                    let styleWidth = 'calc(100% - 6px)'; let styleLeft = '3px';
-                    if (totalOverlaps > 1) {
-                        const widthPct = (100 / totalOverlaps); styleWidth = `calc(${widthPct}% - 4px)`; styleLeft = `calc(${overlapIndex * widthPct}% + 2px)`;
-                    }
-
-                    postitsHtml.push(`
-                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${a.proceduresNames.join(', ')}" class="appointment-postit" 
-                             style="grid-column: ${dayIdx + 2} / span 1; grid-row: ${gridRowStart}; margin-top: ${(a.m/60)*51}px; height: ${height}px; min-height: 22px; width: ${styleWidth} !important; max-width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
-                            <p class="font-bold truncate text-[10px] text-white">${postitTitle}</p>
-                        </div>
-                    `);
-                });
-            });
-
-            return `
-                <div class="bg-white border rounded-2xl shadow-sm overflow-hidden flex flex-col relative ${isCalendarFullscreen ? 'calendar-fullscreen' : 'h-[600px]'}">
-                    <div class="p-3 border-b flex justify-between bg-slate-50 shrink-0">
-                        <div class="flex space-x-2">
-                            <button onclick="currentWeekOffset--;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
-                            <div class="flex items-center px-4 bg-white border rounded-xl font-bold">${monthNames[viewMonth]} ${viewYear}</div>
-                            <button onclick="currentWeekOffset++;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
-                        </div>
-                        <div class="flex space-x-3">
-                            <button onclick="currentWeekOffset=0;render()" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl font-bold">Hoje</button>
-                            <button onclick="toggleFullscreen()" class="p-2.5 bg-slate-800 text-white rounded-xl"><i data-lucide="${isCalendarFullscreen ? 'minimize' : 'maximize'}" class="w-5 h-5"></i></button>
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-2 bg-slate-100/50">
-                        <div class="calendar-grid relative bg-white border">
-                            <div class="calendar-header-cell border-b border-r bg-slate-50 sticky top-0 left-0 z-30"></div>
-                            ${weekDays.map(d => {
-                                const isWorking = doesEmployeeWorkOnDate(currentProfile, d.toISOString().split('T')[0]);
-                                return `<div class="calendar-header-cell border-b border-r sticky top-0 ${isWorking?'bg-white/95':'bg-slate-200/95 opacity-60'} z-20"><p class="text-xs text-slate-500 uppercase font-bold">${d.toLocaleDateString('pt-BR', {weekday:'short'})}</p><p class="text-xl font-bold text-slate-800">${d.getDate()}</p></div>`;
-                            }).join('')}
-                            ${hours.map((h) => `
-                                <div class="calendar-time-col border-b border-r pt-2 sticky left-0 bg-white/95 z-10">${h}</div>${weekDays.map(d => `<div class="calendar-cell border-b border-r ${doesEmployeeWorkOnDate(currentProfile, d.toISOString().split('T')[0])?'bg-white':'bg-slate-200 opacity-60'}"></div>`).join('')}
-                            `).join('')}
-                            ${postitsHtml.join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        window.showAppDetails = function(appId) {
-            const app = t.appointments.find(a => a.id === appId); if(!app) return;
-            const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
-            const msg = `
-                <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
-                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">{${app.clientName}}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${app.beneficiaryName}</span>` : ''}</div></div>
-                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${emp?emp.name:'Equipe'}</span></div></div>
-                    <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
-                    <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${app.proceduresNames.join(', ')}</span></div>
-                    <div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>
-                    
-                    <div class="pt-4 border-t flex flex-col sm:flex-row gap-2">
-                        <button onclick="updateAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">Cancelar Agendamento</button>
-                        <button onclick="updateAppStatus('${app.id}', 'nao_compareceu')" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-100 transition-colors">Não Compareceu</button>
-                    </div>
-                </div>`;
-            showModal('Detalhes do Agendamento', msg, 'info');
-        };
-
-        window.updateAppStatus = function(appId, status) {
-            const app = t.appointments.find(a => a.id === appId); if(!app) return;
-            app.status = status; saveDB();
-            closeModal();
-            showModal('Atualizado', status === 'cancelado' ? 'Agendamento cancelado com sucesso.' : 'Status alterado para Não Compareceu.', 'success');
-        };
-
-        window.salvarOrg = function() { t.name = document.getElementById('org-name').value; saveDB(); showModal('Sucesso', 'Organização atualizada!', 'success'); };
-        window.handleImageUpload = function(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { if(type === 'logo') t.logo = event.target.result; else { let user = t.admin.id === userId ? t.admin : t.employees.find(emp=>emp.id===userId); user.avatar = event.target.result; } saveDB(); }; reader.readAsDataURL(file); };
-        window.salvarPerfil = function(userId) { const role = session.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'Senha atual incorreta.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
-        window.saveEmployee = function(e) { e.preventDefault(); const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); };
-        
-        window.saveProcedure = function(e) { 
-            e.preventDefault(); 
-            const name = document.getElementById('p-name').value;
-            const duration = parseInt(document.getElementById('p-time').value);
-            const price = parseFloat(document.getElementById('p-price').value);
-
-            if(editProcedureId) {
-                let p = t.procedures.find(x => x.id === editProcedureId);
-                if(p) { p.name = name; p.duration = duration; p.price = price; }
-            } else {
-                t.procedures.push({ id: 'p-' + Date.now(), name, duration, price });
-            }
-            editProcedureId = null;
-            saveDB();
-        };
-
-        window.deleteProcedure = function(id) {
-            showModal('Excluir Procedimento', 'Tem certeza que deseja excluir este procedimento?', 'error', () => {
-                t.procedures = t.procedures.filter(p => p.id !== id);
-                saveDB();
-            });
-        };
-
-        window.cancelarAgendamento = function(id) { updateAppStatus(id, 'cancelado'); };
-    </script>
-</body>
-</html>
+                        <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Data Específica</label><input type="date" value="${listFilterDate}" onchange="listFilterDate=this.value; list
