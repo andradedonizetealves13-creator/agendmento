@@ -161,7 +161,7 @@
                 return whSource?.[dayOfWeek]?.active !== false;
             };
 
-            // REGRA: EXIBE APENAS 2 MESES (MÊS ATUAL E MÊS SEGUINTE) COM A ÚLTIMA SEMANA DO PRÓXIMO MÊS BLOQUEADA
+            // REGRA ESTRITA DE LIBERAÇÃO DA ÚLTIMA SEMANA DO MÊS
             window.isDateAllowedByMonthlyRule = function(cellDate) {
                 const today = new Date();
                 today.setHours(0,0,0,0);
@@ -174,22 +174,30 @@
                 const cellMonth = cellDate.getMonth();
                 const cellDay = cellDate.getDate();
 
-                // 1. Mês Atual: Totalmente Disponível
+                const totalDaysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                const isLastWeekOfCurrentMonth = today.getDate() > (totalDaysInCurrentMonth - 7);
+
+                // 1. Mês Atual: 100% Liberado (Até o último dia do mês)
                 if (cellYear === currentYear && cellMonth === currentMonth) {
                     return true;
                 }
 
-                // 2. Próximo Mês: Disponível, Exceto a Última Semana do Próximo Mês
+                // 2. Mês Seguinte: Liberado SOMENTE se estivermos nos últimos 7 dias do mês atual
                 const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
                 if (cellYear === nextMonthDate.getFullYear() && cellMonth === nextMonthDate.getMonth()) {
-                    const daysInNextMonth = new Date(cellYear, cellMonth + 1, 0).getDate();
-                    if (cellDay > (daysInNextMonth - 7)) {
-                        return false; // Bloqueia os últimos 7 dias do próximo mês
+                    if (!isLastWeekOfCurrentMonth) {
+                        return false; // Bloqueia mês seguinte inteiro se ainda NÃO estamos na última semana
+                    }
+                    
+                    // Se entramos nos últimos 7 dias do mês atual, o próximo mês abre, mas a última semana do próximo mês fica bloqueada
+                    const totalDaysInNextMonth = new Date(cellYear, cellMonth + 1, 0).getDate();
+                    if (cellDay > (totalDaysInNextMonth - 7)) {
+                        return false; // Bloqueia a última semana do próximo mês
                     }
                     return true;
                 }
 
-                return false; // Bloqueia qualquer mês além dos 2 meses ativos
+                return false;
             };
 
             window.isCompanyOpenOnDate = function(dateStr) {
@@ -448,7 +456,7 @@
                     const currentYear = today.getFullYear();
                     const currentMonth = today.getMonth();
 
-                    // Limites de navegação do calendário: Mês Atual e Mês Seguinte
+                    // Trava o seletor do calendário para alternar no máximo entre Mês Atual e Mês Seguinte
                     const canGoPrev = clientCalYear > currentYear || (clientCalYear === currentYear && clientCalMonth > currentMonth);
                     const nextMonthCalc = new Date(currentYear, currentMonth + 1, 1);
                     const canGoNext = clientCalYear < nextMonthCalc.getFullYear() || (clientCalYear === nextMonthCalc.getFullYear() && clientCalMonth < nextMonthCalc.getMonth());
