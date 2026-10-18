@@ -73,6 +73,14 @@
         .btn-theme-primary:hover { background-color: var(--theme-primary-hover); }
         .bg-theme-secondary { background-color: var(--theme-secondary); }
         .text-theme-primary { color: var(--theme-primary); }
+
+        .preview-interactive-canvas {
+            cursor: grab;
+            user-select: none;
+        }
+        .preview-interactive-canvas:active {
+            cursor: grabbing;
+        }
     </style>
 </head>
 <body class="text-slate-800 antialiased h-full w-full">
@@ -198,6 +206,7 @@
         window.dashboardFilterYear = new Date().getFullYear().toString();
         window.listFilterMonth = ''; window.listFilterDate = '';
         window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
+        window.activeBgMode = 'mobile'; // Alternador das abas 'mobile' e 'desktop'
 
         let isDragging = false;
         let activeColumnEl = null;
@@ -689,10 +698,15 @@
 
             if(activeTab === 'profile') {
                 const currentPalette = t.themePalette || 'wine_velvet';
+                const isMobileMode = activeBgMode === 'mobile';
+
+                const imgUrl = isMobileMode ? t.bgMobileImage : t.bgCustomImage;
+                const imgScale = isMobileMode ? (t.bgMobileScale || 100) : (t.bgCustomScale || 100);
+                const imgOpacity = isMobileMode ? (t.bgMobileOpacity !== undefined ? t.bgMobileOpacity : 0.2) : (t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.2);
+                const imgBlur = isMobileMode ? (t.bgMobileBlur || 0) : (t.bgCustomBlur || 0);
 
                 return `
                     <div class="space-y-6 max-w-5xl mx-auto fade-in">
-                        <!-- PALETAS DE CORES -->
                         ${role === 'admin' ? `
                             <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm">
                                 <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="palette" class="w-5 h-5 mr-2 text-theme-primary"></i> Estilos e Tema da Organização</h3>
@@ -715,40 +729,60 @@
                                 </div>
                             </div>
 
-                            <!-- FOTO DE PLANO DE FUNDO DO PAINEL E ÁREA DO CLIENTE COM PRÉ-VISUALIZAÇÃO EM TEMPO REAL -->
-                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm">
-                                <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="image" class="w-5 h-5 mr-2 text-theme-primary"></i> Foto de Plano de Fundo Personalizada</h3>
-                                <p class="text-xs text-slate-500 mb-6">Insira uma foto para servir de fundo nas telas do painel e do cliente.</p>
+                            <!-- IMAGENS DE FUNDO COM SELEÇÃO MOBILE / DESKTOP -->
+                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm space-y-6">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+                                    <div>
+                                        <h3 class="font-bold text-lg text-slate-900 flex items-center"><i data-lucide="image" class="w-5 h-5 mr-2 text-theme-primary"></i> Foto de Plano de Fundo da Área do Cliente</h3>
+                                        <p class="text-xs text-slate-500">Configure o papel de parede para Mobile ou Computador.</p>
+                                    </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                                    <div class="space-y-4">
-                                        <label class="block text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-3 rounded-xl cursor-pointer text-center hover:bg-indigo-100 transition-colors">
-                                            <i data-lucide="upload" class="w-4 h-4 inline mr-2"></i> Selecionar Imagem de Fundo
+                                    <div class="flex bg-slate-100 p-1 rounded-2xl border shrink-0">
+                                        <button onclick="activeBgMode='mobile'; render();" class="px-4 py-2 rounded-xl text-xs font-bold transition-all ${isMobileMode ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">
+                                            <i data-lucide="smartphone" class="w-3.5 h-3.5 inline mr-1"></i> Mobile
+                                        </button>
+                                        <button onclick="activeBgMode='desktop'; render();" class="px-4 py-2 rounded-xl text-xs font-bold transition-all ${!isMobileMode ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">
+                                            <i data-lucide="monitor" class="w-3.5 h-3.5 inline mr-1"></i> Computador
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                                    <div class="lg:col-span-5 space-y-4">
+                                        <label class="block text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-3.5 rounded-xl cursor-pointer text-center hover:bg-indigo-100 transition-colors shadow-xs">
+                                            <i data-lucide="upload" class="w-4 h-4 inline mr-2"></i> Upload Imagem (${isMobileMode ? 'Mobile' : 'Computador'})
                                             <input type="file" class="hidden" accept="image/*" onchange="handleBgUpload(event)">
                                         </label>
 
-                                        ${t.bgCustomImage ? `
-                                            <button onclick="removeBgImage()" class="w-full text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 py-2.5 rounded-xl hover:bg-rose-100 transition-colors">Remover Foto de Fundo</button>
-                                        ` : ''}
+                                        ${imgUrl ? `
+                                            <div class="p-4 bg-slate-50 border rounded-2xl space-y-4">
+                                                <div>
+                                                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                                                        <span>Opacidade da Imagem</span>
+                                                        <span id="opacity-val-label">${Math.round(imgOpacity * 100)}%</span>
+                                                    </div>
+                                                    <input type="range" min="0.05" max="0.7" step="0.05" value="${imgOpacity}" oninput="updateBgOpacity(this.value)" class="w-full">
+                                                </div>
 
-                                        <div>
-                                            <label class="block text-xs font-bold text-slate-700 mb-1">Opacidade da Imagem (${Math.round((t.bgCustomOpacity || 0.15) * 100)}%)</label>
-                                            <input type="range" min="0.05" max="0.6" step="0.05" value="${t.bgCustomOpacity || 0.15}" oninput="updateBgOpacity(this.value)" class="w-full">
-                                        </div>
+                                                <div>
+                                                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                                                        <span>Efeito de Desfocar/Blur</span>
+                                                        <span id="blur-val-label">${imgBlur}px</span>
+                                                    </div>
+                                                    <input type="range" min="0" max="10" step="1" value="${imgBlur}" oninput="updateBgBlur(this.value)" class="w-full">
+                                                </div>
 
-                                        <div>
-                                            <label class="block text-xs font-bold text-slate-700 mb-1">Efeito de Desfocar/Blur (${t.bgCustomBlur || 0}px)</label>
-                                            <input type="range" min="0" max="10" step="1" value="${t.bgCustomBlur || 0}" oninput="updateBgBlur(this.value)" class="w-full">
-                                        </div>
+                                                <button onclick="removeBgImage()" class="w-full text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 py-2.5 rounded-xl hover:bg-rose-100 transition-colors">Remover Imagem de Fundo</button>
+                                            </div>
+                                        ` : `<p class="text-xs text-slate-400 text-center py-6 border border-dashed rounded-2xl">Nenhuma imagem cadastrada para ${isMobileMode ? 'Mobile' : 'Computador'}.</p>`}
                                     </div>
 
-                                    <!-- ÁREA DE PRÉ-VISUALIZAÇÃO DA FOTO DE FUNDO -->
-                                    <div class="border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[180px] relative overflow-hidden bg-slate-100">
-                                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 relative z-10 bg-white/80 px-3 py-1 rounded-full border">Pré-visualização</p>
-                                        <div id="preview-bg-box" class="absolute inset-0 bg-cover bg-center transition-all" style="background-image: ${t.bgCustomImage ? `url(${t.bgCustomImage})` : 'none'}; opacity: ${t.bgCustomOpacity || 0.15}; filter: blur(${(t.bgCustomBlur || 0)}px);"></div>
+                                    <div class="lg:col-span-7 border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[220px] relative overflow-hidden bg-slate-100">
+                                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 relative z-10 bg-white/80 px-3 py-1 rounded-full border">Pré-visualização (${isMobileMode ? 'Mobile' : 'Computador'})</p>
+                                        <div id="preview-bg-box" class="absolute inset-0 bg-cover bg-center transition-all" style="background-image: ${imgUrl ? `url("${imgUrl}")` : 'none'}; opacity: ${imgOpacity}; filter: blur(${imgBlur}px);"></div>
                                         <div class="relative z-10 bg-white/90 p-4 rounded-xl border shadow-sm text-center">
-                                            <p class="font-bold text-xs text-slate-800">Card Exemplo</p>
-                                            <p class="text-[10px] text-slate-500">Visual como o cliente verá</p>
+                                            <p class="font-bold text-xs text-slate-800">Visual do Cliente</p>
+                                            <p class="text-[10px] text-slate-500">Demonstração da transparência e efeito</p>
                                         </div>
                                     </div>
                                 </div>
@@ -820,39 +854,52 @@
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                t.bgCustomImage = event.target.result;
-                if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.15;
-                if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
-                applyBgImageSettings();
+                const isMobile = activeBgMode === 'mobile';
+                if (isMobile) {
+                    t.bgMobileImage = event.target.result;
+                    if(t.bgMobileOpacity === undefined) t.bgMobileOpacity = 0.15;
+                    if(t.bgMobileBlur === undefined) t.bgMobileBlur = 0;
+                } else {
+                    t.bgCustomImage = event.target.result;
+                    if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.15;
+                    if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
+                }
                 saveDB();
                 render();
-                showModal('Imagem Salva!', 'Foto de fundo personalizada com sucesso.', 'success');
+                showModal('Imagem Salva!', `Foto de fundo configurada para ${isMobile ? 'Mobile' : 'Computador'}.`, 'success');
             };
             reader.readAsDataURL(file);
         };
 
         window.removeBgImage = function() {
-            delete t.bgCustomImage;
-            applyBgImageSettings();
+            const isMobile = activeBgMode === 'mobile';
+            if (isMobile) delete t.bgMobileImage;
+            else delete t.bgCustomImage;
             saveDB();
             render();
             showModal('Removido', 'Foto de fundo removida.', 'info');
         };
 
         window.updateBgOpacity = function(val) {
-            t.bgCustomOpacity = parseFloat(val);
-            applyBgImageSettings();
+            const isMobile = activeBgMode === 'mobile';
+            if (isMobile) t.bgMobileOpacity = parseFloat(val);
+            else t.bgCustomOpacity = parseFloat(val);
             saveDB();
             const previewBox = document.getElementById('preview-bg-box');
             if (previewBox) previewBox.style.opacity = val;
+            const lbl = document.getElementById('opacity-val-label');
+            if (lbl) lbl.innerText = Math.round(val * 100) + '%';
         };
 
         window.updateBgBlur = function(val) {
-            t.bgCustomBlur = parseInt(val);
-            applyBgImageSettings();
+            const isMobile = activeBgMode === 'mobile';
+            if (isMobile) t.bgMobileBlur = parseInt(val);
+            else t.bgCustomBlur = parseInt(val);
             saveDB();
             const previewBox = document.getElementById('preview-bg-box');
             if (previewBox) previewBox.style.filter = `blur(${val}px)`;
+            const lbl = document.getElementById('blur-val-label');
+            if (lbl) lbl.innerText = val + 'px';
         };
 
         function renderDashboardAnalytics(role, user) {
@@ -1258,6 +1305,66 @@
                 t.procedures = t.procedures.filter(p => p.id !== id);
                 saveDB();
             });
+        };
+
+        window.selectThemePalette = function(paletteId) {
+            t.themePalette = paletteId;
+            applyThemeCSS(paletteId);
+            saveDB();
+            showModal('Estilo Aplicado!', 'A nova paleta de cores foi salva para toda a organização.', 'success');
+        };
+
+        window.handleBgUpload = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const isMobile = activeBgMode === 'mobile';
+                if (isMobile) {
+                    t.bgMobileImage = event.target.result;
+                    if(t.bgMobileOpacity === undefined) t.bgMobileOpacity = 0.15;
+                    if(t.bgMobileBlur === undefined) t.bgMobileBlur = 0;
+                } else {
+                    t.bgCustomImage = event.target.result;
+                    if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.15;
+                    if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
+                }
+                saveDB();
+                render();
+                showModal('Imagem Salva!', `Foto de fundo salva para a aba ${isMobile ? 'Mobile' : 'Computador'}.`, 'success');
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.removeBgImage = function() {
+            const isMobile = activeBgMode === 'mobile';
+            if (isMobile) delete t.bgMobileImage;
+            else delete t.bgCustomImage;
+            saveDB();
+            render();
+            showModal('Removido', 'Foto de fundo removida.', 'info');
+        };
+
+        window.updateBgOpacity = function(val) {
+            const isMobile = activeBgMode === 'mobile';
+            if (isMobile) t.bgMobileOpacity = parseFloat(val);
+            else t.bgCustomOpacity = parseFloat(val);
+            saveDB();
+            const previewBox = document.getElementById('preview-bg-box');
+            if (previewBox) previewBox.style.opacity = val;
+            const lbl = document.getElementById('opacity-val-label');
+            if (lbl) lbl.innerText = Math.round(val * 100) + '%';
+        };
+
+        window.updateBgBlur = function(val) {
+            const isMobile = activeBgMode === 'mobile';
+            if (isMobile) t.bgMobileBlur = parseInt(val);
+            else t.bgCustomBlur = parseInt(val);
+            saveDB();
+            const previewBox = document.getElementById('preview-bg-box');
+            if (previewBox) previewBox.style.filter = `blur(${val}px)`;
+            const lbl = document.getElementById('blur-val-label');
+            if (lbl) lbl.innerText = val + 'px';
         };
 
         window.cancelarAgendamento = function(id) { updateAppStatus(id, 'cancelado'); };
