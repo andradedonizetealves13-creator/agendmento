@@ -54,7 +54,6 @@
         .bg-theme-secondary { background-color: var(--theme-secondary); }
         .text-theme-primary { color: var(--theme-primary); }
 
-        /* Estilo da caixa interativa de drag na pré-visualização */
         .preview-interactive-canvas {
             cursor: grab;
             user-select: none;
@@ -186,7 +185,12 @@
         window.listFilterMonth = ''; window.listFilterDate = '';
         window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
 
-        // Controle de Posição/Drag e Zoom da imagem de fundo
+        let isDragging = false;
+        let activeColumnEl = null;
+        let startY = 0;
+        let currentY = 0;
+        let dragDateStr = null;
+
         let isImgDragging = false;
         let imgStartX = 0, imgStartY = 0;
 
@@ -581,7 +585,6 @@
                                 </div>
                             </div>
 
-                            <!-- EDITOR COMPLETO DA IMAGEM DE FUNDO DO CLIENTE (POSICIONAMENTO, DRAG, ZOOM E PREVIEW FIEL) -->
                             <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm space-y-6">
                                 <div>
                                     <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="image" class="w-5 h-5 mr-2 text-theme-primary"></i> Ajuste da Imagem de Fundo (Área do Cliente)</h3>
@@ -589,7 +592,6 @@
                                 </div>
 
                                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                                    <!-- CONTROLES -->
                                     <div class="lg:col-span-5 space-y-4">
                                         <label class="block text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-3.5 rounded-xl cursor-pointer text-center hover:bg-indigo-100 transition-colors shadow-xs">
                                             <i data-lucide="upload" class="w-4 h-4 inline mr-2"></i> Selecionar Imagem de Fundo
@@ -622,14 +624,13 @@
                                                     <input type="range" min="0" max="10" step="1" value="${t.bgCustomBlur || 0}" oninput="updateBgBlur(this.value)" class="w-full">
                                                 </div>
 
-                                                <p class="text-[11px] text-slate-400 italic">💡 Clique e arraste com o mouse na pré-visualização ao lado para ajustar a posição da imagem.</p>
+                                                <p class="text-[11px] text-slate-400 italic">💡 Clique e arraste com o rato na pré-visualização ao lado para ajustar a posição da imagem.</p>
 
                                                 <button onclick="removeBgImage()" class="w-full text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 py-2.5 rounded-xl hover:bg-rose-100 transition-colors">Remover Imagem de Fundo</button>
                                             </div>
                                         ` : '<p class="text-xs text-slate-400 text-center py-6 border border-dashed rounded-2xl">Nenhuma imagem carregada.</p>'}
                                     </div>
 
-                                    <!-- SIMULADOR DA TELA DO CLIENTE (MOCKUP COMPLETO COM SIDEBAR, LOGO E CALENDÁRIO) -->
                                     <div class="lg:col-span-7">
                                         <div class="border-2 border-slate-300 rounded-3xl overflow-hidden shadow-md relative h-[380px] bg-slate-200 flex flex-col select-none">
                                             <div class="bg-slate-800 text-white text-[10px] font-bold px-3 py-1 flex items-center justify-between z-20 shrink-0">
@@ -637,27 +638,21 @@
                                                 <span class="text-slate-400">Arraste a foto abaixo para mover</span>
                                             </div>
 
-                                            <!-- CONTAINER DA IMAGEM MOVEL COM DRAG -->
                                             <div id="preview-interactive-canvas" class="absolute inset-0 z-0 preview-interactive-canvas" style="background-image: ${t.bgCustomImage ? `url(${t.bgCustomImage})` : 'none'}; background-size: ${t.bgCustomScale || 100}%; background-position: ${t.bgCustomPosX \vert{}\vert{} 50}\%${t.bgCustomPosY || 50}%; opacity: ${t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.2}; filter: blur(${(t.bgCustomBlur || 0)}px);"></div>
 
-                                            <!-- SOBREPOSIÇÃO FIEL DA INTERFACE DO CLIENTE -->
                                             <div class="relative z-10 flex h-full pointer-events-none">
-                                                <!-- SIDEBAR DE ÍCONES DA TELA CLIENTE -->
                                                 <div class="w-12 bg-white/90 backdrop-blur-xs border-r border-slate-200 h-full flex flex-col items-center py-4 space-y-4 shrink-0 shadow-xs">
                                                     <div class="w-7 h-7 rounded-lg btn-theme-primary flex items-center justify-center font-bold text-xs">${t.name.charAt(0)}</div>
                                                     <div class="p-2 rounded-lg bg-theme-secondary text-theme-primary"><i data-lucide="calendar-plus" class="w-4 h-4"></i></div>
                                                     <div class="p-2 rounded-lg text-slate-400"><i data-lucide="list" class="w-4 h-4"></i></div>
                                                 </div>
 
-                                                <!-- CONTEÚDO CENTRALIZADO (LOGO, NOME E CALENDÁRIO) -->
                                                 <div class="flex-1 p-3 overflow-hidden flex flex-col items-center">
-                                                    <!-- LOGO E NOME DA BARBEARIA -->
                                                     <div class="text-center mb-2">
                                                         ${t.logo ? `<img src="${t.logo}" class="w-10 h-10 rounded-xl object-cover border mx-auto shadow-xs">` : `<div class="w-10 h-10 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-sm mx-auto">O</div>`}
                                                         <p class="font-black text-xs text-slate-900 mt-1">${t.name}</p>
                                                     </div>
 
-                                                    <!-- MINI CALENDÁRIO -->
                                                     <div class="w-full max-w-xs bg-white/90 backdrop-blur-xs p-3 rounded-2xl border shadow-xs text-center space-y-2">
                                                         <p class="font-bold text-[11px] text-slate-800">Escolha o Dia</p>
                                                         <div class="grid grid-cols-7 gap-1 text-[9px] font-bold text-slate-400">
@@ -734,7 +729,6 @@
             return '';
         }
 
-        // EVENTOS DE DRAG PARA A PREVIEW DA IMAGEM
         function attachCanvasInteractivity() {
             const canvas = document.getElementById('preview-interactive-canvas');
             if (!canvas) return;
