@@ -14,6 +14,9 @@
             --theme-primary-hover: #2D081B;
             --theme-secondary: #B56B82;
             --theme-text-primary: #2A0515;
+            --bg-image: none;
+            --bg-opacity: 0.15;
+            --bg-blur: 0px;
         }
         html, body { 
             margin: 0; 
@@ -22,7 +25,19 @@
             min-height: 100vh; 
             font-family: 'Inter', sans-serif; 
             background-color: var(--theme-bg) !important; 
-            transition: background-color 0.3s ease; 
+            transition: background-color 0.3s ease;
+            position: relative;
+        }
+        #custom-bg-layer {
+            position: fixed;
+            inset: 0;
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            opacity: var(--bg-opacity);
+            filter: blur(var(--bg-blur));
+            pointer-events: none;
+            z-index: 0;
         }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -48,9 +63,11 @@
         }
     </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen w-full flex flex-col" style="background-color: var(--theme-bg)">
+<body class="text-slate-800 antialiased min-h-screen w-full flex overflow-x-hidden">
 
-    <div id="app" class="min-h-screen w-full flex flex-col items-center justify-center p-4">
+    <div id="custom-bg-layer"></div>
+
+    <div id="app" class="min-h-screen w-full flex flex-col items-center justify-center p-4 relative z-10">
         <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
         <p class="text-sm text-slate-500 font-medium">Carregando agendamentos...</p>
     </div>
@@ -121,6 +138,7 @@
                 if (!t.employees) t.employees = [];
                 
                 applyThemeCSS(t.themePalette || 'wine_velvet');
+                applyBgImageSettings();
                 render();
             });
 
@@ -131,6 +149,16 @@
                 document.documentElement.style.setProperty('--theme-primary-hover', palette.primaryHover);
                 document.documentElement.style.setProperty('--theme-secondary', palette.secondary);
                 document.documentElement.style.setProperty('--theme-text-primary', palette.dark);
+            }
+
+            function applyBgImageSettings() {
+                if (t.bgCustomImage) {
+                    document.documentElement.style.setProperty('--bg-image', `url(${t.bgCustomImage})`);
+                    document.documentElement.style.setProperty('--bg-opacity', t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.15);
+                    document.documentElement.style.setProperty('--bg-blur', (t.bgCustomBlur || 0) + 'px');
+                } else {
+                    document.documentElement.style.setProperty('--bg-image', 'none');
+                }
             }
 
             window.saveDB = function() { set(tenantRef, window.t); };
@@ -161,7 +189,6 @@
                 return whSource?.[dayOfWeek]?.active !== false;
             };
 
-            // REGRA ESTRITA DE LIBERAÇÃO DA ÚLTIMA SEMANA DO MÊS
             window.isDateAllowedByMonthlyRule = function(cellDate) {
                 const today = new Date();
                 today.setHours(0,0,0,0);
@@ -177,23 +204,15 @@
                 const totalDaysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
                 const isLastWeekOfCurrentMonth = today.getDate() > (totalDaysInCurrentMonth - 7);
 
-                // 1. Mês Atual: 100% Liberado (Até o último dia do mês)
                 if (cellYear === currentYear && cellMonth === currentMonth) {
                     return true;
                 }
 
-                // 2. Mês Seguinte: Liberado SOMENTE se estivermos nos últimos 7 dias do mês atual
                 const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
                 if (cellYear === nextMonthDate.getFullYear() && cellMonth === nextMonthDate.getMonth()) {
-                    if (!isLastWeekOfCurrentMonth) {
-                        return false; // Bloqueia mês seguinte inteiro se ainda NÃO estamos na última semana
-                    }
-                    
-                    // Se entramos nos últimos 7 dias do mês atual, o próximo mês abre, mas a última semana do próximo mês fica bloqueada
+                    if (!isLastWeekOfCurrentMonth) return false;
                     const totalDaysInNextMonth = new Date(cellYear, cellMonth + 1, 0).getDate();
-                    if (cellDay > (totalDaysInNextMonth - 7)) {
-                        return false; // Bloqueia a última semana do próximo mês
-                    }
+                    if (cellDay > (totalDaysInNextMonth - 7)) return false;
                     return true;
                 }
 
@@ -293,7 +312,7 @@
             function renderClientAuth() {
                 const logoHtml = t.logo ? `<img src="${t.logo}" class="h-16 w-auto rounded-xl object-contain mx-auto mb-4 border shadow-sm">` : `<div class="w-16 h-16 rounded-xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-2xl">O</div>`;
                 return `
-                    <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full my-auto fade-in">
+                    <div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full my-auto fade-in z-10">
                         <div class="text-center mb-6">${logoHtml}<h1 class="text-2xl font-bold text-slate-900">${t.name}</h1><p class="text-sm text-slate-500 mt-1">Área do Cliente</p></div>
                         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
                             <button onclick="clientAuthMode='login';render()" class="flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg ${clientAuthMode==='login'?'bg-white text-theme-primary font-bold shadow-sm':'text-slate-600'}">Entrar</button>
@@ -332,19 +351,44 @@
 
             window.clientLogout = function() { localStorage.removeItem('agendaProClient_' + orgSlug); currentClient = null; render(); };
 
+            // ESTRUTURA COM MENU LATERAL DE ÍCONES + LOGO E NOME CENTRALIZADOS
             function renderClientApp() {
-                const logoHtml = t.logo ? `<img src="${t.logo}" class="h-10 w-auto rounded-lg object-contain">` : `<div class="h-10 w-10 rounded-lg btn-theme-primary flex items-center justify-center font-bold text-xl">O</div>`;
+                const logoHtml = t.logo ? `<img src="${t.logo}" class="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-md mx-auto mb-3">` : `<div class="w-20 h-20 rounded-2xl btn-theme-primary flex items-center justify-center font-black text-2xl shadow-md mx-auto mb-3 border-2 border-white">O</div>`;
+
                 return `
-                    <div class="min-h-screen w-full flex flex-col fade-in" style="background-color: var(--theme-bg)">
-                        <header class="bg-white border-b px-4 md:px-8 py-3 flex flex-col md:flex-row items-center justify-between shadow-sm gap-4">
-                            <div class="flex items-center space-x-3">${logoHtml}<div><h1 class="font-bold text-slate-800">${t.name}</h1><p class="text-[10px] text-theme-primary uppercase font-bold">Área do Cliente</p></div></div>
-                            <div class="flex items-center space-x-4">
-                                <button onclick="clientActiveTab='book';render()" class="text-sm font-bold ${clientActiveTab==='book'?'text-theme-primary':'text-slate-500'}">Novo Agendamento</button>
-                                <button onclick="clientActiveTab='appointments';render()" class="text-sm font-bold ${clientActiveTab==='appointments'?'text-theme-primary':'text-slate-500'}">Meus Agendamentos</button>
-                                <div class="flex items-center bg-slate-100 px-3 py-1.5 rounded-full border"><span class="text-xs font-bold text-slate-700">${currentClient.name}</span><button onclick="clientLogout()" class="text-slate-400 hover:text-rose-600 ml-2"><i data-lucide="log-out" class="w-4 h-4"></i></button></div>
+                    <div class="min-h-screen w-full flex relative z-10">
+                        <!-- MENU LATERAL APENAS COM ÍCONES -->
+                        <aside class="w-16 sm:w-20 bg-white/90 backdrop-blur-md border-r border-slate-200/80 h-screen sticky top-0 flex flex-col items-center py-6 shadow-md shrink-0 justify-between">
+                            <div class="space-y-6 flex flex-col items-center w-full">
+                                <div class="w-10 h-10 rounded-xl btn-theme-primary flex items-center justify-center font-black text-lg shadow-sm mb-4">
+                                    ${t.name.charAt(0)}
+                                </div>
+                                
+                                <button onclick="clientActiveTab='book';render()" class="p-3 rounded-2xl transition-all ${clientActiveTab==='book'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Novo Agendamento">
+                                    <i data-lucide="calendar-plus" class="w-6 h-6"></i>
+                                </button>
+
+                                <button onclick="clientActiveTab='appointments';render()" class="p-3 rounded-2xl transition-all ${clientActiveTab==='appointments'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Meus Agendamentos">
+                                    <i data-lucide="list" class="w-6 h-6"></i>
+                                </button>
                             </div>
-                        </header>
-                        <div class="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">${clientActiveTab === 'appointments' ? renderClientAppointments() : renderClientBookingWizard()}</div>
+
+                            <button onclick="clientLogout()" class="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all" title="Sair">
+                                <i data-lucide="log-out" class="w-6 h-6"></i>
+                            </button>
+                        </aside>
+
+                        <!-- CONTEÚDO PRINCIPAL COM CABEÇALHO CENTRALIZADO -->
+                        <main class="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+                            <div class="max-w-3xl mx-auto flex flex-col items-center text-center mb-8">
+                                ${logoHtml}
+                                <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">${t.name}</h1>
+                                <p class="text-xs font-bold text-theme-primary uppercase tracking-wider mt-1">Área de Agendamento</p>
+                                <span class="text-xs text-slate-500 font-semibold bg-white/70 px-3 py-1 rounded-full border mt-2 shadow-xs">Conectado como: <b>${currentClient.name}</b></span>
+                            </div>
+
+                            ${clientActiveTab === 'appointments' ? renderClientAppointments() : renderClientBookingWizard()}
+                        </main>
                     </div>`;
             }
 
@@ -357,12 +401,12 @@
                 const historyApps = allApps.filter(a => getEffectiveAppStatus(a) !== 'agendado');
 
                 return `
-                    <div class="max-w-2xl mx-auto mt-6 fade-in space-y-6">
+                    <div class="max-w-2xl mx-auto fade-in space-y-6">
                         <div>
                             <h2 class="text-2xl font-black mb-4 text-slate-900">Meus Agendamentos Próximos</h2>
                             <div class="space-y-4">
                                 ${activeApps.length === 0 ? `
-                                    <div class="bg-white p-8 rounded-2xl border text-center shadow-sm">
+                                    <div class="bg-white/90 backdrop-blur-md p-8 rounded-2xl border text-center shadow-sm">
                                         <p class="text-slate-500 font-medium">Você não possui agendamentos futuros pendentes.</p>
                                         <button onclick="clientActiveTab='book';render()" class="mt-3 text-sm font-bold text-theme-primary hover:underline">Fazer novo agendamento agora</button>
                                     </div>
@@ -370,7 +414,7 @@
                                     const emp = a.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e=>e.id===a.employeeId);
                                     const isDependent = a.beneficiaryName && a.beneficiaryName.trim() !== '' && a.beneficiaryName !== currentClient.name;
                                     return `
-                                        <div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 hover:border-slate-300 transition-colors">
+                                        <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 hover:border-slate-300 transition-colors">
                                             <div>
                                                 <div class="flex items-center space-x-2 mb-1">
                                                     <span class="bg-theme-secondary text-theme-primary text-xs font-bold px-2.5 py-1 rounded-lg">${formatDateBR(a.date)} às ${a.time}</span>
@@ -390,7 +434,7 @@
                         </div>
 
                         <div class="pt-4 text-center">
-                            <button onclick="showHistoryApps = !showHistoryApps; render()" class="bg-white hover:bg-slate-50 text-slate-700 border font-bold px-6 py-3 rounded-2xl text-xs shadow-sm transition-all flex items-center justify-center mx-auto space-x-2">
+                            <button onclick="showHistoryApps = !showHistoryApps; render()" class="bg-white/90 backdrop-blur-md hover:bg-slate-50 text-slate-700 border font-bold px-6 py-3 rounded-2xl text-xs shadow-sm transition-all flex items-center justify-center mx-auto space-x-2">
                                 <i data-lucide="${showHistoryApps ? 'chevron-up' : 'history'}" class="w-4 h-4"></i>
                                 <span>${showHistoryApps ? 'Ocultar Histórico' : 'Carregar Agendamentos Antigos / Histórico'}</span>
                             </button>
@@ -456,7 +500,6 @@
                     const currentYear = today.getFullYear();
                     const currentMonth = today.getMonth();
 
-                    // Trava o seletor do calendário para alternar no máximo entre Mês Atual e Mês Seguinte
                     const canGoPrev = clientCalYear > currentYear || (clientCalYear === currentYear && clientCalMonth > currentMonth);
                     const nextMonthCalc = new Date(currentYear, currentMonth + 1, 1);
                     const canGoNext = clientCalYear < nextMonthCalc.getFullYear() || (clientCalYear === nextMonthCalc.getFullYear() && clientCalMonth < nextMonthCalc.getMonth());
@@ -473,7 +516,7 @@
                         cells.push({ empty: false, day: d, dateStr, isBlocked, isSelected: clientBooking.date === dateStr });
                     }
                     return `
-                        <div class="max-w-lg mx-auto bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in"><h2 class="text-2xl font-black text-center mb-6">Escolha o Dia</h2>
+                        <div class="max-w-lg mx-auto bg-white/90 backdrop-blur-md p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in"><h2 class="text-2xl font-black text-center mb-6">Escolha o Dia</h2>
                             <div class="flex justify-between items-center mb-6 bg-slate-50 p-2.5 rounded-2xl border">
                                 <button onclick="if(${canGoPrev}) { clientCalMonth--; if(clientCalMonth<0){clientCalMonth=11; clientCalYear--;} render(); }" class="${canGoPrev ? 'text-slate-700 hover:bg-slate-200' : 'text-slate-300 cursor-not-allowed'} p-1.5 rounded-xl"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
                                 <span class="text-sm font-black">${monthNames[clientCalMonth]} ${clientCalYear}</span>
@@ -491,7 +534,7 @@
                     });
 
                     return `
-                        <div class="max-w-md mx-auto bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
+                        <div class="max-w-md mx-auto bg-white/90 backdrop-blur-md p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
                             <button onclick="clientBooking.step=1;render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
                             <h2 class="text-2xl font-black text-center mb-2">Escolha os Serviços</h2>
                             <p class="text-xs text-slate-400 text-center mb-6">Disponíveis para ${formatDateBR(clientBooking.date)}</p>
@@ -514,7 +557,7 @@
                     );
 
                     return `
-                        <div class="max-w-xl mx-auto bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
+                        <div class="max-w-xl mx-auto bg-white/90 backdrop-blur-md p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
                             <button onclick="clientBooking.step=2;render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
                             <h2 class="text-2xl font-black text-center mb-6">Quem vai te atender?</h2>
                             ${empsAvailable.length === 0 ? `
@@ -544,7 +587,7 @@
                     const isColliding = selectedSlotObj && selectedSlotObj.hasClientCollision;
 
                     return `
-                        <div class="max-w-md mx-auto bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
+                        <div class="max-w-md mx-auto bg-white/90 backdrop-blur-md p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
                             <button onclick="clientBooking.step=${t.employees.length>0?3:2};render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
                             <h2 class="text-2xl font-black text-center mb-6">Confirmar Horário</h2>
                             <div class="bg-slate-50 p-4 rounded-2xl border mb-6 text-sm"><p><b>Data:</b> ${formatDateBR(clientBooking.date)}</p><p><b>Profissional:</b> ${emp?emp.name:'Equipe'}</p><p><b>Serviços:</b> ${selectedProcs.map(p=>p.name).join(', ')}</p><p class="mt-2 text-emerald-600 font-bold text-base">Total: R$ ${totalPrice.toFixed(2)} (${totalDuration} min)</p></div>
@@ -552,7 +595,8 @@
                             <p class="text-xs font-bold text-slate-500 uppercase mb-2">Horários Livres do Profissional:</p>
                             <div class="grid grid-cols-3 gap-2 mb-6 max-h-40 overflow-y-auto custom-scrollbar pr-1">${slots.map(s => `
                                 <button onclick="clientBooking.time='${s.time}'; render()" class="py-2.5 border rounded-xl text-xs font-bold relative ${clientBooking.time===s.time?'btn-theme-primary':'bg-white hover:bg-slate-50'}">
-                                    ${s.time}${s.hasClientCollision ? `<span class="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" title="Você já tem agendamento neste horário"></span>` : ''}
+                                    ${s.time}
+                                    ${s.hasClientCollision ? `<span class="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" title="Você já tem agendamento neste horário"></span>` : ''}
                                 </button>
                             `).join('')}</div>
 
