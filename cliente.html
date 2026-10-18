@@ -27,11 +27,11 @@
             margin: 0; 
             padding: 0; 
             width: 100%; 
-            height: 100%; /* Define a altura estrita para eliminar rolagem fantasma */
+            height: 100%; 
             font-family: 'Inter', sans-serif; 
             background-color: var(--theme-bg) !important; 
             transition: background-color 0.3s ease; 
-            overflow: hidden; /* Trava a rolagem principal da janela (evita corte do logo) */
+            overflow: hidden; 
         }
         #custom-bg-layer {
             position: fixed;
@@ -46,7 +46,6 @@
             z-index: 0;
         }
         
-        /* Regra exclusiva para o Mobile: preenche 100% sem sobras */
         @media (max-width: 768px) {
             #custom-bg-layer {
                 background-size: 100% 100% !important;
@@ -76,13 +75,21 @@
         .border-theme-primary {
             border-color: var(--theme-primary) !important;
         }
+
+        /* ESTILOS DO CROPPER (CORTADOR DE FOTO) */
+        #cropper-img {
+            max-width: none;
+            touch-action: none; /* Previne scroll ao arrastar no mobile */
+        }
+        .cropper-mask {
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
+        }
     </style>
 </head>
 <body class="text-slate-800 antialiased h-full w-full flex m-0 p-0 overflow-hidden">
 
     <div id="custom-bg-layer"></div>
 
-    <!-- O Container principal agora cuida da rolagem apenas se o conteúdo for longo -->
     <div id="app" class="h-full w-full flex flex-col p-0 m-0 relative z-10 overflow-y-auto custom-scrollbar">
         <div class="m-auto flex flex-col items-center justify-center">
             <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
@@ -96,6 +103,31 @@
             <h3 id="modal-title" class="text-lg font-bold text-slate-900 text-center mb-2"></h3>
             <div id="modal-message" class="text-slate-600 text-center text-sm mb-6 max-h-[60vh] overflow-y-auto custom-scrollbar"></div>
             <div id="modal-buttons" class="flex justify-end space-x-3"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CORTE DE FOTO ESTILO WHATSAPP -->
+    <div id="cropper-modal" class="hidden fixed inset-0 z-[150] flex flex-col items-center justify-center bg-slate-900 fade-in touch-none">
+        <h3 class="text-white font-bold mb-6 text-lg tracking-wide">Mova e Ajuste</h3>
+        
+        <div class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center rounded-full cropper-mask z-20 pointer-events-none border-2 border-white/50">
+            <!-- Máscara vazada redonda -->
+        </div>
+
+        <!-- Container real da imagem (Fica por baixo da máscara) -->
+        <div id="cropper-container" class="absolute inset-0 flex items-center justify-center z-10 cursor-move overflow-hidden">
+            <img id="cropper-img" src="" class="absolute transform-gpu">
+        </div>
+
+        <div class="w-64 sm:w-80 mt-8 z-30 flex items-center space-x-3 text-white">
+            <i data-lucide="zoom-out" class="w-5 h-5"></i>
+            <input type="range" id="cropper-zoom" min="0.5" max="3" step="0.05" value="1" class="flex-1 accent-indigo-500">
+            <i data-lucide="zoom-in" class="w-5 h-5"></i>
+        </div>
+
+        <div class="flex space-x-4 mt-8 w-64 sm:w-80 z-30">
+            <button onclick="closeCropper()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3.5 rounded-xl font-bold transition-colors">Cancelar</button>
+            <button onclick="applyCrop()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-xl font-bold transition-colors shadow-lg">Cortar</button>
         </div>
     </div>
 
@@ -255,9 +287,7 @@
             window.isDateAllowedByMonthlyRule = function(cellDate) {
                 const today = new Date();
                 today.setHours(0,0,0,0);
-
                 if (cellDate < today) return false;
-
                 const currentYear = today.getFullYear();
                 const currentMonth = today.getMonth();
                 const cellYear = cellDate.getFullYear();
@@ -267,10 +297,7 @@
                 const totalDaysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
                 const isLastWeekOfCurrentMonth = today.getDate() > (totalDaysInCurrentMonth - 7);
 
-                if (cellYear === currentYear && cellMonth === currentMonth) {
-                    return true;
-                }
-
+                if (cellYear === currentYear && cellMonth === currentMonth) return true;
                 const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
                 if (cellYear === nextMonthDate.getFullYear() && cellMonth === nextMonthDate.getMonth()) {
                     if (!isLastWeekOfCurrentMonth) return false;
@@ -278,7 +305,6 @@
                     if (cellDay > (totalDaysInNextMonth - 7)) return false;
                     return true;
                 }
-
                 return false;
             };
 
@@ -300,9 +326,7 @@
                 for (let a of clientApps) {
                     const aStart = timeToMins(a.time);
                     const aEnd = aStart + a.totalDuration;
-                    if (startMins < aEnd && endMins > aStart) {
-                        return true;
-                    }
+                    if (startMins < aEnd && endMins > aStart) return true;
                 }
                 return false;
             };
@@ -414,7 +438,7 @@
                     const existsPhone = t.clients.some(c => cleanPhone(c.phone) === digitsPhone);
                     if (existsPhone) return showModal('Cadastro Existente', 'Este número de telefone/WhatsApp já está registrado nesta empresa.', 'error');
 
-                    const newClient = { id: 'cli-' + Date.now(), name, email, phone: phoneRaw, password: pass, avatar: '', avatarScale: 100, avatarPosX: 50, avatarPosY: 50 };
+                    const newClient = { id: 'cli-' + Date.now(), name, email, phone: phoneRaw, password: pass, avatar: '' };
                     t.clients.push(newClient);
                     saveDB();
                     currentClient = newClient;
@@ -437,15 +461,15 @@
             function renderClientApp() {
                 const logoHtml = t.logo ? `<img src="${t.logo}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white shadow-md mx-auto mb-2 sm:mb-3">` : `<div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl btn-theme-primary flex items-center justify-center font-black text-2xl shadow-md mx-auto mb-2 sm:mb-3 border-2 border-white">O</div>`;
 
-                const avatarStyle = currentClient.avatar ? 
-                    `background-image: url("${currentClient.avatar}"); background-size: ${currentClient.avatarScale || 100}%; background-position: ${currentClient.avatarPosX !== undefined ? currentClient.avatarPosX : 50}% ${currentClient.avatarPosY !== undefined ? currentClient.avatarPosY : 50}%;` : '';
-
                 return `
                     <div class="min-h-full w-full flex flex-col md:flex-row relative z-10 m-0 p-0">
                         <aside class="fixed bottom-0 left-0 right-0 md:top-0 md:bottom-auto md:right-auto z-40 h-16 md:h-full w-full md:w-20 bg-white/95 backdrop-blur-md border-t md:border-t-0 md:border-r border-slate-200/80 flex md:flex-col items-center justify-around md:justify-between py-2 md:py-6 shadow-lg shrink-0 m-0">
                             <div class="flex md:flex-col items-center justify-around md:justify-start w-full md:space-y-6">
-                                <button onclick="clientActiveTab='profile';render()" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl border-2 transition-all flex items-center justify-center overflow-hidden font-black text-sm shadow-sm ${clientActiveTab==='profile'?'border-indigo-600 shadow-md ring-2 ring-indigo-200':'border-slate-200 hover:border-slate-400'}" style="${avatarStyle}" title="Meu Perfil">
-                                    ${!currentClient.avatar ? `<span class="btn-theme-primary w-full h-full flex items-center justify-center text-xs sm:text-sm">${currentClient.name.charAt(0).toUpperCase()}</span>` : ''}
+                                <button onclick="clientActiveTab='profile';render()" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl border-2 transition-all flex items-center justify-center overflow-hidden font-black text-sm shadow-sm bg-slate-100 ${clientActiveTab==='profile'?'border-indigo-600 shadow-md ring-2 ring-indigo-200':'border-slate-200 hover:border-slate-400'}" title="Meu Perfil">
+                                    ${currentClient.avatar 
+                                        ? `<img src="${currentClient.avatar}" class="w-full h-full object-cover">` 
+                                        : `<span class="btn-theme-primary w-full h-full flex items-center justify-center text-xs sm:text-sm">${currentClient.name.charAt(0).toUpperCase()}</span>`
+                                    }
                                 </button>
                                 
                                 <button onclick="clientActiveTab='book';render()" class="p-2.5 sm:p-3 rounded-2xl transition-all ${clientActiveTab==='book'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Novo Agendamento">
@@ -478,47 +502,34 @@
                                 ${clientActiveTab === 'profile' ? renderClientProfileTab() : (clientActiveTab === 'appointments' ? renderClientAppointments() : renderClientBookingWizard())}
                             </div>
 
-                            <!-- ESPAÇO EXTRA GARANTIDO PARA O MENU MOBILE NÃO COBRIR O BOTÃO -->
                             <div class="h-28 sm:h-32 md:h-8 w-full shrink-0"></div>
                         </main>
                     </div>`;
             }
 
             function renderClientProfileTab() {
-                const avatarStyle = currentClient.avatar ? 
-                    `background-image: url("${currentClient.avatar}"); background-size: ${currentClient.avatarScale || 100}%; background-position: ${currentClient.avatarPosX !== undefined ? currentClient.avatarPosX : 50}% ${currentClient.avatarPosY !== undefined ? currentClient.avatarPosY : 50}%;` : '';
-
                 return `
                     <div class="max-w-xl mx-auto fade-in space-y-6">
                         <div class="bg-white/95 backdrop-blur-md p-5 sm:p-8 rounded-3xl shadow-xl border border-slate-100">
                             <h2 class="text-xl sm:text-2xl font-black text-slate-900 mb-1 text-center">Meu Perfil</h2>
                             <p class="text-xs text-slate-500 text-center mb-6">Atualize suas fotos, dados cadastrais e senha de acesso</p>
 
-                            <div class="p-4 sm:p-5 bg-slate-50 border rounded-2xl mb-6">
-                                <label class="block text-xs font-bold text-slate-700 mb-3 text-center">Foto do Perfil (Rosto)</label>
-                                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-                                    <div id="client-avatar-preview-box" class="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-md bg-slate-200 flex items-center justify-center font-bold text-2xl text-slate-500 overflow-hidden shrink-0 cursor-grab relative" style="${avatarStyle}">
-                                        ${!currentClient.avatar ? `<span>${currentClient.name.charAt(0).toUpperCase()}</span>` : ''}
+                            <div class="p-4 sm:p-5 bg-slate-50 border rounded-2xl mb-6 flex flex-col items-center justify-center">
+                                <label class="block text-xs font-bold text-slate-700 mb-3 text-center">Foto do Perfil</label>
+                                
+                                <div class="relative mb-4">
+                                    <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white shadow-md bg-slate-200 flex items-center justify-center font-bold text-3xl text-slate-500 overflow-hidden shrink-0">
+                                        ${currentClient.avatar 
+                                            ? `<img src="${currentClient.avatar}" class="w-full h-full object-cover">` 
+                                            : `<span>${currentClient.name.charAt(0).toUpperCase()}</span>`
+                                        }
                                     </div>
-
-                                    <div class="space-y-3 w-full sm:w-auto flex-1">
-                                        <label class="block text-xs font-bold text-indigo-600 bg-white border border-indigo-200 px-4 py-2.5 rounded-xl cursor-pointer text-center hover:bg-indigo-50 transition-colors shadow-xs">
-                                            <i data-lucide="camera" class="w-4 h-4 inline mr-1"></i> Alterar Foto
-                                            <input type="file" class="hidden" accept="image/*" onchange="handleClientAvatarUpload(event)">
-                                        </label>
-
-                                        ${currentClient.avatar ? `
-                                            <div>
-                                                <div class="flex justify-between text-[11px] font-bold text-slate-600 mb-1">
-                                                    <span>Ajustar Zoom / Escala</span>
-                                                    <span>${currentClient.avatarScale || 100}%</span>
-                                                </div>
-                                                <input type="range" min="100" max="250" step="5" value="${currentClient.avatarScale || 100}" oninput="updateClientAvatarScale(this.value)" class="w-full">
-                                            </div>
-                                            <p class="text-[10px] text-slate-400 italic text-center">💡 Clique e arraste na foto redonda acima para centralizar seu rosto.</p>
-                                        ` : ''}
-                                    </div>
+                                    <label class="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full cursor-pointer shadow-lg hover:bg-indigo-700 transition-colors border-2 border-white">
+                                        <i data-lucide="camera" class="w-4 h-4"></i>
+                                        <input type="file" class="hidden" accept="image/*" onchange="handleClientAvatarUpload(event)">
+                                    </label>
                                 </div>
+                                <p class="text-[10px] text-slate-400 italic text-center">Clique no ícone de câmera para alterar sua foto.</p>
                             </div>
 
                             <form onsubmit="handleSaveClientProfile(event)" class="space-y-4">
@@ -563,28 +574,160 @@
                     </div>`;
             }
 
+            // ==========================================
+            // LÓGICA DO CROPPER ESTILO WHATSAPP (VANILLA)
+            // ==========================================
+            let cropScale = 1;
+            let cropX = 0;
+            let cropY = 0;
+            let isDraggingCrop = false;
+            let startX, startY;
+
             window.handleClientAvatarUpload = function(e) {
                 const file = e.target.files[0];
                 if (!file) return;
+                
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    currentClient.avatar = event.target.result;
-                    currentClient.avatarScale = 100;
-                    currentClient.avatarPosX = 50;
-                    currentClient.avatarPosY = 50;
-                    updateClientInDatabase();
-                    render();
-                    showModal('Foto Atualizada!', 'Ajuste o enquadramento se necessário.', 'success');
+                    const img = document.getElementById('cropper-img');
+                    img.src = event.target.result;
+                    
+                    img.onload = () => {
+                        // Reseta as variáveis
+                        cropScale = 1; 
+                        cropX = 0; 
+                        cropY = 0;
+                        document.getElementById('cropper-zoom').value = 1;
+                        
+                        // Define o tamanho base da imagem para cobrir a tela (sem distorcer)
+                        const container = document.getElementById('cropper-container');
+                        const iRatio = img.naturalWidth / img.naturalHeight;
+                        const cRatio = container.offsetWidth / container.offsetHeight;
+                        
+                        if (iRatio > cRatio) {
+                            img.style.height = '100%';
+                            img.style.width = 'auto';
+                        } else {
+                            img.style.width = '100%';
+                            img.style.height = 'auto';
+                        }
+
+                        updateCropperTransform();
+                        document.getElementById('cropper-modal').classList.remove('hidden');
+                        if(window.lucide) lucide.createIcons();
+                    }
                 };
                 reader.readAsDataURL(file);
+                e.target.value = ''; // Limpa o input para poder selecionar a mesma imagem se quiser
             };
 
-            window.updateClientAvatarScale = function(val) {
-                currentClient.avatarScale = parseInt(val);
-                updateClientInDatabase();
-                const box = document.getElementById('client-avatar-preview-box');
-                if (box) box.style.backgroundSize = `${val}%`;
+            window.updateCropperTransform = function() {
+                const img = document.getElementById('cropper-img');
+                img.style.transform = `translate(${cropX}px, ${cropY}px) scale(${cropScale})`;
             };
+
+            // Evento do Slider de Zoom
+            const zoomInput = document.getElementById('cropper-zoom');
+            if(zoomInput) {
+                zoomInput.addEventListener('input', (e) => {
+                    cropScale = parseFloat(e.target.value);
+                    updateCropperTransform();
+                });
+            }
+
+            // Eventos de arrastar e soltar (Mouse e Touch)
+            const cropperContainer = document.getElementById('cropper-container');
+            
+            function startDragCrop(clientX, clientY) {
+                isDraggingCrop = true;
+                startX = clientX - cropX;
+                startY = clientY - cropY;
+            }
+            
+            function dragCrop(clientX, clientY) {
+                if(!isDraggingCrop) return;
+                cropX = clientX - startX;
+                cropY = clientY - startY;
+                updateCropperTransform();
+            }
+
+            function stopDragCrop() { 
+                isDraggingCrop = false; 
+            }
+
+            if(cropperContainer) {
+                // Mouse
+                cropperContainer.addEventListener('mousedown', e => startDragCrop(e.clientX, e.clientY));
+                window.addEventListener('mousemove', e => dragCrop(e.clientX, e.clientY));
+                window.addEventListener('mouseup', stopDragCrop);
+
+                // Touch
+                cropperContainer.addEventListener('touchstart', e => startDragCrop(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
+                cropperContainer.addEventListener('touchmove', e => { 
+                    if(isDraggingCrop) {
+                        e.preventDefault(); // Previne scroll da tela
+                        dragCrop(e.touches[0].clientX, e.touches[0].clientY); 
+                    }
+                }, {passive: false});
+                cropperContainer.addEventListener('touchend', stopDragCrop);
+            }
+
+            // Fechar o modal
+            window.closeCropper = function() {
+                document.getElementById('cropper-modal').classList.add('hidden');
+            };
+
+            // Aplicar o Corte usando BoundingClientRect e Canvas
+            window.applyCrop = function() {
+                const mask = document.querySelector('.cropper-mask');
+                const img = document.getElementById('cropper-img');
+                
+                // Pega a posição exata da máscara redonda (área visível)
+                const cRect = mask.getBoundingClientRect();
+                // Pega a posição exata da imagem renderizada
+                const iRect = img.getBoundingClientRect();
+                
+                // Cria um canvas para salvar a imagem numa boa resolução e quadrada
+                const canvas = document.createElement('canvas');
+                const SIZE = 400; // Tamanho ideal para avatar (400x400)
+                canvas.width = SIZE;
+                canvas.height = SIZE;
+                const ctx = canvas.getContext('2d');
+                
+                // Escala entre a imagem original e o tamanho que ela aparece na tela
+                const scaleX = img.naturalWidth / iRect.width;
+                const scaleY = img.naturalHeight / iRect.height;
+                
+                // Calcula as coordenadas de recorte com base em onde a máscara está sobre a imagem
+                let cropX_img = (cRect.left - iRect.left) * scaleX;
+                let cropY_img = (cRect.top - iRect.top) * scaleY;
+                let cropW_img = cRect.width * scaleX;
+                let cropH_img = cRect.height * scaleY;
+                
+                // Preenche o fundo de branco caso a imagem tenha áreas transparentes (PNG)
+                ctx.fillStyle = '#ffffff'; 
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Desenha a porção cortada no Canvas
+                ctx.drawImage(img, cropX_img, cropY_img, cropW_img, cropH_img, 0, 0, SIZE, SIZE);
+                
+                // Gera a nova imagem otimizada em base64 (JPEG, 85% de qualidade)
+                const base64 = canvas.toDataURL('image/jpeg', 0.85);
+                
+                // Atualiza o cliente
+                currentClient.avatar = base64;
+                
+                // Limpa variáveis de estilo antigas (se existirem)
+                delete currentClient.avatarScale; 
+                delete currentClient.avatarPosX;
+                delete currentClient.avatarPosY;
+                
+                updateClientInDatabase();
+                closeCropper();
+                render();
+                showModal('Foto Atualizada!', 'Sua foto de perfil foi ajustada e salva com sucesso.', 'success');
+            };
+            // ==========================================
 
             window.handleSaveClientProfile = function(e) {
                 e.preventDefault();
