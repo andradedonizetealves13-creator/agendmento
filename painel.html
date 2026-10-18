@@ -14,31 +14,11 @@
             --theme-primary-hover: #4338ca;
             --theme-secondary: #e0e7ff;
             --theme-text-primary: #3730a3;
-            --bg-image: none;
-            --bg-opacity: 0.15;
-            --bg-blur: 0px;
         }
         html, body { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--theme-bg) !important; 
-            overflow: hidden; 
-            transition: background-color 0.3s ease;
-            position: relative;
-        }
-        #custom-bg-layer {
-            position: fixed;
-            inset: 0;
-            background-image: var(--bg-image);
-            background-size: cover;
-            background-position: center;
-            opacity: var(--bg-opacity);
-            filter: blur(var(--bg-blur));
-            pointer-events: none;
-            z-index: 0;
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            font-family: 'Inter', sans-serif; background-color: var(--theme-bg) !important; 
+            overflow: hidden; transition: background-color 0.3s ease; 
         }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -73,13 +53,20 @@
         .btn-theme-primary:hover { background-color: var(--theme-primary-hover); }
         .bg-theme-secondary { background-color: var(--theme-secondary); }
         .text-theme-primary { color: var(--theme-primary); }
+
+        /* Estilo da caixa interativa de drag na pré-visualização */
+        .preview-interactive-canvas {
+            cursor: grab;
+            user-select: none;
+        }
+        .preview-interactive-canvas:active {
+            cursor: grabbing;
+        }
     </style>
 </head>
 <body class="text-slate-800 antialiased h-full w-full">
 
-    <div id="custom-bg-layer"></div>
-
-    <div id="app" class="h-full w-full flex flex-col items-center justify-center fade-in relative z-10">
+    <div id="app" class="h-full w-full flex flex-col items-center justify-center fade-in">
         <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
         <p class="text-sm text-slate-500 font-medium">Sincronizando com a sua empresa...</p>
     </div>
@@ -199,11 +186,9 @@
         window.listFilterMonth = ''; window.listFilterDate = '';
         window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
 
-        let isDragging = false;
-        let activeColumnEl = null;
-        let startY = 0;
-        let currentY = 0;
-        let dragDateStr = null;
+        // Controle de Posição/Drag e Zoom da imagem de fundo
+        let isImgDragging = false;
+        let imgStartX = 0, imgStartY = 0;
 
         onValue(tenantRef, (snapshot) => {
             const data = snapshot.val();
@@ -215,6 +200,9 @@
             window.t = data;
             
             if(!t.themePalette) t.themePalette = 'wine_velvet';
+            if(t.bgCustomPosX === undefined) t.bgCustomPosX = 50;
+            if(t.bgCustomPosY === undefined) t.bgCustomPosY = 50;
+            if(t.bgCustomScale === undefined) t.bgCustomScale = 100;
             if(!t.admin.workingHours) t.admin.workingHours = getDefWH();
             if(!t.admin.exceptions) t.admin.exceptions = {};
             if(!t.admin.color) t.admin.color = COLOR_PALETTE[0];
@@ -231,7 +219,6 @@
             });
 
             applyThemeCSS(t.themePalette);
-            applyBgImageSettings();
             render();
         }, (error) => {
             document.getElementById('app').innerHTML = `<div class="p-6 text-center text-rose-600 font-bold">Erro de conexão ao Firebase: ${error.message}</div>`;
@@ -244,16 +231,6 @@
             document.documentElement.style.setProperty('--theme-primary-hover', palette.primaryHover);
             document.documentElement.style.setProperty('--theme-secondary', palette.secondary);
             document.documentElement.style.setProperty('--theme-text-primary', palette.dark);
-        }
-
-        function applyBgImageSettings() {
-            if (t.bgCustomImage) {
-                document.documentElement.style.setProperty('--bg-image', `url(${t.bgCustomImage})`);
-                document.documentElement.style.setProperty('--bg-opacity', t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.15);
-                document.documentElement.style.setProperty('--bg-blur', (t.bgCustomBlur || 0) + 'px');
-            } else {
-                document.documentElement.style.setProperty('--bg-image', 'none');
-            }
         }
 
         window.saveDB = function() { set(tenantRef, window.t); };
@@ -323,7 +300,7 @@
             const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-40 md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
 
             document.getElementById('app').innerHTML = `
-                <div class="flex h-screen w-screen fade-in relative overflow-hidden">
+                <div class="flex h-screen w-screen fade-in relative overflow-hidden bg-slate-100">
                     ${overlayMobile}
                     
                     <aside class="${sidebarClasses} border-r border-slate-200">
@@ -379,6 +356,7 @@
                 </div>`;
             if(window.lucide) lucide.createIcons();
             attachDragHandlers();
+            attachCanvasInteractivity();
         };
 
         window.copiarLinkCliente = function() { 
@@ -390,18 +368,15 @@
 
         function attachDragHandlers() {
             const dayColumns = document.querySelectorAll('.calendar-day-column');
-            
             dayColumns.forEach(col => {
                 col.addEventListener('mousedown', (e) => {
                     if (e.target.closest('.appointment-postit')) return;
                     isDragging = true;
                     activeColumnEl = col;
                     dragDateStr = col.getAttribute('data-date');
-                    
                     const rect = col.getBoundingClientRect();
                     startY = e.clientY - rect.top;
                     currentY = startY;
-
                     updateDragSelectionBox();
                 });
 
@@ -417,25 +392,15 @@
             document.addEventListener('mouseup', () => {
                 if (isDragging && activeColumnEl) {
                     isDragging = false;
-                    
                     const topY = Math.min(startY, currentY);
                     const bottomY = Math.max(startY, currentY);
-                    
                     const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
                     let endMinsTotal = Math.floor((bottomY / 51) * 60) + 420;
-                    
-                    if (endMinsTotal - startMinsTotal < 15) {
-                        endMinsTotal = startMinsTotal + 30;
-                    }
-
+                    if (endMinsTotal - startMinsTotal < 15) endMinsTotal = startMinsTotal + 30;
                     const roundedStartMins = Math.floor(startMinsTotal / 15) * 15;
                     const roundedEndMins = Math.ceil(endMinsTotal / 15) * 15;
-
-                    const startTimeStr = minsToTime(roundedStartMins);
-                    const endTimeStr = minsToTime(roundedEndMins);
-
                     removeDragSelectionBox();
-                    openCreateModal(dragDateStr, startTimeStr, endTimeStr);
+                    openCreateModal(dragDateStr, minsToTime(roundedStartMins), minsToTime(roundedEndMins));
                 }
             });
         }
@@ -448,13 +413,10 @@
                 box.className = 'drag-selection-box';
                 activeColumnEl.appendChild(box);
             }
-
             const topY = Math.min(startY, currentY);
             const heightY = Math.max(Math.abs(currentY - startY), 15);
-
             box.style.top = topY + 'px';
             box.style.height = heightY + 'px';
-
             const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
             const endMinsTotal = Math.floor(((topY + heightY) / 51) * 60) + 420;
             box.innerText = `${minsToTime(Math.floor(startMinsTotal/15)*15)} - ${minsToTime(Math.ceil(endMinsTotal/15)*15)}`;
@@ -469,24 +431,19 @@
             const role = session.role;
             const empSelect = document.getElementById('manual-employee-id');
             empSelect.innerHTML = '';
-
             if (role === 'admin') {
                 empSelect.disabled = false;
                 empSelect.innerHTML += `<option value="${t.admin.id}">${t.admin.name} (ADM)</option>`;
-                (t.employees || []).forEach(e => {
-                    empSelect.innerHTML += `<option value="${e.id}">${e.name}</option>`;
-                });
+                (t.employees || []).forEach(e => { empSelect.innerHTML += `<option value="${e.id}">${e.name}</option>`; });
             } else {
                 const userProfile = t.employees.find(e => e.id === session.id);
                 empSelect.innerHTML = `<option value="${userProfile.id}" selected>${userProfile.name}</option>`;
                 empSelect.disabled = true;
             }
-
             document.getElementById('manual-date').value = defaultDate || new Date().toISOString().split('T')[0];
             document.getElementById('manual-start-time').value = defaultStart;
             document.getElementById('manual-end-time').value = defaultEnd;
             document.getElementById('manual-client-name').value = '';
-
             const procList = document.getElementById('manual-procedures-list');
             procList.innerHTML = (t.procedures || []).map(p => `
                 <label class="flex items-center justify-between p-2.5 bg-white border rounded-xl hover:bg-indigo-50 cursor-pointer">
@@ -497,14 +454,11 @@
                     <span class="text-xs font-bold text-emerald-600">R$ ${p.price.toFixed(2)}</span>
                 </label>
             `).join('') || '<p class="text-xs text-slate-400">Nenhum procedimento cadastrado.</p>';
-
             document.getElementById('create-modal').classList.remove('hidden');
             if(window.lucide) lucide.createIcons();
         };
 
-        window.closeCreateModal = function() {
-            document.getElementById('create-modal').classList.add('hidden');
-        };
+        window.closeCreateModal = function() { document.getElementById('create-modal').classList.add('hidden'); };
 
         window.handleManualAppSave = function(e) {
             e.preventDefault();
@@ -513,32 +467,19 @@
             const date = document.getElementById('manual-date').value;
             const startTime = document.getElementById('manual-start-time').value;
             const endTime = document.getElementById('manual-end-time').value;
-
             const selectedProcIds = Array.from(document.querySelectorAll('.manual-proc-cb:checked')).map(cb => cb.value);
             if (selectedProcIds.length === 0) return showModal('Aviso', 'Selecione pelo menos um procedimento.', 'info');
-
             const selectedProcs = t.procedures.filter(p => selectedProcIds.includes(p.id));
             const totalDuration = Math.max(timeToMins(endTime) - timeToMins(startTime), 15);
             const totalPrice = selectedProcs.reduce((s, p) => s + p.price, 0);
 
             const newApp = {
-                id: 'app-' + Date.now(),
-                clientId: 'manual-cli-' + Date.now(),
-                clientName: clientName,
-                beneficiaryName: clientName,
-                employeeId: employeeId,
-                date: date,
-                time: startTime,
-                proceduresNames: selectedProcs.map(p => p.name),
-                totalDuration: totalDuration,
-                totalPrice: totalPrice,
-                createdAt: new Date().toISOString()
+                id: 'app-' + Date.now(), clientId: 'manual-cli-' + Date.now(), clientName, beneficiaryName: clientName,
+                employeeId, date, time: startTime, proceduresNames: selectedProcs.map(p => p.name), totalDuration, totalPrice, createdAt: new Date().toISOString()
             };
-
             if(!t.appointments) t.appointments = [];
             t.appointments.push(newApp);
-            saveDB();
-            closeCreateModal();
+            saveDB(); closeCreateModal();
             showModal('Sucesso!', 'Agendamento cadastrado com sucesso.', 'success');
         };
 
@@ -556,9 +497,7 @@
                 `;
             }
 
-            if(activeTab === 'dashboard') {
-                return renderDashboardAnalytics(role, user);
-            }
+            if(activeTab === 'dashboard') return renderDashboardAnalytics(role, user);
             
             if(activeTab === 'horarios') {
                 const isAdm = role === 'admin';
@@ -573,14 +512,11 @@
                         <div class="max-w-4xl mx-auto space-y-6 fade-in">
                             ${pendingRequests.length > 0 ? `
                                 <div class="bg-amber-50/90 border-2 border-amber-200 p-6 rounded-2xl shadow-sm">
-                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes de Folga / Plantão (${pendingRequests.length})</h3>
+                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes (${pendingRequests.length})</h3>
                                     <div class="space-y-3">
                                         ${pendingRequests.map(r => `
                                             <div class="bg-white p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-                                                <div>
-                                                    <p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência/Folga':'Hora a mais (Plantão)'}</span></p>
-                                                    <p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b> ${r.type==='plantao'? `(${r.start} às ${r.end})`:''}</p>
-                                                </div>
+                                                <div><p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência':'Plantão'}</span></p><p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b></p></div>
                                                 <div class="flex items-center space-x-2">
                                                     <button onclick="handleApproveRequest('${r.id}', true)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Aprovar</button>
                                                     <button onclick="handleApproveRequest('${r.id}', false)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Recusar</button>
@@ -593,93 +529,27 @@
 
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                    <h3 class="font-bold text-lg mb-2">Horários Padrão da Empresa</h3>
-                                    <p class="text-xs text-slate-500 mb-6">Defina os dias de funcionamento.</p>
+                                    <h3 class="font-bold text-lg mb-2">Horários Padrão</h3>
                                     <div class="space-y-4">
                                         ${daysMap.map((day, i) => `
-                                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-3 ${wh[i].active ? 'bg-indigo-50/30 border border-indigo-100' : 'bg-slate-50 border border-slate-100 opacity-60'} rounded-xl transition-all gap-3">
-                                                <div class="flex items-center space-x-3 w-32">
-                                                    <label class="relative inline-flex items-center cursor-pointer">
-                                                      <input type="checkbox" id="wh-cb-${i}" class="sr-only peer" ${wh[i].active ? 'checked' : ''} onchange="document.getElementById('wh-row-${i}').classList.toggle('opacity-60');">
-                                                      <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-                                                    </label>
-                                                    <span class="text-sm font-bold ${wh[i].active?'text-slate-800':'text-slate-500'}">${day}</span>
-                                                </div>
-                                                <div id="wh-row-${i}" class="flex items-center justify-between sm:justify-start space-x-2">
-                                                    <input type="time" id="wh-s-${i}" value="${wh[i].start}" class="px-2 py-1.5 border rounded-lg text-sm bg-white">
-                                                    <span class="text-xs text-slate-400">até</span>
-                                                    <input type="time" id="wh-e-${i}" value="${wh[i].end}" class="px-2 py-1.5 border rounded-lg text-sm bg-white">
-                                                </div>
+                                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 ${wh[i].active ? 'bg-indigo-50/30 border' : 'bg-slate-50 border opacity-60'} rounded-xl gap-3">
+                                                <div class="flex items-center space-x-3 w-32"><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" id="wh-cb-${i}" class="sr-only peer" ${wh[i].active ? 'checked' : ''}><div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div></label><span class="text-sm font-bold">${day}</span></div>
+                                                <div class="flex items-center space-x-2"><input type="time" id="wh-s-${i}" value="${wh[i].start}" class="px-2 py-1.5 border rounded-lg text-sm bg-white"><span class="text-xs text-slate-400">até</span><input type="time" id="wh-e-${i}" value="${wh[i].end}" class="px-2 py-1.5 border rounded-lg text-sm bg-white"></div>
                                             </div>
                                         `).join('')}
                                     </div>
-                                    <button onclick="saveWorkingHours()" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-6 transition-all text-sm uppercase">Salvar Horários</button>
+                                    <button onclick="saveWorkingHours()" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-6 text-sm uppercase">Salvar Horários</button>
                                 </div>
 
                                 <div class="space-y-6">
                                     <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                        <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral (Empresa)</h3>
+                                        <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral</h3>
                                         <div class="space-y-4 mt-4">
                                             <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
-                                            <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
-                                                <select id="exc-type" onchange="document.getElementById('exc-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium">
-                                                    <option value="folga">Ausência / Folga Geral</option>
-                                                    <option value="plantao">Plantão Geral</option>
-                                                </select>
-                                            </div>
-                                            <div id="exc-times" class="hidden flex items-center space-x-4">
-                                                <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="exc-start" value="08:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
-                                                <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="exc-end" value="20:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
-                                            </div>
-                                            <button onclick="addException()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-md mt-2">Adicionar Exceção Geral</button>
+                                            <div><label class="block text-xs font-bold mb-1.5">Tipo</label><select id="exc-type" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium"><option value="folga">Ausência / Folga Geral</option><option value="plantao">Plantão Geral</option></select></div>
+                                            <button onclick="addException()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl shadow-md mt-2">Adicionar Exceção Geral</button>
                                         </div>
                                     </div>
-
-                                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                        <h3 class="font-bold text-base mb-4">Exceções Gerais Registradas</h3>
-                                        <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                                            ${excs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma cadastrada.</p>' : excs.map(e => `
-                                                <div class="p-3 border rounded-xl flex items-center justify-between ${e.type==='folga'?'bg-rose-50/50 border-rose-100':'bg-emerald-50/50 border-emerald-100'}">
-                                                    <div>
-                                                        <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} - ${e.type==='folga'?'Folga Geral':'Plantão Geral'}</p>
-                                                        ${e.type==='plantao' ? `<p class="text-xs text-emerald-600 font-medium">${e.start} às ${e.end}</p>` : ''}
-                                                    </div>
-                                                    <button onclick="removeException('${e.date}')" class="text-rose-500 bg-white hover:bg-rose-50 p-2 rounded-lg shadow-sm border border-transparent hover:border-rose-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                                                </div>
-                                            `).join('')}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    const myReqs = t.requests ? t.requests.filter(r => r.empId === user.id) : [];
-                    return `
-                        <div class="max-w-2xl mx-auto space-y-6 fade-in">
-                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                <h3 class="font-bold text-lg mb-1">Solicitar Ausência ou Hora a Mais</h3>
-                                <form onsubmit="handleCreateRequest(event, '${user.id}', '${user.name}')" class="space-y-4 mt-4">
-                                    <div><label class="block text-xs font-bold mb-1.5">Tipo de Solicitação</label>
-                                        <select id="req-type" onchange="document.getElementById('req-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-3 border rounded-xl text-sm bg-white font-medium">
-                                            <option value="folga">Solicitar Folga / Ausência (Dia inteiro)</option>
-                                            <option value="plantao">Solicitar Hora a Mais (Plantão)</option>
-                                        </select>
-                                    </div>
-                                    <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="req-date" required class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div>
-                                    <div id="req-times" class="hidden flex items-center space-x-4"><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="req-start" value="08:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="req-end" value="20:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div></div>
-                                    <button type="submit" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-2">Enviar Solicitação</button>
-                                </form>
-                            </div>
-                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                <h3 class="font-bold text-base mb-4">Minhas Solicitações</h3>
-                                <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                                    ${myReqs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma solicitação enviada.</p>' : myReqs.map(r => `
-                                        <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
-                                            <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Ausência/Folga':'Hora a mais'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
-                                            <span class="text-xs font-bold px-3 py-1.5 rounded-full border ${r.status==='approved'?'bg-emerald-50 text-emerald-700 border-emerald-200':(r.status==='rejected'?'bg-rose-50 text-rose-700 border-rose-200':'bg-amber-50 text-amber-700 border-amber-200')}">${r.status==='approved'?'Aprovado':(r.status==='rejected'?'Recusado':'Pendente')}</span>
-                                        </div>
-                                    `).join('')}
                                 </div>
                             </div>
                         </div>
@@ -692,7 +562,6 @@
 
                 return `
                     <div class="space-y-6 max-w-5xl mx-auto fade-in">
-                        <!-- PALETAS DE CORES -->
                         ${role === 'admin' ? `
                             <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm">
                                 <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="palette" class="w-5 h-5 mr-2 text-theme-primary"></i> Estilos e Tema da Organização</h3>
@@ -701,54 +570,111 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                     ${THEME_PALETTES.map(p => `
                                         <div onclick="selectThemePalette('${p.id}')" class="p-4 border-2 ${currentPalette === p.id ? 'border-indigo-600 bg-indigo-50/20' : 'border-slate-200 bg-white'} rounded-2xl cursor-pointer hover:border-indigo-400 transition-all shadow-sm">
-                                            <div class="flex items-center justify-between mb-3">
-                                                <span class="font-bold text-sm text-slate-800">${p.name}</span>
-                                                ${currentPalette === p.id ? '<span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Ativo</span>' : ''}
-                                            </div>
+                                            <div class="flex items-center justify-between mb-3"><span class="font-bold text-sm text-slate-800">${p.name}</span>${currentPalette === p.id ? '<span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Ativo</span>' : ''}</div>
                                             <div class="flex h-10 rounded-xl overflow-hidden border shadow-inner">
-                                                <div class="flex-1" style="background-color: ${p.previewBg}" title="Cor de Fundo"></div>
-                                                <div class="flex-1" style="background-color: ${p.previewAccent}" title="Cor Secundária"></div>
-                                                <div class="flex-1" style="background-color: ${p.previewPrimary}" title="Cor Principal"></div>
+                                                <div class="flex-1" style="background-color: ${p.previewBg}"></div>
+                                                <div class="flex-1" style="background-color: ${p.previewAccent}"></div>
+                                                <div class="flex-1" style="background-color: ${p.previewPrimary}"></div>
                                             </div>
                                         </div>
                                     `).join('')}
                                 </div>
                             </div>
 
-                            <!-- FOTO DE PLANO DE FUNDO DO PAINEL E ÁREA DO CLIENTE COM PRÉ-VISUALIZAÇÃO EM TEMPO REAL -->
-                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm">
-                                <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="image" class="w-5 h-5 mr-2 text-theme-primary"></i> Foto de Plano de Fundo Personalizada</h3>
-                                <p class="text-xs text-slate-500 mb-6">Insira uma foto para servir de fundo nas telas do painel e do cliente.</p>
+                            <!-- EDITOR COMPLETO DA IMAGEM DE FUNDO DO CLIENTE (POSICIONAMENTO, DRAG, ZOOM E PREVIEW FIEL) -->
+                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm space-y-6">
+                                <div>
+                                    <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="image" class="w-5 h-5 mr-2 text-theme-primary"></i> Ajuste da Imagem de Fundo (Área do Cliente)</h3>
+                                    <p class="text-xs text-slate-500">Ajuste o enquadramento, zoom e transparência. Esta foto afeta EXCLUSIVAMENTE a tela de agendamento do cliente.</p>
+                                </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                                    <div class="space-y-4">
-                                        <label class="block text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-3 rounded-xl cursor-pointer text-center hover:bg-indigo-100 transition-colors">
+                                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                    <!-- CONTROLES -->
+                                    <div class="lg:col-span-5 space-y-4">
+                                        <label class="block text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-3.5 rounded-xl cursor-pointer text-center hover:bg-indigo-100 transition-colors shadow-xs">
                                             <i data-lucide="upload" class="w-4 h-4 inline mr-2"></i> Selecionar Imagem de Fundo
                                             <input type="file" class="hidden" accept="image/*" onchange="handleBgUpload(event)">
                                         </label>
 
                                         ${t.bgCustomImage ? `
-                                            <button onclick="removeBgImage()" class="w-full text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 py-2.5 rounded-xl hover:bg-rose-100 transition-colors">Remover Foto de Fundo</button>
-                                        ` : ''}
+                                            <div class="p-4 bg-slate-50 border rounded-2xl space-y-4">
+                                                <div>
+                                                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                                                        <span>Zoom / Escala</span>
+                                                        <span id="scale-val-label">${t.bgCustomScale || 100}%</span>
+                                                    </div>
+                                                    <input type="range" min="100" max="250" step="5" value="${t.bgCustomScale || 100}" oninput="updateBgScale(this.value)" class="w-full">
+                                                </div>
 
-                                        <div>
-                                            <label class="block text-xs font-bold text-slate-700 mb-1">Opacidade da Imagem (${Math.round((t.bgCustomOpacity || 0.15) * 100)}%)</label>
-                                            <input type="range" min="0.05" max="0.6" step="0.05" value="${t.bgCustomOpacity || 0.15}" oninput="updateBgOpacity(this.value)" class="w-full">
-                                        </div>
+                                                <div>
+                                                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                                                        <span>Opacidade da Foto</span>
+                                                        <span id="opacity-val-label">${Math.round((t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.2) * 100)}%</span>
+                                                    </div>
+                                                    <input type="range" min="0.05" max="0.7" step="0.05" value="${t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.2}" oninput="updateBgOpacity(this.value)" class="w-full">
+                                                </div>
 
-                                        <div>
-                                            <label class="block text-xs font-bold text-slate-700 mb-1">Efeito de Desfocar/Blur (${t.bgCustomBlur || 0}px)</label>
-                                            <input type="range" min="0" max="10" step="1" value="${t.bgCustomBlur || 0}" oninput="updateBgBlur(this.value)" class="w-full">
-                                        </div>
+                                                <div>
+                                                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                                                        <span>Efeito Desfocar (Blur)</span>
+                                                        <span id="blur-val-label">${t.bgCustomBlur || 0}px</span>
+                                                    </div>
+                                                    <input type="range" min="0" max="10" step="1" value="${t.bgCustomBlur || 0}" oninput="updateBgBlur(this.value)" class="w-full">
+                                                </div>
+
+                                                <p class="text-[11px] text-slate-400 italic">💡 Clique e arraste com o mouse na pré-visualização ao lado para ajustar a posição da imagem.</p>
+
+                                                <button onclick="removeBgImage()" class="w-full text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 py-2.5 rounded-xl hover:bg-rose-100 transition-colors">Remover Imagem de Fundo</button>
+                                            </div>
+                                        ` : '<p class="text-xs text-slate-400 text-center py-6 border border-dashed rounded-2xl">Nenhuma imagem carregada.</p>'}
                                     </div>
 
-                                    <!-- ÁREA DE PRÉ-VISUALIZAÇÃO DA FOTO DE FUNDO -->
-                                    <div class="border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[180px] relative overflow-hidden bg-slate-100">
-                                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 relative z-10 bg-white/80 px-3 py-1 rounded-full border">Pré-visualização</p>
-                                        <div id="preview-bg-box" class="absolute inset-0 bg-cover bg-center transition-all" style="background-image: ${t.bgCustomImage ? `url(${t.bgCustomImage})` : 'none'}; opacity: ${t.bgCustomOpacity || 0.15}; filter: blur(${(t.bgCustomBlur || 0)}px);"></div>
-                                        <div class="relative z-10 bg-white/90 p-4 rounded-xl border shadow-sm text-center">
-                                            <p class="font-bold text-xs text-slate-800">Card Exemplo</p>
-                                            <p class="text-[10px] text-slate-500">Visual como o cliente verá</p>
+                                    <!-- SIMULADOR DA TELA DO CLIENTE (MOCKUP COMPLETO COM SIDEBAR, LOGO E CALENDÁRIO) -->
+                                    <div class="lg:col-span-7">
+                                        <div class="border-2 border-slate-300 rounded-3xl overflow-hidden shadow-md relative h-[380px] bg-slate-200 flex flex-col select-none">
+                                            <div class="bg-slate-800 text-white text-[10px] font-bold px-3 py-1 flex items-center justify-between z-20 shrink-0">
+                                                <span>Pré-visualização Fiel (Área do Cliente)</span>
+                                                <span class="text-slate-400">Arraste a foto abaixo para mover</span>
+                                            </div>
+
+                                            <!-- CONTAINER DA IMAGEM MOVEL COM DRAG -->
+                                            <div id="preview-interactive-canvas" class="absolute inset-0 z-0 preview-interactive-canvas" style="background-image: ${t.bgCustomImage ? `url(${t.bgCustomImage})` : 'none'}; background-size: ${t.bgCustomScale || 100}%; background-position: ${t.bgCustomPosX \vert{}\vert{} 50}\%${t.bgCustomPosY || 50}%; opacity: ${t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.2}; filter: blur(${(t.bgCustomBlur || 0)}px);"></div>
+
+                                            <!-- SOBREPOSIÇÃO FIEL DA INTERFACE DO CLIENTE -->
+                                            <div class="relative z-10 flex h-full pointer-events-none">
+                                                <!-- SIDEBAR DE ÍCONES DA TELA CLIENTE -->
+                                                <div class="w-12 bg-white/90 backdrop-blur-xs border-r border-slate-200 h-full flex flex-col items-center py-4 space-y-4 shrink-0 shadow-xs">
+                                                    <div class="w-7 h-7 rounded-lg btn-theme-primary flex items-center justify-center font-bold text-xs">${t.name.charAt(0)}</div>
+                                                    <div class="p-2 rounded-lg bg-theme-secondary text-theme-primary"><i data-lucide="calendar-plus" class="w-4 h-4"></i></div>
+                                                    <div class="p-2 rounded-lg text-slate-400"><i data-lucide="list" class="w-4 h-4"></i></div>
+                                                </div>
+
+                                                <!-- CONTEÚDO CENTRALIZADO (LOGO, NOME E CALENDÁRIO) -->
+                                                <div class="flex-1 p-3 overflow-hidden flex flex-col items-center">
+                                                    <!-- LOGO E NOME DA BARBEARIA -->
+                                                    <div class="text-center mb-2">
+                                                        ${t.logo ? `<img src="${t.logo}" class="w-10 h-10 rounded-xl object-cover border mx-auto shadow-xs">` : `<div class="w-10 h-10 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-sm mx-auto">O</div>`}
+                                                        <p class="font-black text-xs text-slate-900 mt-1">${t.name}</p>
+                                                    </div>
+
+                                                    <!-- MINI CALENDÁRIO -->
+                                                    <div class="w-full max-w-xs bg-white/90 backdrop-blur-xs p-3 rounded-2xl border shadow-xs text-center space-y-2">
+                                                        <p class="font-bold text-[11px] text-slate-800">Escolha o Dia</p>
+                                                        <div class="grid grid-cols-7 gap-1 text-[9px] font-bold text-slate-400">
+                                                            <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+                                                        </div>
+                                                        <div class="grid grid-cols-7 gap-1 text-[10px]">
+                                                            <span class="p-1 rounded bg-slate-100 text-slate-300">1</span>
+                                                            <span class="p-1 rounded bg-white border font-bold">2</span>
+                                                            <span class="p-1 rounded btn-theme-primary font-bold">3</span>
+                                                            <span class="p-1 rounded bg-white border font-bold">4</span>
+                                                            <span class="p-1 rounded bg-white border font-bold">5</span>
+                                                            <span class="p-1 rounded bg-white border font-bold">6</span>
+                                                            <span class="p-1 rounded bg-white border font-bold">7</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -808,6 +734,41 @@
             return '';
         }
 
+        // EVENTOS DE DRAG PARA A PREVIEW DA IMAGEM
+        function attachCanvasInteractivity() {
+            const canvas = document.getElementById('preview-interactive-canvas');
+            if (!canvas) return;
+
+            canvas.onmousedown = (e) => {
+                isImgDragging = true;
+                imgStartX = e.clientX;
+                imgStartY = e.clientY;
+            };
+
+            document.onmousemove = (e) => {
+                if (!isImgDragging || !canvas) return;
+                const deltaX = (e.clientX - imgStartX) * 0.2;
+                const deltaY = (e.clientY - imgStartY) * 0.2;
+
+                let newX = Math.max(0, Math.min(100, (t.bgCustomPosX || 50) + deltaX));
+                let newY = Math.max(0, Math.min(100, (t.bgCustomPosY || 50) + deltaY));
+
+                t.bgCustomPosX = newX;
+                t.bgCustomPosY = newY;
+                canvas.style.backgroundPosition = `${newX}% ${newY}%`;
+
+                imgStartX = e.clientX;
+                imgStartY = e.clientY;
+            };
+
+            document.onmouseup = () => {
+                if (isImgDragging) {
+                    isImgDragging = false;
+                    saveDB();
+                }
+            };
+        }
+
         window.selectThemePalette = function(paletteId) {
             t.themePalette = paletteId;
             applyThemeCSS(paletteId);
@@ -821,38 +782,50 @@
             const reader = new FileReader();
             reader.onload = (event) => {
                 t.bgCustomImage = event.target.result;
-                if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.15;
+                if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.2;
                 if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
-                applyBgImageSettings();
+                if(t.bgCustomScale === undefined) t.bgCustomScale = 100;
+                if(t.bgCustomPosX === undefined) t.bgCustomPosX = 50;
+                if(t.bgCustomPosY === undefined) t.bgCustomPosY = 50;
                 saveDB();
                 render();
-                showModal('Imagem Salva!', 'Foto de fundo personalizada com sucesso.', 'success');
+                showModal('Imagem Salva!', 'Foto de fundo cadastrada. Use os controles para ajustar.', 'success');
             };
             reader.readAsDataURL(file);
         };
 
         window.removeBgImage = function() {
             delete t.bgCustomImage;
-            applyBgImageSettings();
             saveDB();
             render();
-            showModal('Removido', 'Foto de fundo removida.', 'info');
+            showModal('Removido', 'Foto de fundo removida com sucesso.', 'info');
+        };
+
+        window.updateBgScale = function(val) {
+            t.bgCustomScale = parseInt(val);
+            saveDB();
+            const canvas = document.getElementById('preview-interactive-canvas');
+            const lbl = document.getElementById('scale-val-label');
+            if (canvas) canvas.style.backgroundSize = `${val}%`;
+            if (lbl) lbl.innerText = val + '%';
         };
 
         window.updateBgOpacity = function(val) {
             t.bgCustomOpacity = parseFloat(val);
-            applyBgImageSettings();
             saveDB();
-            const previewBox = document.getElementById('preview-bg-box');
-            if (previewBox) previewBox.style.opacity = val;
+            const canvas = document.getElementById('preview-interactive-canvas');
+            const lbl = document.getElementById('opacity-val-label');
+            if (canvas) canvas.style.opacity = val;
+            if (lbl) lbl.innerText = Math.round(val * 100) + '%';
         };
 
         window.updateBgBlur = function(val) {
             t.bgCustomBlur = parseInt(val);
-            applyBgImageSettings();
             saveDB();
-            const previewBox = document.getElementById('preview-bg-box');
-            if (previewBox) previewBox.style.filter = `blur(${val}px)`;
+            const canvas = document.getElementById('preview-interactive-canvas');
+            const lbl = document.getElementById('blur-val-label');
+            if (canvas) canvas.style.filter = `blur(${val}px)`;
+            if (lbl) lbl.innerText = val + 'px';
         };
 
         function renderDashboardAnalytics(role, user) {
