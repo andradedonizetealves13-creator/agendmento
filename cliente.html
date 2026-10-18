@@ -24,7 +24,7 @@
         <p class="text-sm text-slate-500 font-medium">Carregando agendamentos...</p>
     </div>
 
-    <!-- Modal Modal -->
+    <!-- Modal Global -->
     <div id="custom-modal" class="hidden fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div id="modal-icon-container" class="mb-4 flex items-center justify-center w-12 h-12 rounded-full mx-auto"></div>
@@ -88,30 +88,40 @@
             window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
             window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
 
+            // VERIFICAÇÃO COMPLETA DE TRABALHO (CONSIDERA EXCEÇÕES E FOLGAS)
             window.doesEmployeeWorkOnDate = function(emp, dateStr) {
+                // 1. Exceção Individual do Funcionário
+                if (emp.exceptions && emp.exceptions[dateStr]) {
+                    if (emp.exceptions[dateStr].type === 'folga') return false;
+                    if (emp.exceptions[dateStr].type === 'plantao') return true;
+                }
+                // 2. Exceção Geral da Empresa
+                if (t.admin.exceptions && t.admin.exceptions[dateStr]) {
+                    if (t.admin.exceptions[dateStr].type === 'folga') return false;
+                    if (t.admin.exceptions[dateStr].type === 'plantao') return true;
+                }
+                // 3. Horário de Trabalho Padrão na Semana
                 const [y, m, d] = dateStr.split('-'); const dayOfWeek = new Date(y, m - 1, d).getDay(); 
-                const exc = emp.exceptions?.[dateStr];
-                if(exc && exc.type === 'folga') return false;
-                if(exc && exc.type === 'plantao') return true;
                 const whSource = emp.workingHours || t.admin.workingHours;
                 return whSource?.[dayOfWeek]?.active !== false;
             };
 
+            // VERIFICA SE A EMPRESA TEM PELO MENOS UM PROFISSIONAL DISPONÍVEL NA DATA
             window.isCompanyOpenOnDate = function(dateStr) {
-                if (t.employees && t.employees.length > 0) return t.employees.some(emp => doesEmployeeWorkOnDate(emp, dateStr));
+                if (t.employees && t.employees.length > 0) {
+                    return t.employees.some(emp => doesEmployeeWorkOnDate(emp, dateStr));
+                }
                 return doesEmployeeWorkOnDate(t.admin, dateStr);
             };
 
-            // VERIFICA SE O CLIENTE JÁ TEM AGENDAMENTO NO MESMO HORÁRIO/FAIXA DE TEMPO
             window.doesClientHaveCollision = function(dateStr, startMins, durationMins) {
                 if (!currentClient) return false;
-                const clientApps = t.appointments.filter(a => a.clientId === currentClient.id && a.date === dateStr);
+                const clientApps = t.appointments.filter(a => a.clientId === currentClient.id && a.date === dateStr && a.status !== 'cancelado');
                 const endMins = startMins + durationMins;
 
                 for (let a of clientApps) {
                     const aStart = timeToMins(a.time);
                     const aEnd = aStart + a.totalDuration;
-                    // Verifica se há sobreposição de faixa de tempo
                     if (startMins < aEnd && endMins > aStart) {
                         return true;
                     }
@@ -121,24 +131,28 @@
 
             window.getAvailableTimeSlots = function(empId, dateStr, durationMins) {
                 const emp = empId === t.admin.id ? t.admin : (t.employees || []).find(e => e.id === empId);
-                if(!emp) return [];
+                if(!emp || !doesEmployeeWorkOnDate(emp, dateStr)) return [];
+                
                 let start = '09:00', end = '18:00';
-                const exc = emp.exceptions?.[dateStr];
-                if(exc && exc.type === 'plantao') { start = exc.start; end = exc.end; }
+                const excEmp = emp.exceptions?.[dateStr];
+                const excAdmin = t.admin.exceptions?.[dateStr];
+
+                if (excEmp && excEmp.type === 'plantao') { start = excEmp.start; end = excEmp.end; }
+                else if (excAdmin && excAdmin.type === 'plantao') { start = excAdmin.start; end = excAdmin.end; }
                 else {
                     const [y, m, d] = dateStr.split('-'); const dayOfWeek = new Date(y, m - 1, d).getDay();
                     const wh = emp.workingHours?.[dayOfWeek] || t.admin.workingHours?.[dayOfWeek];
                     if(wh && wh.active) { start = wh.start; end = wh.end; } else return [];
                 }
+
                 const startMins = timeToMins(start); const endMins = timeToMins(end);
-                const empApps = (t.appointments || []).filter(a => a.employeeId === empId && a.date === dateStr);
+                const empApps = (t.appointments || []).filter(a => a.employeeId === empId && a.date === dateStr && a.status !== 'cancelado');
                 const slots = [];
 
                 for(let m = startMins; m <= endMins - durationMins; m += 30) {
                     let overlap = false;
                     const slotEnd = m + durationMins;
                     
-                    // Colisão com a agenda do funcionário
                     for(let a of empApps) {
                         const aStart = timeToMins(a.time); const aEnd = aStart + a.totalDuration;
                         if(m < aEnd && slotEnd > aStart) { overlap = true; break; }
@@ -278,6 +292,8 @@
                     for (let d = 1; d <= daysInMonth; d++) {
                         const cellDate = new Date(clientCalYear, clientCalMonth, d);
                         const dateStr = `${clientCalYear}-${String(clientCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                        
+                        // BLOQUEIA O DIA SE A EMPRESA ESTIVER FECHADA OU SE NENHUM FUNCIONÁRIO TRABALHAR
                         const isBlocked = cellDate < today || !isCompanyOpenOnDate(dateStr);
                         cells.push({ empty: false, day: d, dateStr, isBlocked, isSelected: clientBooking.date === dateStr });
                     }
@@ -289,12 +305,11 @@
                                 <button onclick="clientCalMonth++; render()"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                             </div>
                             <div class="grid grid-cols-7 gap-1 text-center mb-2">${weekShortDays.map(w => `<span class="text-[11px] font-bold text-slate-400 uppercase">${w}</span>`).join('')}</div>
-                            <div class="grid grid-cols-7 gap-1.5">${cells.map(c => c.empty ? `<div></div>` : c.isBlocked ? `<div class="h-11 flex items-center justify-center rounded-xl bg-slate-100 text-slate-300 text-xs">${c.day}</div>` : `<button onclick="clientBooking.date='${c.dateStr}'; render()" class="h-11 flex items-center justify-center rounded-xl text-xs font-bold ${c.isSelected?'bg-indigo-600 text-white':'bg-white border text-slate-700 hover:bg-indigo-50'}">${c.day}</button>`).join('')}</div>
+                            <div class="grid grid-cols-7 gap-1.5">${cells.map(c => c.empty ? `<div></div>` : c.isBlocked ? `<div class="h-11 flex items-center justify-center rounded-xl bg-slate-100 text-slate-300 text-xs select-none" title="Sem profissionais disponíveis neste dia">${c.day}</div>` : `<button onclick="clientBooking.date='${c.dateStr}'; render()" class="h-11 flex items-center justify-center rounded-xl text-xs font-bold ${c.isSelected?'bg-indigo-600 text-white':'bg-white border text-slate-700 hover:bg-indigo-50'}">${c.day}</button>`).join('')}</div>
                             ${clientBooking.date ? `<button onclick="clientBooking.step=2; render()" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl shadow-lg mt-6">Continuar</button>` : ''}
                         </div>`;
                 }
                 else if (clientBooking.step === 2) {
-                    // FILTRAR APENAS PROCEDIMENTOS QUE POSSUAM PELO MENOS UM PROFISSIONAL TRABALHANDO NA DATA
                     const availableProcedures = t.procedures.filter(p => {
                         if (t.employees.length === 0) return doesEmployeeWorkOnDate(t.admin, clientBooking.date);
                         return t.employees.some(emp => emp.procedures && emp.procedures.includes(p.id) && doesEmployeeWorkOnDate(emp, clientBooking.date));
@@ -318,19 +333,30 @@
                         </div>`;
                 }
                 else if (clientBooking.step === 3) {
-                    const empsAvailable = t.employees.filter(emp => clientBooking.procedures.every(pid => emp.procedures && emp.procedures.includes(pid)) && doesEmployeeWorkOnDate(emp, clientBooking.date));
+                    // FILTRA EXCLUSIVAMENTE FUNCIONÁRIOS QUE TRABALHAM E NÃO ESTÃO DE FOLGA NA DATA
+                    const empsAvailable = t.employees.filter(emp => 
+                        clientBooking.procedures.every(pid => emp.procedures && emp.procedures.includes(pid)) && 
+                        doesEmployeeWorkOnDate(emp, clientBooking.date)
+                    );
+
                     return `
                         <div class="max-w-xl mx-auto bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border fade-in">
                             <button onclick="clientBooking.step=2;render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
                             <h2 class="text-2xl font-black text-center mb-6">Quem vai te atender?</h2>
-                            <div class="grid grid-cols-2 gap-4">${empsAvailable.map(item => `
-                                <div onclick="clientBooking.employeeId='${item.id}'; clientBooking.step=4; render()" class="p-4 border rounded-2xl flex flex-col items-center cursor-pointer hover:border-indigo-600 bg-slate-50 transition-all">
-                                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl mb-2 overflow-hidden shrink-0 border border-slate-200">
-                                        ${item.avatar ? `<img src="${item.avatar}" class="w-full h-full object-cover">` : `<span>${item.name.charAt(0)}</span>`}
-                                    </div>
-                                    <p class="font-bold text-sm text-center truncate w-full">${item.name}</p>
+                            ${empsAvailable.length === 0 ? `
+                                <div class="text-center py-8 bg-rose-50 rounded-2xl border border-rose-100 p-4">
+                                    <p class="text-sm text-rose-800 font-bold">Nenhum profissional disponível na data escolhida.</p>
                                 </div>
-                            `).join('')}</div>
+                            ` : `
+                                <div class="grid grid-cols-2 gap-4">${empsAvailable.map(item => `
+                                    <div onclick="clientBooking.employeeId='${item.id}'; clientBooking.step=4; render()" class="p-4 border rounded-2xl flex flex-col items-center cursor-pointer hover:border-indigo-600 bg-slate-50 transition-all">
+                                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl mb-2 overflow-hidden shrink-0 border border-slate-200">
+                                            ${item.avatar ? `<img src="${item.avatar}" class="w-full h-full object-cover">` : `<span>${item.name.charAt(0)}</span>`}
+                                        </div>
+                                        <p class="font-bold text-sm text-center truncate w-full">${item.name}</p>
+                                    </div>
+                                `).join('')}</div>
+                            `}
                         </div>`;
                 }
                 else if (clientBooking.step === 4) {
