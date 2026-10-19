@@ -438,18 +438,15 @@
 
             function attachDragHandlers() {
                 const dayColumns = document.querySelectorAll('.calendar-day-column');
-                
                 dayColumns.forEach(col => {
                     col.addEventListener('mousedown', (e) => {
                         if (e.target.closest('.appointment-postit')) return;
                         isDragging = true;
                         activeColumnEl = col;
                         dragDateStr = col.getAttribute('data-date');
-                        
                         const rect = col.getBoundingClientRect();
                         startY = e.clientY - rect.top;
                         currentY = startY;
-
                         updateDragSelectionBox();
                     });
 
@@ -465,25 +462,15 @@
                 document.addEventListener('mouseup', () => {
                     if (isDragging && activeColumnEl) {
                         isDragging = false;
-                        
                         const topY = Math.min(startY, currentY);
                         const bottomY = Math.max(startY, currentY);
-                        
                         const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
                         let endMinsTotal = Math.floor((bottomY / 51) * 60) + 420;
-                        
-                        if (endMinsTotal - startMinsTotal < 15) {
-                            endMinsTotal = startMinsTotal + 30;
-                        }
-
+                        if (endMinsTotal - startMinsTotal < 15) endMinsTotal = startMinsTotal + 30;
                         const roundedStartMins = Math.floor(startMinsTotal / 15) * 15;
                         const roundedEndMins = Math.ceil(endMinsTotal / 15) * 15;
-
-                        const startTimeStr = minsToTime(roundedStartMins);
-                        const endTimeStr = minsToTime(roundedEndMins);
-
                         removeDragSelectionBox();
-                        openCreateModal(dragDateStr, startTimeStr, endTimeStr);
+                        openCreateModal(dragDateStr, minsToTime(roundedStartMins), minsToTime(roundedEndMins));
                     }
                 });
             }
@@ -496,13 +483,10 @@
                     box.className = 'drag-selection-box';
                     activeColumnEl.appendChild(box);
                 }
-
                 const topY = Math.min(startY, currentY);
                 const heightY = Math.max(Math.abs(currentY - startY), 15);
-
                 box.style.top = topY + 'px';
                 box.style.height = heightY + 'px';
-
                 const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
                 const endMinsTotal = Math.floor(((topY + heightY) / 51) * 60) + 420;
                 box.innerText = `${minsToTime(Math.floor(startMinsTotal/15)*15)} - ${minsToTime(Math.ceil(endMinsTotal/15)*15)}`;
@@ -517,24 +501,19 @@
                 const role = session.role || 'admin';
                 const empSelect = document.getElementById('manual-employee-id');
                 empSelect.innerHTML = '';
-
                 if (role === 'admin') {
                     empSelect.disabled = false;
                     empSelect.innerHTML += `<option value="${t.admin.id}">${t.admin.name} (ADM)</option>`;
-                    (t.employees || []).forEach(e => {
-                        empSelect.innerHTML += `<option value="${e.id}">${e.name}</option>`;
-                    });
+                    (t.employees || []).forEach(e => { empSelect.innerHTML += `<option value="${e.id}">${e.name}</option>`; });
                 } else {
                     const userProfile = t.employees.find(e => e.id === session.id);
                     empSelect.innerHTML = `<option value="${userProfile.id}" selected>${userProfile.name}</option>`;
                     empSelect.disabled = true;
                 }
-
                 document.getElementById('manual-date').value = defaultDate || new Date().toISOString().split('T')[0];
                 document.getElementById('manual-start-time').value = defaultStart;
                 document.getElementById('manual-end-time').value = defaultEnd;
                 document.getElementById('manual-client-name').value = '';
-
                 const procList = document.getElementById('manual-procedures-list');
                 procList.innerHTML = (t.procedures || []).map(p => `
                     <label class="flex items-center justify-between p-2.5 bg-white border rounded-xl hover:bg-indigo-50 cursor-pointer">
@@ -545,14 +524,11 @@
                         <span class="text-xs font-bold text-emerald-600">R$ ${p.price.toFixed(2)}</span>
                     </label>
                 `).join('') || '<p class="text-xs text-slate-400">Nenhum procedimento cadastrado.</p>';
-
                 document.getElementById('create-modal').classList.remove('hidden');
                 if(window.lucide) lucide.createIcons();
             };
 
-            window.closeCreateModal = function() {
-                document.getElementById('create-modal').classList.add('hidden');
-            };
+            window.closeCreateModal = function() { document.getElementById('create-modal').classList.add('hidden'); };
 
             window.handleManualAppSave = function(e) {
                 e.preventDefault();
@@ -561,32 +537,19 @@
                 const date = document.getElementById('manual-date').value;
                 const startTime = document.getElementById('manual-start-time').value;
                 const endTime = document.getElementById('manual-end-time').value;
-
                 const selectedProcIds = Array.from(document.querySelectorAll('.manual-proc-cb:checked')).map(cb => cb.value);
                 if (selectedProcIds.length === 0) return showModal('Aviso', 'Selecione pelo menos um procedimento.', 'info');
-
                 const selectedProcs = t.procedures.filter(p => selectedProcIds.includes(p.id));
                 const totalDuration = Math.max(timeToMins(endTime) - timeToMins(startTime), 15);
                 const totalPrice = selectedProcs.reduce((s, p) => s + p.price, 0);
 
                 const newApp = {
-                    id: 'app-' + Date.now(),
-                    clientId: 'manual-cli-' + Date.now(),
-                    clientName: clientName,
-                    beneficiaryName: clientName,
-                    employeeId: employeeId,
-                    date: date,
-                    time: startTime,
-                    proceduresNames: selectedProcs.map(p => p.name),
-                    totalDuration: totalDuration,
-                    totalPrice: totalPrice,
-                    createdAt: new Date().toISOString()
+                    id: 'app-' + Date.now(), clientId: 'manual-cli-' + Date.now(), clientName, beneficiaryName: clientName,
+                    employeeId, date, time: startTime, proceduresNames: selectedProcs.map(p => p.name), totalDuration, totalPrice, createdAt: new Date().toISOString()
                 };
-
                 if(!t.appointments) t.appointments = [];
                 t.appointments.push(newApp);
-                saveDB();
-                closeCreateModal();
+                saveDB(); closeCreateModal();
                 showModal('Sucesso!', 'Agendamento cadastrado com sucesso.', 'success');
             };
 
@@ -604,9 +567,7 @@
                     `;
                 }
 
-                if(activeTab === 'dashboard') {
-                    return renderDashboardAnalytics(role, user);
-                }
+                if(activeTab === 'dashboard') return renderDashboardAnalytics(role, user);
                 
                 if(activeTab === 'horarios') {
                     const isAdm = role === 'admin';
@@ -621,14 +582,11 @@
                             <div class="max-w-4xl mx-auto space-y-6 fade-in">
                                 ${pendingRequests.length > 0 ? `
                                     <div class="bg-amber-50/90 border-2 border-amber-200 p-6 rounded-2xl shadow-sm">
-                                        <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes de Folga / Plantão (${pendingRequests.length})</h3>
+                                        <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes (${pendingRequests.length})</h3>
                                         <div class="space-y-3">
                                             ${pendingRequests.map(r => `
                                                 <div class="bg-white p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-                                                    <div>
-                                                        <p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência/Folga':'Hora a mais (Plantão)'}</span></p>
-                                                        <p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b> ${r.type==='plantao'? `(${r.start} às ${r.end})`:''}</p>
-                                                    </div>
+                                                    <div><p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência':'Plantão'}</span></p><p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b></p></div>
                                                     <div class="flex items-center space-x-2">
                                                         <button onclick="handleApproveRequest('${r.id}', true)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Aprovar</button>
                                                         <button onclick="handleApproveRequest('${r.id}', false)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm">Recusar</button>
@@ -641,93 +599,27 @@
 
                                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                     <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                        <h3 class="font-bold text-lg mb-2">Horários Padrão da Empresa</h3>
-                                        <p class="text-xs text-slate-500 mb-6">Defina os dias de funcionamento.</p>
+                                        <h3 class="font-bold text-lg mb-2">Horários Padrão</h3>
                                         <div class="space-y-4">
                                             ${daysMap.map((day, i) => `
-                                                <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-3 ${wh[i].active ? 'bg-indigo-50/30 border border-indigo-100' : 'bg-slate-50 border border-slate-100 opacity-60'} rounded-xl transition-all gap-3">
-                                                    <div class="flex items-center space-x-3 w-32">
-                                                        <label class="relative inline-flex items-center cursor-pointer">
-                                                          <input type="checkbox" id="wh-cb-${i}" class="sr-only peer" ${wh[i].active ? 'checked' : ''} onchange="document.getElementById('wh-row-${i}').classList.toggle('opacity-60');">
-                                                          <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-                                                        </label>
-                                                        <span class="text-sm font-bold ${wh[i].active?'text-slate-800':'text-slate-500'}">${day}</span>
-                                                    </div>
-                                                    <div id="wh-row-${i}" class="flex items-center justify-between sm:justify-start space-x-2">
-                                                        <input type="time" id="wh-s-${i}" value="${wh[i].start}" class="px-2 py-1.5 border rounded-lg text-sm bg-white">
-                                                        <span class="text-xs text-slate-400">até</span>
-                                                        <input type="time" id="wh-e-${i}" value="${wh[i].end}" class="px-2 py-1.5 border rounded-lg text-sm bg-white">
-                                                    </div>
+                                                <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 ${wh[i].active ? 'bg-indigo-50/30 border' : 'bg-slate-50 border opacity-60'} rounded-xl gap-3">
+                                                    <div class="flex items-center space-x-3 w-32"><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" id="wh-cb-${i}" class="sr-only peer" ${wh[i].active ? 'checked' : ''}><div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div></label><span class="text-sm font-bold">${day}</span></div>
+                                                    <div class="flex items-center space-x-2"><input type="time" id="wh-s-${i}" value="${wh[i].start}" class="px-2 py-1.5 border rounded-lg text-sm bg-white"><span class="text-xs text-slate-400">até</span><input type="time" id="wh-e-${i}" value="${wh[i].end}" class="px-2 py-1.5 border rounded-lg text-sm bg-white"></div>
                                                 </div>
                                             `).join('')}
                                         </div>
-                                        <button onclick="saveWorkingHours()" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-6 transition-all text-sm uppercase">Salvar Horários</button>
+                                        <button onclick="saveWorkingHours()" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-6 text-sm uppercase">Salvar Horários</button>
                                     </div>
 
                                     <div class="space-y-6">
                                         <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                            <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral (Empresa)</h3>
+                                            <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral</h3>
                                             <div class="space-y-4 mt-4">
                                                 <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
-                                                <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
-                                                    <select id="exc-type" onchange="document.getElementById('exc-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium">
-                                                        <option value="folga">Ausência / Folga Geral</option>
-                                                        <option value="plantao">Plantão Geral</option>
-                                                    </select>
-                                                </div>
-                                                <div id="exc-times" class="hidden flex items-center space-x-4">
-                                                    <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="exc-start" value="08:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
-                                                    <div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="exc-end" value="20:00" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
-                                                </div>
-                                                <button onclick="addException()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-md mt-2">Adicionar Exceção Geral</button>
+                                                <div><label class="block text-xs font-bold mb-1.5">Tipo</label><select id="exc-type" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium"><option value="folga">Ausência / Folga Geral</option><option value="plantao">Plantão Geral</option></select></div>
+                                                <button onclick="addException()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl shadow-md mt-2">Adicionar Exceção Geral</button>
                                             </div>
                                         </div>
-
-                                        <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                            <h3 class="font-bold text-base mb-4">Exceções Gerais Registradas</h3>
-                                            <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                                                ${excs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma cadastrada.</p>' : excs.map(e => `
-                                                    <div class="p-3 border rounded-xl flex items-center justify-between ${e.type==='folga'?'bg-rose-50/50 border-rose-100':'bg-emerald-50/50 border-emerald-100'}">
-                                                        <div>
-                                                            <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} - ${e.type==='folga'?'Folga Geral':'Plantão Geral'}</p>
-                                                            ${e.type==='plantao' ? `<p class="text-xs text-emerald-600 font-medium">${e.start} às ${e.end}</p>` : ''}
-                                                        </div>
-                                                        <button onclick="removeException('${e.date}')" class="text-rose-500 bg-white hover:bg-rose-50 p-2 rounded-lg shadow-sm border border-transparent hover:border-rose-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                                                    </div>
-                                                `).join('')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        const myReqs = t.requests ? t.requests.filter(r => r.empId === user.id) : [];
-                        return `
-                            <div class="max-w-2xl mx-auto space-y-6 fade-in">
-                                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                    <h3 class="font-bold text-lg mb-1">Solicitar Ausência ou Hora a Mais</h3>
-                                    <form onsubmit="handleCreateRequest(event, '${user.id}', '${user.name}')" class="space-y-4 mt-4">
-                                        <div><label class="block text-xs font-bold mb-1.5">Tipo de Solicitação</label>
-                                            <select id="req-type" onchange="document.getElementById('req-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-3 border rounded-xl text-sm bg-white font-medium">
-                                                <option value="folga">Solicitar Folga / Ausência (Dia inteiro)</option>
-                                                <option value="plantao">Solicitar Hora a Mais (Plantão)</option>
-                                            </select>
-                                        </div>
-                                        <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="req-date" required class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div>
-                                        <div id="req-times" class="hidden flex items-center space-x-4"><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="req-start" value="08:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="req-end" value="20:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div></div>
-                                        <button type="submit" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-2">Enviar Solicitação</button>
-                                    </form>
-                                </div>
-                                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                    <h3 class="font-bold text-base mb-4">Minhas Solicitações</h3>
-                                    <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                                        ${myReqs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma solicitação enviada.</p>' : myReqs.map(r => `
-                                            <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
-                                                <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Ausência/Folga':'Hora a mais'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
-                                                <span class="text-xs font-bold px-3 py-1.5 rounded-full border ${r.status==='approved'?'bg-emerald-50 text-emerald-700 border-emerald-200':(r.status==='rejected'?'bg-rose-50 text-rose-700 border-rose-200':'bg-amber-50 text-amber-700 border-amber-200')}">${r.status==='approved'?'Aprovado':(r.status==='rejected'?'Recusado':'Pendente')}</span>
-                                            </div>
-                                        `).join('')}
                                     </div>
                                 </div>
                             </div>
@@ -988,17 +880,22 @@
                     const isMobile = activeBgMode === 'mobile';
                     if (isMobile) {
                         t.bgMobileImage = event.target.result;
-                        if(t.bgMobileOpacity === undefined) t.bgMobileOpacity = 0.15;
+                        if(t.bgMobileOpacity === undefined) t.bgMobileOpacity = 0.2;
                         if(t.bgMobileBlur === undefined) t.bgMobileBlur = 0;
+                        if(t.bgMobileScale === undefined) t.bgMobileScale = 100;
+                        if(t.bgMobilePosX === undefined) t.bgMobilePosX = 50;
+                        if(t.bgMobilePosY === undefined) t.bgMobilePosY = 50;
                     } else {
                         t.bgCustomImage = event.target.result;
-                        if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.15;
+                        if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.2;
                         if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
+                        if(t.bgCustomScale === undefined) t.bgCustomScale = 100;
+                        if(t.bgCustomPosX === undefined) t.bgCustomPosX = 50;
+                        if(t.bgCustomPosY === undefined) t.bgCustomPosY = 50;
                     }
-                    applyBgImageSettings();
                     saveDB();
                     render();
-                    showModal('Imagem Salva!', `Foto de fundo configurada para ${isMobile ? 'Mobile' : 'Computador'}.`, 'success');
+                    showModal('Imagem Salva!', `Foto de fundo salva para a aba ${isMobile ? 'Mobile' : 'Computador'}.`, 'success');
                 };
                 reader.readAsDataURL(file);
             };
@@ -1007,21 +904,30 @@
                 const isMobile = activeBgMode === 'mobile';
                 if (isMobile) delete t.bgMobileImage;
                 else delete t.bgCustomImage;
-                applyBgImageSettings();
                 saveDB();
                 render();
                 showModal('Removido', 'Foto de fundo removida.', 'info');
+            };
+
+            window.updateBgScale = function(val) {
+                const isMobile = activeBgMode === 'mobile';
+                if (isMobile) t.bgMobileScale = parseInt(val);
+                else t.bgCustomScale = parseInt(val);
+                saveDB();
+                const canvas = document.getElementById('preview-interactive-canvas');
+                const lbl = document.getElementById('scale-val-label');
+                if (canvas) canvas.style.backgroundSize = `${val}%`;
+                if (lbl) lbl.innerText = val + '%';
             };
 
             window.updateBgOpacity = function(val) {
                 const isMobile = activeBgMode === 'mobile';
                 if (isMobile) t.bgMobileOpacity = parseFloat(val);
                 else t.bgCustomOpacity = parseFloat(val);
-                applyBgImageSettings();
                 saveDB();
-                const previewBox = document.getElementById('preview-bg-box');
-                if (previewBox) previewBox.style.opacity = val;
+                const canvas = document.getElementById('preview-interactive-canvas');
                 const lbl = document.getElementById('opacity-val-label');
+                if (canvas) canvas.style.opacity = val;
                 if (lbl) lbl.innerText = Math.round(val * 100) + '%';
             };
 
@@ -1029,417 +935,11 @@
                 const isMobile = activeBgMode === 'mobile';
                 if (isMobile) t.bgMobileBlur = parseInt(val);
                 else t.bgCustomBlur = parseInt(val);
-                applyBgImageSettings();
                 saveDB();
-                const previewBox = document.getElementById('preview-bg-box');
-                if (previewBox) previewBox.style.filter = `blur(${val}px)`;
+                const canvas = document.getElementById('preview-interactive-canvas');
                 const lbl = document.getElementById('blur-val-label');
+                if (canvas) canvas.style.filter = `blur(${val}px)`;
                 if (lbl) lbl.innerText = val + 'px';
-            };
-
-            function renderDashboardAnalytics(role, user) {
-                const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
-                
-                let apps = t.appointments || [];
-                if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
-
-                const filteredApps = apps.filter(a => {
-                    const [y, m] = a.date.split('-');
-                    return m === dashboardFilterMonth && y === dashboardFilterYear;
-                });
-
-                const completedApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'realizado');
-                const canceledApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'cancelado');
-                const noShowApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'nao_compareceu');
-
-                const totalRevenue = completedApps.reduce((s, a) => s + (a.totalPrice || 0), 0);
-
-                const procStats = {};
-                t.procedures.forEach(p => { procStats[p.name] = 0; });
-                completedApps.forEach(a => {
-                    (a.proceduresNames || []).forEach(pName => {
-                        procStats[pName] = (procStats[pName] || 0) + 1;
-                    });
-                });
-
-                const staffStats = {};
-                if(role === 'admin') {
-                    t.employees.forEach(e => {
-                        staffStats[e.id] = { name: e.name, canceled: 0, noShow: 0, completed: 0 };
-                    });
-                    staffStats[t.admin.id] = { name: t.admin.name, canceled: 0, noShow: 0, completed: 0 };
-
-                    filteredApps.forEach(a => {
-                        if(!staffStats[a.employeeId]) return;
-                        const st = getEffectiveAppStatus(a);
-                        if(st === 'cancelado') staffStats[a.employeeId].canceled++;
-                        else if(st === 'nao_compareceu') staffStats[a.employeeId].noShow++;
-                        else if(st === 'realizado') staffStats[a.employeeId].completed++;
-                    });
-                }
-
-                return `
-                    <div class="space-y-6 fade-in max-w-6xl mx-auto">
-                        <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div>
-                                <h2 class="text-xl font-bold text-slate-800">Dashboard de Desempenho</h2>
-                                <p class="text-xs text-slate-500">${role === 'admin' ? 'Visão consolidada da empresa' : 'Visão dos seus atendimentos pessoais'}</p>
-                            </div>
-                            <div class="flex items-center space-x-3 self-start sm:self-auto">
-                                <select onchange="dashboardFilterMonth=this.value; render()" class="px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-bold text-slate-800 outline-none">
-                                    ${meses.map(m => `<option value="${m.v}" ${dashboardFilterMonth===m.v?'selected':''}>${m.n}</option>`).join('')}
-                                </select>
-                                <input type="number" value="${dashboardFilterYear}" min="2020" max="2030" onchange="dashboardFilterYear=this.value; render()" class="w-24 px-3 py-2.5 bg-slate-50 border rounded-xl text-sm font-bold text-slate-800 outline-none">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border shadow-sm flex items-center space-x-4">
-                                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-bold shrink-0"><i data-lucide="wallet" class="w-6 h-6"></i></div>
-                                <div>
-                                    <p class="text-xs text-slate-400 font-bold uppercase">Faturamento Total</p>
-                                    <h3 class="text-2xl font-black text-emerald-600 mt-0.5">R$ ${totalRevenue.toFixed(2)}</h3>
-                                </div>
-                            </div>
-
-                            <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border shadow-sm flex items-center space-x-4">
-                                <div class="w-12 h-12 bg-theme-secondary text-theme-primary rounded-2xl flex items-center justify-center font-bold shrink-0"><i data-lucide="check-circle" class="w-6 h-6"></i></div>
-                                <div>
-                                    <p class="text-xs text-slate-400 font-bold uppercase">Atendimentos Concluídos</p>
-                                    <h3 class="text-2xl font-black text-slate-800 mt-0.5">${completedApps.length}</h3>
-                                </div>
-                            </div>
-
-                            <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border shadow-sm flex items-center space-x-4">
-                                <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-bold shrink-0"><i data-lucide="user-x" class="w-6 h-6"></i></div>
-                                <div>
-                                    <p class="text-xs text-slate-400 font-bold uppercase">Não Compareceram</p>
-                                    <h3 class="text-2xl font-black text-amber-600 mt-0.5">${noShowApps.length}</h3>
-                                </div>
-                            </div>
-
-                            <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl border shadow-sm flex items-center space-x-4">
-                                <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center font-bold shrink-0"><i data-lucide="x-circle" class="w-6 h-6"></i></div>
-                                <div>
-                                    <p class="text-xs text-slate-400 font-bold uppercase">Cancelamentos</p>
-                                    <h3 class="text-2xl font-black text-rose-600 mt-0.5">${canceledApps.length}</h3>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                            <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center justify-between">
-                                <span class="flex items-center"><i data-lucide="list" class="w-5 h-5 mr-2 text-theme-primary"></i> Agendamentos do Mês (${filteredApps.length})</span>
-                                <span class="text-xs text-slate-400 font-normal">Status atualizados em tempo real</span>
-                            </h3>
-                            <div class="space-y-3 max-h-80 overflow-y-auto custom-scrollbar pr-2">
-                                ${filteredApps.length === 0 ? '<p class="text-xs text-slate-400 py-4 text-center">Nenhum agendamento encontrado para este mês.</p>' : filteredApps.map(a => {
-                                    const st = getEffectiveAppStatus(a);
-                                    const emp = a.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e=>e.id===a.employeeId);
-                                    const empName = emp ? emp.name : 'Equipe';
-                                    
-                                    let statusBadge = `<span class="bg-theme-secondary text-theme-primary border text-[10px] font-bold px-2.5 py-1 rounded-full">Agendado</span>`;
-                                    if (st === 'realizado') statusBadge = `<span class="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Concluído</span>`;
-                                    else if (st === 'cancelado') statusBadge = `<span class="bg-rose-50 text-rose-700 border-rose-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Cancelado</span>`;
-                                    else if (st === 'nao_compareceu') statusBadge = `<span class="bg-amber-50 text-amber-700 border-amber-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Não Compareceu</span>`;
-
-                                    return `
-                                        <div class="p-3.5 bg-slate-50 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white transition-colors">
-                                            <div class="flex items-start space-x-3">
-                                                <div class="bg-theme-secondary text-theme-primary font-bold px-2.5 py-1.5 rounded-lg text-xs shrink-0">${formatDateBR(a.date)}<br>${a.time}</div>
-                                                <div>
-                                                    <p class="font-bold text-slate-800 text-sm">{${a.clientName}}${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded">Para: ${a.beneficiaryName}</span>` : ''}</p>
-                                                    <p class="text-xs text-slate-500">${a.proceduresNames.join(', ')} — <b>${empName}</b></p>
-                                                </div>
-                                            </div>
-                                            <div class="flex items-center justify-between sm:justify-end space-x-3 border-t sm:border-0 pt-2 sm:pt-0">
-                                                <span class="font-bold text-emerald-600 text-xs">R$ ${a.totalPrice.toFixed(2)}</span>${statusBadge}
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="scissors" class="w-5 h-5 mr-2 text-theme-primary"></i> Atendimentos por Procedimento</h3>
-                                <div class="space-y-3 max-h-72 overflow-y-auto custom-scrollbar pr-2">
-                                    ${Object.keys(procStats).length === 0 ? '<p class="text-xs text-slate-400">Nenhum serviço cadastrado.</p>' : Object.keys(procStats).map(pName => `
-                                        <div class="flex items-center justify-between p-3.5 bg-slate-50 border rounded-xl">
-                                            <span class="font-bold text-sm text-slate-700">${pName}</span>
-                                            <span class="font-black text-theme-primary bg-theme-secondary px-3 py-1 rounded-lg border text-sm">${procStats[pName]} realizados</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-
-                            ${role === 'admin' ? `
-                                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                    <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="users" class="w-5 h-5 mr-2 text-theme-primary"></i> Desempenho por Colaborador</h3>
-                                    <div class="space-y-3 max-h-72 overflow-y-auto custom-scrollbar pr-2">
-                                        ${Object.keys(staffStats).map(empId => {
-                                            const st = staffStats[empId];
-                                            return `
-                                                <div class="p-3.5 bg-slate-50 border rounded-xl flex items-center justify-between">
-                                                    <div>
-                                                        <p class="font-bold text-sm text-slate-800">${st.name}</p>
-                                                        <p class="text-xs text-slate-500 mt-0.5">${st.completed} concluídos</p>
-                                                    </div>
-                                                    <div class="flex space-x-2 text-xs font-bold">
-                                                        <span class="bg-rose-50 text-rose-700 px-2.5 py-1 rounded-lg border border-rose-100">${st.canceled} cancelados</span>
-                                                        <span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg border border-amber-100">${st.noShow} faltas</span>
-                                                    </div>
-                                                </div>
-                                            `;
-                                        }).join('')}
-                                    </div>
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            }
-
-            window.handleCreateRequest = function(e, empId, empName) {
-                e.preventDefault(); const date = document.getElementById('req-date').value; const type = document.getElementById('req-type').value;
-                if(!date) return showModal('Erro', 'Selecione uma data.', 'error');
-                const newReq = { id: 'req-' + Date.now(), empId, empName, date, type, status: 'pending' };
-                if(type === 'plantao') { newReq.start = document.getElementById('req-start').value; newReq.end = document.getElementById('req-end').value; }
-                t.requests.push(newReq); saveDB(); showModal('Enviado', 'Solicitação enviada.', 'success');
-            };
-
-            window.handleApproveRequest = function(reqId, approved) {
-                const req = t.requests.find(r => r.id === reqId); if(!req) return;
-                req.status = approved ? 'approved' : 'rejected';
-                if(approved) {
-                    const emp = t.employees.find(e => e.id === req.empId);
-                    if(emp) {
-                        if(!emp.exceptions) emp.exceptions = {};
-                        if(req.type === 'folga') emp.exceptions[req.date] = { type: 'folga' };
-                        else emp.exceptions[req.date] = { type: 'plantao', start: req.start, end: req.end };
-                    }
-                } saveDB();
-            };
-
-            window.saveWorkingHours = function() {
-                for(let i=0; i<7; i++) {
-                    t.admin.workingHours[i].active = document.getElementById(`wh-cb-${i}`).checked;
-                    t.admin.workingHours[i].start = document.getElementById(`wh-s-${i}`).value;
-                    t.admin.workingHours[i].end = document.getElementById(`wh-e-${i}`).value;
-                } saveDB(); showModal('Salvo', 'Horários atualizados!', 'success');
-            };
-
-            window.addException = function() {
-                const date = document.getElementById('exc-date').value; const type = document.getElementById('exc-type').value;
-                if(!date) return showModal('Erro', 'Selecione uma data.', 'error');
-                if(type === 'folga') t.admin.exceptions[date] = { type: 'folga' };
-                else {
-                    const s = document.getElementById('exc-start').value; const e = document.getElementById('exc-end').value;
-                    t.admin.exceptions[date] = { type: 'plantao', start: s, end: e };
-                } saveDB();
-            };
-            window.removeException = function(dateStr) { delete t.admin.exceptions[dateStr]; saveDB(); };
-
-            window.selectListMonth = function(val) { listFilterMonth = val; listFilterDate = ''; render(); };
-
-            function renderListView(role, user) {
-                let apps = t.appointments || [];
-                if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
-                if(listFilterMonth) apps = apps.filter(a => a.date.split('-')[1] === listFilterMonth);
-                if(listFilterDate) apps = apps.filter(a => a.date === listFilterDate);
-                apps.sort((a,b) => new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time));
-
-                const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
-                const hasEmployees = t.employees.length > 0;
-
-                return `
-                    <div class="bg-white/90 backdrop-blur-md p-4 md:p-6 rounded-2xl border shadow-sm ${isCalendarFullscreen ? 'calendar-fullscreen' : ''}">
-                        <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-5 mb-6 bg-slate-50 p-4 rounded-xl border">
-                            <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Mês</label>
-                                <select onchange="selectListMonth(this.value)" class="w-full px-4 py-2.5 bg-white border rounded-xl text-sm font-semibold outline-none">
-                                    <option value="">Todos os Meses</option>
-                                    ${meses.map(m => `<option value="${m.v}" ${listFilterMonth===m.v?'selected':''}>${m.n}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Data Específica</label><input type="date" value="${listFilterDate}" onchange="listFilterDate=this.value; listFilterMonth=''; render()" class="w-full px-4 py-2 bg-white border rounded-xl text-sm font-semibold outline-none"></div>
-                            <div class="flex items-end w-full md:w-auto"><button onclick="listFilterDate=''; listFilterMonth=''; render()" class="w-full px-4 py-2 bg-white border text-slate-600 hover:bg-rose-50 hover:text-rose-600 rounded-xl text-sm font-bold">Limpar</button></div>
-                        </div>
-                        <div class="space-y-4">
-                            ${apps.length === 0 ? '<div class="text-center py-16 bg-slate-50 rounded-2xl border-dashed border"><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>' : apps.map(a => {
-                                const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
-                                const titleText = (role === 'admin' && hasEmployees) ? `${emp?emp.name:'Equipe'} - {${a.clientName}}` : a.clientName;
-                                return `
-                                <div class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-300 bg-white gap-4">
-                                    <div class="flex items-start space-x-4">
-                                        <div class="bg-theme-secondary text-theme-primary w-14 h-14 rounded-xl flex flex-col items-center justify-center border shrink-0"><span class="text-[10px] font-bold uppercase">${a.date.split('-')[1]}</span><span class="text-xl font-bold">${a.date.split('-')[2]}</span></div>
-                                        <div><p class="font-bold text-slate-900 text-base">${titleText}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} -${a.proceduresNames.join(', ')}</p></div>
-                                    </div>
-                                    <div class="flex items-center justify-between md:justify-end space-x-4 border-t md:border-0 pt-4 md:pt-0 w-full md:w-auto">
-                                        <p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">R$ ${a.totalPrice.toFixed(2)}</p>
-                                        <button onclick="cancelarAgendamento('${a.id}')" class="text-xs text-rose-600 bg-rose-50 px-4 py-2 rounded-xl hover:bg-rose-100 font-bold border">Cancelar</button>
-                                    </div>
-                                </div>
-                            `}).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            window.jumpToMonth = function(monthIndexStr) {
-                const m = parseInt(monthIndexStr); const today = new Date(); const tgt = new Date(today.getFullYear(), m, 1);
-                currentWeekOffset = Math.floor((tgt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 7)); render();
-            };
-            window.toggleFullscreen = function() { isCalendarFullscreen = !isCalendarFullscreen; render(); };
-
-            function renderWeeklyCalendar(role, user) {
-                const today = new Date(); const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + (currentWeekOffset * 7));
-                const weekDays = []; for(let i=0; i<7; i++) { const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i); weekDays.push(d); }
-                const viewMonth = weekDays[0].getMonth(); const viewYear = weekDays[0].getFullYear();
-                const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                const hours = []; for(let i=7; i<=20; i++) hours.push(`${i.toString().padStart(2, '0')}:00`);
-
-                const weekApps = t.appointments.filter(a => {
-                    if(role === 'employee' && a.employeeId !== user.id) return false;
-                    if(a.status === 'cancelado' || a.status === 'nao_compareceu') return false;
-                    const aDate = new Date(a.date + 'T00:00:00'); return aDate >= weekDays[0] && aDate <= weekDays[6];
-                });
-
-                const currentProfile = role === 'admin' ? t.admin : user;
-                const appsByDayAndSlot = {};
-                
-                weekApps.forEach(a => {
-                    const aDate = new Date(a.date + 'T00:00:00'); const dayIdx = aDate.getDay();
-                    const [h, m] = a.time.split(':').map(Number);
-                    if(h < 7 || h > 20) return;
-                    const startMins = timeToMins(a.time); const endMins = startMins + a.totalDuration;
-                    if (!appsByDayAndSlot[dayIdx]) appsByDayAndSlot[dayIdx] = [];
-                    appsByDayAndSlot[dayIdx].push({ ...a, startMins, endMins, h, m });
-                });
-
-                const postitsHtmlByDay = {};
-                Object.keys(appsByDayAndSlot).forEach(dayIdxStr => {
-                    const dayIdx = parseInt(dayIdxStr); const dayApps = appsByDayAndSlot[dayIdxStr];
-                    postitsHtmlByDay[dayIdx] = [];
-
-                    dayApps.forEach((a) => {
-                        const overlapping = dayApps.filter(o => (a.startMins < o.endMins && a.endMins > o.startMins));
-                        const totalOverlaps = overlapping.length; const overlapIndex = overlapping.findIndex(o => o.id === a.id);
-                        const topPixels = ((a.startMins - 420) / 60) * 51;
-                        const heightPixels = Math.max((a.totalDuration / 60) * 51, 22);
-
-                        const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
-                        const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
-                        const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${a.time} - ${emp?emp.name:'Equipe'} - {${a.clientName}}` : `${a.time} - ${a.clientName}`;
-
-                        let styleWidth = 'calc(100% - 6px)'; let styleLeft = '3px';
-                        if (totalOverlaps > 1) {
-                            const widthPct = (100 / totalOverlaps); styleWidth = `calc(${widthPct}% - 4px)`; styleLeft = `calc(${overlapIndex * widthPct}% + 2px)`;
-                        }
-
-                        postitsHtmlByDay[dayIdx].push(`
-                            <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${a.proceduresNames.join(', ')}" class="appointment-postit" 
-                                 style="top: ${topPixels}px; height: ${heightPixels}px; width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
-                                <p class="font-bold truncate text-[10px] text-white">${postitTitle}</p>
-                            </div>
-                        `);
-                    });
-                });
-
-                return `
-                    <div class="bg-white/90 backdrop-blur-md border rounded-2xl shadow-sm overflow-hidden flex flex-col relative ${isCalendarFullscreen ? 'calendar-fullscreen' : 'h-[600px]'}">
-                        <div class="p-3 border-b flex justify-between bg-slate-50 shrink-0">
-                            <div class="flex space-x-2">
-                                <button onclick="currentWeekOffset--;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
-                                <div class="flex items-center px-4 bg-white border rounded-xl font-bold">${monthNames[viewMonth]} ${viewYear}</div>
-                                <button onclick="currentWeekOffset++;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
-                            </div>
-                            <div class="flex space-x-3">
-                                <button onclick="currentWeekOffset=0;render()" class="bg-theme-secondary text-theme-primary px-4 py-2.5 rounded-xl font-bold">Hoje</button>
-                                <button onclick="toggleFullscreen()" class="p-2.5 bg-slate-800 text-white rounded-xl"><i data-lucide="${isCalendarFullscreen ? 'minimize' : 'maximize'}" class="w-5 h-5"></i></button>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-auto custom-scrollbar p-2 bg-slate-100/50">
-                            <div class="calendar-grid relative bg-white border">
-                                <div class="calendar-header-cell border-b border-r bg-slate-50 sticky top-0 left-0 z-30"></div>
-                                ${weekDays.map(d => {
-                                    const dateStr = d.toISOString().split('T')[0];
-                                    const isWorking = doesEmployeeWorkOnDate(currentProfile, dateStr);
-                                    return \`<div class="calendar-header-cell border-b border-r sticky top-0 \${isWorking?'bg-white':'bg-slate-200'} z-20"><p class="text-xs text-slate-500 uppercase font-bold">\${d.toLocaleDateString('pt-BR', {weekday:'short'})}</p><p class="text-xl font-bold text-slate-800">\${d.getDate()}</p>\${!isWorking ? \`<span class="text-[9px] bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded uppercase">Folga</span>\` : ''}</div>\`;
-                                }).join('')}
-                                
-                                <div class="flex flex-col border-r bg-slate-50">
-                                    ${hours.map(h => `<div class="calendar-time-col h-[51px] border-b pt-1">${h}</div>`).join('')}
-                                </div>
-
-                                ${weekDays.map((d, dayIdx) => {
-                                    const dateStr = d.toISOString().split('T')[0];
-                                    const isWorking = doesEmployeeWorkOnDate(currentProfile, dateStr);
-                                    return `
-                                        <div data-date="${dateStr}" class="calendar-day-column border-r relative ${isWorking?'bg-white':'bg-slate-200 opacity-60 pointer-events-none'}" style="height: ${14 * 51}px;">
-                                            ${hours.map(() => `<div class="h-[51px] border-b border-slate-100/80"></div>`).join('')}
-                                            ${(postitsHtmlByDay[dayIdx] || []).join('')}
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            window.showAppDetails = function(appId) {
-                const app = t.appointments.find(a => a.id === appId); if(!app) return;
-                const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
-                const msg = `
-                    <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
-                        <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">{${app.clientName}}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${app.beneficiaryName}</span>` : ''}</div></div>
-                        <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${emp?emp.name:'Equipe'}</span></div></div>
-                        <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
-                        <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${app.proceduresNames.join(', ')}</span></div>
-                        <div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>
-                        
-                        <div class="pt-4 border-t flex flex-col sm:flex-row gap-2">
-                            <button onclick="updateAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">Cancelar Agendamento</button>
-                            <button onclick="updateAppStatus('${app.id}', 'nao_compareceu')" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-100 transition-colors">Não Compareceu</button>
-                        </div>
-                    </div>`;
-                showModal('Detalhes do Agendamento', msg, 'info');
-            };
-
-            window.updateAppStatus = function(appId, status) {
-                const app = t.appointments.find(a => a.id === appId); if(!app) return;
-                app.status = status; saveDB();
-                closeModal();
-                showModal('Atualizado', status === 'cancelado' ? 'Agendamento cancelado com sucesso.' : 'Status alterado para Não Compareceu.', 'success');
-            };
-
-            window.salvarOrg = function() { t.name = document.getElementById('org-name').value; saveDB(); showModal('Sucesso', 'Organização atualizada!', 'success'); };
-            window.handleImageUpload = function(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { if(type === 'logo') t.logo = event.target.result; else { let user = t.admin.id === userId ? t.admin : t.employees.find(emp=>emp.id===userId); user.avatar = event.target.result; } saveDB(); }; reader.readAsDataURL(file); };
-            window.salvarPerfil = function(userId) { const role = session.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'Senha atual incorreta.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
-            window.saveEmployee = function(e) { e.preventDefault(); const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); };
-            
-            window.saveProcedure = function(e) { 
-                e.preventDefault(); 
-                const name = document.getElementById('p-name').value;
-                const duration = parseInt(document.getElementById('p-time').value);
-                const price = parseFloat(document.getElementById('p-price').value);
-
-                if(editProcedureId) {
-                    let p = t.procedures.find(x => x.id === editProcedureId);
-                    if(p) { p.name = name; p.duration = duration; p.price = price; }
-                } else {
-                    t.procedures.push({ id: 'p-' + Date.now(), name, duration, price });
-                }
-                editProcedureId = null;
-                saveDB();
-            };
-
-            window.deleteProcedure = function(id) {
-                showModal('Excluir Procedimento', 'Tem certeza que deseja excluir este procedimento?', 'error', () => {
-                    t.procedures = t.procedures.filter(p => p.id !== id);
-                    saveDB();
-                });
             };
 
             window.cancelarAgendamento = function(id) { updateAppStatus(id, 'cancelado'); };
