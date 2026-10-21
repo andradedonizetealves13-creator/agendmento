@@ -1117,7 +1117,20 @@
 
             window.clientGoStep3 = function() {
                 const checks = Array.from(document.querySelectorAll('.c-proc-check:checked')).map(c => c.value);
-                if(checks.length === 0) return showModal('Aviso', 'Selecione pelo menos um serviço.', 'info');
+                if (checks.length === 0) return showModal('Aviso', 'Selecione pelo menos um serviço.', 'info');
+
+                // Evita o beco sem saída: precisa existir ao menos um profissional que faça TODOS os serviços marcados
+                if (t.employees && t.employees.length > 0) {
+                    const someoneDoesAll = t.employees.some(emp =>
+                        checks.every(pid => emp.procedures && emp.procedures.includes(pid)) &&
+                        doesEmployeeWorkOnDate(emp, clientBooking.date)
+                    );
+                    if (!someoneDoesAll) {
+                        return showModal('Combinação indisponível',
+                            'Nenhum profissional faz todos esses serviços juntos neste dia. Tente marcar menos serviços ou escolher outro dia.', 'info');
+                    }
+                }
+
                 clientBooking.procedures = checks;
                 clientBooking.time = null;
                 if (!t.employees || t.employees.length === 0) { clientBooking.employeeId = t.admin.id; clientBooking.step = 4; } 
