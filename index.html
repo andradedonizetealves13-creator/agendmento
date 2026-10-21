@@ -18,8 +18,8 @@
     <div id="app-container" class="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full fade-in relative">
         
         <div class="text-center mb-6 flex flex-col items-center">
-            <!-- Logo Primstav -->
-            <img src="image_cbdce4.png" alt="Logo Primstav" class="h-14 sm:h-16 w-auto object-contain mb-2">
+            <!-- Logo Primstav AUMENTADA -->
+            <img src="image_cbdce4.png" alt="Logo Primstav" class="h-20 sm:h-24 w-auto object-contain mb-2">
             
             <!-- Subtítulo -->
             <p class="text-sm text-slate-500 font-medium">Portal do Profissional</p>
@@ -27,7 +27,8 @@
 
         <!-- Abas de Navegação -->
         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
-            <button id="tab-login" class="flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-indigo-600 shadow-sm transition-all">Entrar</button>
+            <!-- Cor alterada para text-amber-600 -->
+            <button id="tab-login" class="flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all">Entrar</button>
             <button id="tab-register" class="flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all">Criar Empresa</button>
         </div>
 
@@ -38,22 +39,24 @@
         <form id="auth-form" class="space-y-4">
             <div id="box-empresa" class="hidden">
                 <label class="block text-xs font-semibold mb-1 text-slate-700">Nome da Empresa</label>
-                <input type="text" id="inp-empresa" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500">
+                <!-- Foco alterado para focus:border-amber-500 -->
+                <input type="text" id="inp-empresa" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
             </div>
             <div>
                 <label class="block text-xs font-semibold mb-1 text-slate-700">E-mail</label>
-                <input type="email" id="inp-email" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500">
+                <input type="email" id="inp-email" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
             </div>
             <div>
                 <label class="block text-xs font-semibold mb-1 text-slate-700">Senha</label>
-                <input type="password" id="inp-pass" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500">
+                <input type="password" id="inp-pass" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
             </div>
             <div id="box-confirm" class="hidden">
                 <label class="block text-xs font-semibold mb-1 text-slate-700">Confirmar Senha</label>
-                <input type="password" id="inp-confirm" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500">
+                <input type="password" id="inp-confirm" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
             </div>
             
-            <button type="submit" id="btn-submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-md mt-2 transition-all">Acessar Painel</button>
+            <!-- Botão com fundo bg-amber-600 -->
+            <button type="submit" id="btn-submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md mt-2 transition-all">Acessar Painel</button>
         </form>
     </div>
 
@@ -91,10 +94,10 @@
             errorMsg.classList.remove('hidden');
         }
 
-        // Alternar abas
+        // Alternar abas (Javascript atualizado para a cor text-amber-600)
         tabLogin.onclick = () => {
             mode = 'login';
-            tabLogin.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-indigo-600 shadow-sm transition-all';
+            tabLogin.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all';
             tabReg.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all';
             boxEmpresa.classList.add('hidden');
             boxConfirm.classList.add('hidden');
@@ -106,7 +109,7 @@
 
         tabReg.onclick = () => {
             mode = 'register';
-            tabReg.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-indigo-600 shadow-sm transition-all';
+            tabReg.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all';
             tabLogin.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all';
             boxEmpresa.classList.remove('hidden');
             boxConfirm.classList.remove('hidden');
