@@ -145,7 +145,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const sessionStr = localStorage.getItem('agendaProSession');
         if (!sessionStr) { window.location.href = 'index.html'; }
@@ -163,7 +163,8 @@
 
         const app = initializeApp(firebaseConfig);
         const rtdb = getDatabase(app);
-        const tenantRef = ref(rtdb, 'agendapro_saas/tenants/' + (session.slug || 'demo'));
+        const basePath = 'agendapro_saas/tenants/' + (session.slug || 'demo');
+        const tenantRef = ref(rtdb, basePath);
 
         const COLOR_PALETTE = ['#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', '#7c3aed', '#c026d3', '#db2777', '#0891b2', '#4b5563'];
 
@@ -222,6 +223,9 @@
             if(!t.appointments) t.appointments = [];
             if(!t.clients) t.clients = [];
             
+            // o Firebase pode devolver listas como objeto; normaliza
+            ['requests', 'employees', 'procedures', 'appointments', 'clients'].forEach(k => { t[k] = toList(t[k]); });
+
             t.employees.forEach((e, idx) => {
                 if(!e.workingHours) e.workingHours = getDefWH();
                 if(!e.exceptions) e.exceptions = {};
@@ -263,10 +267,71 @@
             if(window.t) applyBgImageSettings();
         });
 
-        window.saveDB = function() { set(tenantRef, window.t); };
+        function toList(v) { return Array.isArray(v) ? v.filter(x => x) : (v ? Object.values(v) : []); }
+
+        // ---------- GRAVAÇÃO SEGURA ----------
+        // 'clients' e 'appointments' recebem escritas dos clientes ao mesmo tempo, então o painel
+        // NUNCA os regrava por inteiro (isso apagaria cadastros e agendamentos novos).
+        // Agendamentos e solicitações usam transações; o resto grava só os campos da empresa.
+        const LIVE_KEYS = ['clients', 'appointments'];
+        window.saveDB = function(keys) {
+            const list = keys || Object.keys(window.t).filter(k => !LIVE_KEYS.includes(k));
+            const payload = {};
+            list.forEach(k => { payload[k] = window.t[k] === undefined ? null : window.t[k]; });
+            return update(tenantRef, payload).catch(() => {
+                showModal('Erro ao salvar', 'Não foi possível salvar as alterações. Verifique sua conexão e tente novamente.', 'error');
+            });
+        };
+
+        window.addAppointmentDB = function(newApp) {
+            let clash = false;
+            return runTransaction(ref(rtdb, basePath + '/appointments'), (cur) => {
+                clash = false;
+                const list = toList(cur);
+                const s = timeToMins(newApp.time), e = s + newApp.totalDuration;
+                clash = list.some(a => a.employeeId === newApp.employeeId && a.date === newApp.date
+                    && a.status !== 'cancelado' && a.status !== 'nao_compareceu'
+                    && s < timeToMins(a.time) + a.totalDuration && e > timeToMins(a.time));
+                if (clash) return;
+                list.push(newApp);
+                return list;
+            }).then(res => ({ ok: res.committed, clash }));
+        };
+
+        window.setAppStatusDB = function(id, status) {
+            return runTransaction(ref(rtdb, basePath + '/appointments'), (cur) => {
+                if (!cur) return;
+                const list = toList(cur);
+                const item = list.find(a => a.id === id);
+                if (!item) return;
+                item.status = status;
+                return list;
+            });
+        };
+
+        window.addRequestDB = function(newReq) {
+            return runTransaction(ref(rtdb, basePath + '/requests'), (cur) => {
+                const list = toList(cur);
+                list.push(newReq);
+                return list;
+            });
+        };
+
+        window.setRequestStatusDB = function(id, status) {
+            return runTransaction(ref(rtdb, basePath + '/requests'), (cur) => {
+                if (!cur) return;
+                const list = toList(cur);
+                const item = list.find(r => r.id === id);
+                if (!item) return;
+                item.status = status;
+                return list;
+            });
+        };
+
         window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
         window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
         window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
+        window.localDateStr = function(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
         window.esc = function(v) { return String(v === undefined || v === null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
 
         window.getEffectiveAppStatus = function(appItem) {
@@ -491,7 +556,8 @@
                 empSelect.disabled = true;
             }
 
-            document.getElementById('manual-date').value = defaultDate || new Date().toISOString().split('T')[0];
+            // data local (toISOString usava UTC e, à noite no Brasil, sugeria o dia seguinte)
+            document.getElementById('manual-date').value = defaultDate || localDateStr();
             document.getElementById('manual-start-time').value = defaultStart;
             document.getElementById('manual-end-time').value = defaultEnd;
             document.getElementById('manual-client-name').value = '';
@@ -559,11 +625,13 @@
                     totalPrice: totalPrice,
                     createdAt: new Date().toISOString()
                 };
-                if(!t.appointments) t.appointments = [];
-                t.appointments.push(newApp);
-                saveDB();
-                closeCreateModal();
-                showModal('Sucesso!', 'Agendamento cadastrado com sucesso.', 'success');
+                addAppointmentDB(newApp).then(res => {
+                    if (!res.ok) {
+                        return showModal('Horário ocupado', 'Alguém acabou de agendar esse horário para este profissional. Escolha outro horário.', 'error');
+                    }
+                    closeCreateModal();
+                    showModal('Sucesso!', 'Agendamento cadastrado com sucesso.', 'success');
+                }).catch(() => showModal('Erro de conexão', 'Não foi possível salvar o agendamento. Tente novamente.', 'error'));
             };
 
             const profile = employeeId === t.admin.id ? t.admin : (t.employees || []).find(x => x.id === employeeId);
@@ -811,7 +879,7 @@
                         ` : ''}
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            ${role === 'admin' ? `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${t.logo ? `<img src="${t.logo}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${esc(t.name)}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>` : ''}
+                            ${role === 'admin' ? `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${t.logo ? `<img src="${t.logo}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${esc(t.name)}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">Cancelar / reagendar até quantas horas antes?</label><input type="number" id="org-cancel-hours" min="0" step="1" value="${Number(t.cancelMinHours) || 0}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"><p class="text-[11px] text-slate-400 mt-1 mb-4">Vale para a área do cliente. Use 0 para não ter limite.</p></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>` : ''}
                             <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${user.avatar ? `<img src="${user.avatar}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar', '${user.id}')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${esc(user.name)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${esc(user.email)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="btn-theme-primary font-bold px-4 py-3.5 rounded-xl text-sm w-full mt-4">Salvar Meu Perfil</button></div></div>
                         </div>
                     </div>`;
@@ -866,7 +934,7 @@
         window.selectThemePalette = function(paletteId) {
             t.themePalette = paletteId;
             applyThemeCSS(paletteId);
-            saveDB();
+            saveDB(['themePalette']);
             showModal('Estilo Aplicado!', 'A nova paleta de cores foi salva para toda a organização.', 'success');
         };
 
@@ -893,10 +961,11 @@
         };
 
         window.removeBgImage = function() {
+            // null remove o campo no Firebase (delete não chegaria ao banco com gravação parcial)
             if (activeBgMode === 'mobile') {
-                delete t.bgMobileImage;
+                t.bgMobileImage = null;
             } else {
-                delete t.bgCustomImage;
+                t.bgCustomImage = null;
             }
             applyBgImageSettings();
             saveDB();
@@ -1043,7 +1112,7 @@
                                         <div class="flex items-start space-x-3">
                                             <div class="bg-theme-secondary text-theme-primary font-bold px-2.5 py-1.5 rounded-lg text-xs shrink-0">${formatDateBR(a.date)}<br>${a.time}</div>
                                             <div>
-                                                <p class="font-bold text-slate-800 text-sm">${esc(a.clientName)}${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded">Para: ${esc(a.beneficiaryName)}</span>` : ''}</p>
+                                                <p class="font-bold text-slate-800 text-sm">${esc(a.clientName)}${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded ml-1">Para: ${esc(a.beneficiaryName)}</span>` : ''}${a.rescheduledAt ? `<span class="text-sky-800 text-[10px] font-bold bg-sky-100 px-1.5 py-0.5 rounded ml-1">Reagendado</span>` : ''}</p>
                                                 <p class="text-xs text-slate-500">${esc(a.proceduresNames.join(', '))} — <b>${esc(empName)}</b></p>
                                             </div>
                                         </div>
@@ -1102,20 +1171,25 @@
             if(!date) return showModal('Erro', 'Selecione uma data.', 'error');
             const newReq = { id: 'req-' + Date.now(), empId, empName, date, type, status: 'pending' };
             if(type === 'plantao') { newReq.start = document.getElementById('req-start').value; newReq.end = document.getElementById('req-end').value; }
-            t.requests.push(newReq); saveDB(); showModal('Enviado', 'Solicitação enviada.', 'success');
+            addRequestDB(newReq)
+                .then(() => showModal('Enviado', 'Solicitação enviada.', 'success'))
+                .catch(() => showModal('Erro de conexão', 'Não foi possível enviar a solicitação. Tente novamente.', 'error'));
         };
 
         window.handleApproveRequest = function(reqId, approved) {
             const req = t.requests.find(r => r.id === reqId); if(!req) return;
-            req.status = approved ? 'approved' : 'rejected';
+            const newStatus = approved ? 'approved' : 'rejected';
             if(approved) {
                 const emp = t.employees.find(e => e.id === req.empId);
                 if(emp) {
                     if(!emp.exceptions) emp.exceptions = {};
                     if(req.type === 'folga') emp.exceptions[req.date] = { type: 'folga' };
                     else emp.exceptions[req.date] = { type: 'plantao', start: req.start, end: req.end };
+                    saveDB(['employees']);
                 }
-            } saveDB();
+            }
+            setRequestStatusDB(reqId, newStatus)
+                .catch(() => showModal('Erro de conexão', 'Não foi possível atualizar a solicitação. Tente novamente.', 'error'));
         };
 
         window.saveWorkingHours = function() {
@@ -1123,7 +1197,7 @@
                 t.admin.workingHours[i].active = document.getElementById(`wh-cb-${i}`).checked;
                 t.admin.workingHours[i].start = document.getElementById(`wh-s-${i}`).value;
                 t.admin.workingHours[i].end = document.getElementById(`wh-e-${i}`).value;
-            } saveDB(); showModal('Salvo', 'Horários atualizados!', 'success');
+            } saveDB(['admin']); showModal('Salvo', 'Horários atualizados!', 'success');
         };
 
         window.addException = function() {
@@ -1133,17 +1207,16 @@
             else {
                 const s = document.getElementById('exc-start').value; const e = document.getElementById('exc-end').value;
                 t.admin.exceptions[date] = { type: 'plantao', start: s, end: e };
-            } saveDB();
+            } saveDB(['admin']);
         };
-        window.removeException = function(dateStr) { delete t.admin.exceptions[dateStr]; saveDB(); };
+        window.removeException = function(dateStr) { delete t.admin.exceptions[dateStr]; saveDB(['admin']); };
 
         window.selectListMonth = function(val) { listFilterMonth = val; listFilterDate = ''; render(); };
 
         function renderListView(role, user) {
             let apps = t.appointments || [];
             if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
-            const _n = new Date();
-            const todayStr = `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`;
+            const todayStr = localDateStr();
             apps = apps.filter(a => a.status !== 'cancelado' && a.status !== 'nao_compareceu' && a.date >= todayStr);
             if(listFilterMonth) apps = apps.filter(a => a.date.split('-')[1] === listFilterMonth);
             if(listFilterDate) apps = apps.filter(a => a.date === listFilterDate);
@@ -1167,12 +1240,12 @@
                     <div class="space-y-4">
                         ${apps.length === 0 ? '<div class="text-center py-16 bg-slate-50 rounded-2xl border-dashed border"><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>' : apps.map(a => {
                             const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
-                            const titleText = (role === 'admin' && hasEmployees) ? `${esc(emp?emp.name:'Profissional')} - ${esc(a.clientName)}` : a.clientName;
+                            const titleText = (role === 'admin' && hasEmployees) ? `${esc(emp?emp.name:'Profissional')} - ${esc(a.clientName)}` : esc(a.clientName);
                             return `
                             <div onclick="showAppDetails('${a.id}')" class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-300 bg-white gap-4 cursor-pointer transition-colors">
                                 <div class="flex items-start space-x-4">
                                     <div class="bg-theme-secondary text-theme-primary w-14 h-14 rounded-xl flex flex-col items-center justify-center border shrink-0"><span class="text-[10px] font-bold uppercase">${a.date.split('-')[1]}</span><span class="text-xl font-bold">${a.date.split('-')[2]}</span></div>
-                                    <div><p class="font-bold text-slate-900 text-base">${titleText}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} -${esc(a.proceduresNames.join(', '))}</p></div>
+                                    <div><p class="font-bold text-slate-900 text-base">${titleText}${a.rescheduledAt ? `<span class="text-sky-800 text-[10px] font-bold bg-sky-100 px-1.5 py-0.5 rounded ml-2 align-middle">Reagendado</span>` : ''}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} - ${esc(a.proceduresNames.join(', '))}</p></div>
                                 </div>
                                 <div class="flex items-center justify-between md:justify-end space-x-4 border-t md:border-0 pt-4 md:pt-0 w-full md:w-auto">
                                     <p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">R$ ${a.totalPrice.toFixed(2)}</p>
@@ -1250,7 +1323,8 @@
 
                     const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
                     const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
-                    const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${a.time} - ${esc(emp?emp.name:'Profissional')} - ${esc(a.clientName)}` : `${a.time} - ${esc(a.clientName)}`;
+                    const reschedMark = a.rescheduledAt ? '↻ ' : '';
+                    const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${reschedMark}${a.time} - ${esc(emp?emp.name:'Profissional')} - ${esc(a.clientName)}` : `${reschedMark}${a.time} - ${esc(a.clientName)}`;
 
                     let styleWidth = 'calc(100% - 6px)'; let styleLeft = '3px';
                     if (totalOverlaps > 1) {
@@ -1286,7 +1360,7 @@
                         <div class="calendar-grid relative bg-white border">
                             <div class="calendar-header-cell border-b border-r sticky top-0 left-0 z-30"></div>
                             ${weekDays.map(d => {
-                                const dateStr = d.toISOString().split('T')[0];
+                                const dateStr = localDateStr(d);
                                 const isWorking = doesEmployeeWorkOnDate(currentProfile, dateStr);
                                 return `<div class="calendar-header-cell border-b border-r sticky top-0 ${isWorking?'':'bg-slate-200/50'} z-20"><p class="text-xs text-slate-500 uppercase font-bold">${d.toLocaleDateString('pt-BR', {weekday:'short'})}</p><p class="text-xl font-bold text-slate-800">${d.getDate()}</p>${!isWorking ? `<span class="text-[9px] bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded uppercase">Folga</span>` : ''}</div>`;
                             }).join('')}
@@ -1296,7 +1370,7 @@
                             </div>
 
                             ${weekDays.map((d, dayIdx) => {
-                                const dateStr = d.toISOString().split('T')[0];
+                                const dateStr = localDateStr(d);
                                 const isWorking = doesEmployeeWorkOnDate(currentProfile, dateStr);
                                 return `
                                     <div data-date="${dateStr}" class="calendar-day-column border-r relative ${isWorking?'bg-white':'bg-slate-200 opacity-60 pointer-events-none'}" style="height: ${hours.length * 51}px;">
@@ -1314,8 +1388,10 @@
         window.showAppDetails = function(appId) {
             const app = t.appointments.find(a => a.id === appId); if(!app) return;
             const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
+            const reschedInfo = app.rescheduledAt ? (() => { const d = new Date(app.rescheduledAt); return `<div class="flex items-center space-x-3 bg-sky-50 border border-sky-200 rounded-xl p-3"><div class="bg-sky-100 p-2 rounded-lg text-sky-700"><i data-lucide="refresh-cw" class="w-5 h-5"></i></div><span class="text-xs font-bold text-sky-800">Reagendado pelo cliente em ${formatDateBR(localDateStr(d))} às ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</span></div>`; })() : '';
             const msg = `
                 <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
+                    ${reschedInfo}
                     <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">${esc(app.clientName)}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${esc(app.beneficiaryName)}</span>` : ''}</div></div>
                     <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${esc(emp?emp.name:'Profissional')}</span></div></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
@@ -1336,16 +1412,24 @@
             showModal('Confirmar', msg, 'error', () => updateAppStatus(appId, status));
         };
         window.updateAppStatus = function(appId, status) {
-            const app = t.appointments.find(a => a.id === appId); if(!app) return;
-            app.status = status; saveDB();
-            closeModal();
-            showModal('Atualizado', status === 'cancelado' ? 'Agendamento cancelado com sucesso.' : 'Status alterado para Não Compareceu.', 'success');
+            setAppStatusDB(appId, status)
+                .then(() => {
+                    closeModal();
+                    showModal('Atualizado', status === 'cancelado' ? 'Agendamento cancelado com sucesso.' : 'Status alterado para Não Compareceu.', 'success');
+                })
+                .catch(() => showModal('Erro de conexão', 'Não foi possível atualizar o agendamento. Tente novamente.', 'error'));
         };
 
-        window.salvarOrg = function() { t.name = document.getElementById('org-name').value; saveDB(); showModal('Sucesso', 'Organização atualizada!', 'success'); };
-        window.handleImageUpload = function(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { if(type === 'logo') t.logo = event.target.result; else { let user = t.admin.id === userId ? t.admin : t.employees.find(emp=>emp.id===userId); user.avatar = event.target.result; } saveDB(); }; reader.readAsDataURL(file); };
-        window.salvarPerfil = function(userId) { const role = session.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'Senha atual incorreta.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
-        window.saveEmployee = function(e) { e.preventDefault(); const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(); };
+        window.salvarOrg = function() {
+            t.name = document.getElementById('org-name').value;
+            const hours = parseInt(document.getElementById('org-cancel-hours').value);
+            t.cancelMinHours = (isNaN(hours) || hours < 0) ? 0 : hours;
+            saveDB(['name', 'cancelMinHours']);
+            showModal('Sucesso', 'Organização atualizada!', 'success');
+        };
+        window.handleImageUpload = function(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { if(type === 'logo') { t.logo = event.target.result; saveDB(['logo']); } else { let user = t.admin.id === userId ? t.admin : t.employees.find(emp=>emp.id===userId); user.avatar = event.target.result; saveDB(['admin', 'employees']); } }; reader.readAsDataURL(file); };
+        window.salvarPerfil = function(userId) { const role = session.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'Senha atual incorreta.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(['admin', 'employees']); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
+        window.saveEmployee = function(e) { e.preventDefault(); const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(['employees']); };
         
         window.saveProcedure = function(e) { 
             e.preventDefault(); 
@@ -1360,13 +1444,13 @@
                 t.procedures.push({ id: 'p-' + Date.now(), name, duration, price });
             }
             editProcedureId = null;
-            saveDB();
+            saveDB(['procedures']);
         };
 
         window.deleteProcedure = function(id) {
             showModal('Excluir Serviço', 'Tem certeza que deseja excluir este serviço?', 'error', () => {
                 t.procedures = t.procedures.filter(p => p.id !== id);
-                saveDB();
+                saveDB(['procedures']);
             });
         };
 
