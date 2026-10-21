@@ -496,7 +496,7 @@
                 return found ? found.id : null;
             };
 
-            // Política de cancelamento (opcional): defina cancelMinHours na empresa. 0 = sem limite.
+            // Prazo de reagendamento (opcional): cancelMinHours na empresa. 0 = sem limite. Cancelar é sempre liberado.
             window.getCancelMinHours = function() { return Number(t.cancelMinHours) || 0; };
             window.canModifyApp = function(a) {
                 const min = getCancelMinHours();
@@ -984,7 +984,7 @@
                     <div class="max-w-2xl mx-auto fade-in space-y-6">
                         <div>
                             <h2 class="text-xl sm:text-2xl font-black mb-4 text-slate-900">Meus Agendamentos Próximos</h2>
-                            ${getCancelMinHours() ? `<p class="text-xs text-slate-500 -mt-2 mb-4">Cancelamentos e reagendamentos são aceitos até ${getCancelMinHours()}h antes do horário.</p>` : ''}
+                            ${getCancelMinHours() ? `<p class="text-xs text-slate-500 -mt-2 mb-4">Você pode cancelar a qualquer momento. Reagendamentos são aceitos até ${getCancelMinHours()}h antes do horário.</p>` : ''}
                             <div class="space-y-4">
                                 ${activeApps.length === 0 ? `
                                     <div class="bg-white/90 backdrop-blur-md p-6 sm:p-8 rounded-2xl border text-center shadow-sm">
@@ -1065,8 +1065,6 @@
             }
 
             window.cancelClientApp = function(id) {
-                const target = t.appointments.find(x => x.id === id);
-                if (target && !canModifyApp(target)) return showModal('Fora do prazo', `Só é possível cancelar com pelo menos ${getCancelMinHours()}h de antecedência. Entre em contato com a empresa.`, 'info');
                 showModal('Cancelar Agendamento', 'Tem certeza que deseja cancelar este agendamento?', 'error', () => {
                     setAppointmentStatus(id, 'cancelado')
                         .then(() => showModal('Sucesso', 'O agendamento foi cancelado.', 'success'))
