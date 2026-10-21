@@ -6,7 +6,7 @@
     <title>AgendaPro - Painel de Controle</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- CONFIGURAÇÃO PARA O TAILWIND LER AS VARIÁVEIS DO SEU TEMA -->
+    <!-- Configuração para o Tailwind ler as paletas de cores -->
     <script>
         tailwind.config = {
             theme: {
@@ -119,15 +119,15 @@
                 <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Data *</label>
-                        <input type="date" id="manual-date" required class="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none focus:border-theme-primary">
+                        <input type="date" id="manual-date" required class="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Início *</label>
-                        <input type="time" id="manual-start-time" required class="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none focus:border-theme-primary">
+                        <input type="time" id="manual-start-time" required class="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Fim *</label>
-                        <input type="time" id="manual-end-time" required class="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none focus:border-theme-primary">
+                        <input type="time" id="manual-end-time" required class="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none">
                     </div>
                 </div>
 
@@ -186,8 +186,8 @@
         const COLOR_PALETTE = ['#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', '#7c3aed', '#c026d3', '#db2777', '#0891b2', '#4b5563'];
 
         window.THEME_PALETTES = [
-            { id: 'indigo_classic', name: 'Índigo Clássico', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b', previewBg: '#f8fafc', previewPrimary: '#4f46e5', previewAccent: '#e0e7ff' },
             { id: 'wine_velvet', name: 'Vinho & Rosa Seco', bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515', previewBg: '#E8C5D0', previewPrimary: '#4A0E2E', previewAccent: '#B56B82' },
+            { id: 'indigo_classic', name: 'Índigo Clássico', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b', previewBg: '#f8fafc', previewPrimary: '#4f46e5', previewAccent: '#e0e7ff' },
             { id: 'emerald_nature', name: 'Esmeralda Sofisticado', bg: '#e6f4ea', primary: '#059669', primaryHover: '#047857', secondary: '#a7f3d0', dark: '#064e3b', previewBg: '#e6f4ea', previewPrimary: '#059669', previewAccent: '#a7f3d0' },
             { id: 'amber_gold', name: 'Âmbar Dourado', bg: '#fef3c7', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f', previewBg: '#fef3c7', previewPrimary: '#d97706', previewAccent: '#fde68a' },
             { id: 'slate_dark', name: 'Grafite Elegante', bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a', previewBg: '#f1f5f9', previewPrimary: '#334155', previewAccent: '#cbd5e1' }
@@ -229,9 +229,7 @@
             }
             window.t = data;
             
-            // Alterado para carregar o Indigo Classic como fallback padrão
             if(!t.themePalette) t.themePalette = 'indigo_classic';
-            
             if(!t.admin.workingHours) t.admin.workingHours = getDefWH();
             if(!t.admin.exceptions) t.admin.exceptions = {};
             if(!t.admin.color) t.admin.color = COLOR_PALETTE[0];
