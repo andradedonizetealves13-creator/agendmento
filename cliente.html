@@ -2,18 +2,18 @@
 <html lang="pt-BR" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgendaPro - Agendamento do Cliente</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --theme-bg: #E8C5D0;
-            --theme-primary: #4A0E2E;
-            --theme-primary-hover: #2D081B;
-            --theme-secondary: #B56B82;
-            --theme-text-primary: #2A0515;
+            --theme-bg: #f8fafc;
+            --theme-primary: #4f46e5;
+            --theme-primary-hover: #4338ca;
+            --theme-secondary: #e0e7ff;
+            --theme-text-primary: #1e1b4b;
             
             /* DESKTOP DEFAULTS */
             --bg-image: none;
@@ -48,7 +48,7 @@
         
         @media (max-width: 768px) {
             #custom-bg-layer {
-                background-size: 100% 100% !important;
+                background-size: cover !important;
                 background-position: center top !important;
             }
         }
@@ -133,21 +133,34 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const THEME_PALETTES = [
-            { id: 'wine_velvet', bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515' },
             { id: 'indigo_classic', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b' },
+            { id: 'wine_velvet', bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515' },
             { id: 'emerald_nature', bg: '#e6f4ea', primary: '#059669', primaryHover: '#047857', secondary: '#a7f3d0', dark: '#064e3b' },
             { id: 'amber_gold', bg: '#fef3c7', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f' },
             { id: 'slate_dark', bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a' }
         ];
 
+        // ---------- utilitários ----------
+        window.esc = function(v) {
+            return String(v === undefined || v === null ? '' : v)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        };
+        function toList(v) { return Array.isArray(v) ? v.filter(x => x) : (v ? Object.values(v) : []); }
+        window.localDateStr = function(d = new Date()) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        };
+        const isBusyStatus = (a) => a.status !== 'cancelado' && a.status !== 'nao_compareceu';
+
         const urlParams = new URLSearchParams(window.location.search);
         const orgSlug = urlParams.get('org');
+        const slugInvalid = !orgSlug || /[.$#\[\]\/]/.test(orgSlug);
 
-        if (!orgSlug) {
-            document.getElementById('app').innerHTML = `<div class="bg-white p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Link Inválido</h2><p class="text-slate-500 text-sm">Nenhuma organização foi especificada no link de agendamento.</p></div>`;
+        if (slugInvalid) {
+            document.getElementById('app').innerHTML = `<div class="bg-white p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Link Inválido</h2><p class="text-slate-500 text-sm">Nenhuma organização válida foi especificada no link de agendamento.</p></div>`;
         } else {
             const firebaseConfig = {
                 apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
@@ -161,7 +174,9 @@
 
             const app = initializeApp(firebaseConfig);
             const rtdb = getDatabase(app);
-            const tenantRef = ref(rtdb, 'agendapro_saas/tenants/' + orgSlug);
+            const basePath = 'agendapro_saas/tenants/' + orgSlug;
+            const tenantRef = ref(rtdb, basePath);
+            const storageKey = 'agendaProClient_' + orgSlug;
 
             window.t = null;
             window.tenantRef = tenantRef;
@@ -171,9 +186,37 @@
             window.clientCalYear = new Date().getFullYear();
             window.clientCalMonth = new Date().getMonth();
             window.showHistoryApps = false;
+            window.hasRendered = false;
 
-            const savedClient = localStorage.getItem('agendaProClient_' + orgSlug);
-            window.currentClient = savedClient ? JSON.parse(savedClient) : null;
+            // Guarda só o ID do cliente (nunca a senha) no navegador
+            function readSavedClientId() {
+                try {
+                    const raw = localStorage.getItem(storageKey);
+                    if (!raw) return null;
+                    const obj = JSON.parse(raw);
+                    return obj && obj.id ? obj.id : null;
+                } catch (err) { localStorage.removeItem(storageKey); return null; }
+            }
+            function saveClientId(id) { localStorage.setItem(storageKey, JSON.stringify({ id })); }
+
+            window.currentClient = null;
+
+            // ---------- render seguro: não apaga o que a pessoa está digitando ----------
+            let pendingRender = false;
+            function isUserTyping() {
+                const el = document.activeElement;
+                const appEl = document.getElementById('app');
+                return !!(el && appEl && appEl.contains(el) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
+            }
+            function safeRender() {
+                if (window.hasRendered && isUserTyping()) { pendingRender = true; return; }
+                pendingRender = false;
+                render();
+            }
+            document.getElementById('app').addEventListener('focusout', () => {
+                if (!pendingRender) return;
+                setTimeout(() => { if (pendingRender && !isUserTyping()) safeRender(); }, 250);
+            });
 
             onValue(tenantRef, (snapshot) => {
                 const data = snapshot.val();
@@ -182,23 +225,29 @@
                     return;
                 }
                 window.t = data;
-                if (!t.clients) t.clients = [];
-                if (!t.appointments) t.appointments = [];
-                if (!t.procedures) t.procedures = [];
-                if (!t.employees) t.employees = [];
+                t.clients = toList(t.clients);
+                t.appointments = toList(t.appointments);
+                t.procedures = toList(t.procedures);
+                t.employees = toList(t.employees);
                 
-                applyThemeCSS(t.themePalette || 'wine_velvet');
+                applyThemeCSS(t.themePalette || 'indigo_classic');
                 applyBgImageSettings();
                 
-                if (currentClient) {
-                    const freshClient = t.clients.find(c => c.id === currentClient.id);
+                const sid = currentClient ? currentClient.id : readSavedClientId();
+                if (sid) {
+                    const freshClient = t.clients.find(c => c.id === sid);
                     if (freshClient) {
                         currentClient = freshClient;
-                        localStorage.setItem('agendaProClient_' + orgSlug, JSON.stringify(currentClient));
+                        saveClientId(freshClient.id);
+                    } else {
+                        currentClient = null;
+                        localStorage.removeItem(storageKey);
                     }
                 }
 
-                render();
+                safeRender();
+            }, (error) => {
+                document.getElementById('app').innerHTML = `<div class="bg-white p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Não foi possível carregar</h2><p class="text-slate-500 text-sm mb-4">Verifique sua conexão e tente novamente.</p><button onclick="location.reload()" class="btn-theme-primary font-bold px-6 py-3 rounded-xl">Tentar novamente</button></div>`;
             });
 
             window.addEventListener('resize', () => {
@@ -236,7 +285,43 @@
                 }
             }
 
-            window.saveDB = function() { set(tenantRef, window.t); };
+            // ---------- gravações pontuais (não sobrescrevem a empresa inteira) ----------
+            window.createAppointment = function(newApp) {
+                let conflict = false;
+                return runTransaction(ref(rtdb, basePath + '/appointments'), (cur) => {
+                    conflict = false;
+                    const list = toList(cur);
+                    const s = timeToMins(newApp.time), e = s + newApp.totalDuration;
+                    const clash = list.some(a => a.employeeId === newApp.employeeId && a.date === newApp.date && isBusyStatus(a)
+                        && s < timeToMins(a.time) + a.totalDuration && e > timeToMins(a.time));
+                    if (clash) { conflict = true; return; }
+                    list.push(newApp);
+                    return list;
+                }).then(res => ({ ok: res.committed, conflict }));
+            };
+
+            window.setAppointmentStatus = function(id, status) {
+                return runTransaction(ref(rtdb, basePath + '/appointments'), (cur) => {
+                    if (!cur) return;
+                    const list = toList(cur);
+                    const item = list.find(a => a.id === id);
+                    if (!item) return;
+                    item.status = status;
+                    return list;
+                });
+            };
+
+            window.updateClientInDatabase = function() {
+                const me = currentClient;
+                return runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
+                    const list = toList(cur);
+                    const i = list.findIndex(c => c.id === me.id);
+                    if (i === -1) return;
+                    list[i] = me;
+                    return list;
+                }).then(() => { saveClientId(me.id); });
+            };
+
             window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
             window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
             window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
@@ -318,9 +403,15 @@
                 return doesEmployeeWorkOnDate(t.admin, dateStr);
             };
 
+            // O dia tem expediente, mas ainda sobrou algum horário livre?
+            window.hasAnyFreeSlot = function(dateStr) {
+                const ids = (t.employees && t.employees.length > 0) ? t.employees.map(e => e.id) : [t.admin.id];
+                return ids.some(id => getAvailableTimeSlots(id, dateStr, 30).length > 0);
+            };
+
             window.doesClientHaveCollision = function(dateStr, startMins, durationMins) {
                 if (!currentClient) return false;
-                const clientApps = t.appointments.filter(a => a.clientId === currentClient.id && a.date === dateStr && a.status !== 'cancelado');
+                const clientApps = t.appointments.filter(a => a.clientId === currentClient.id && a.date === dateStr && isBusyStatus(a));
                 const endMins = startMins + durationMins;
 
                 for (let a of clientApps) {
@@ -348,10 +439,17 @@
                 }
 
                 const startMins = timeToMins(start); const endMins = timeToMins(end);
-                const empApps = (t.appointments || []).filter(a => a.employeeId === empId && a.date === dateStr && a.status !== 'cancelado');
+                const empApps = (t.appointments || []).filter(a => a.employeeId === empId && a.date === dateStr && isBusyStatus(a));
                 const slots = [];
 
+                // Hoje: não oferece horários que já passaram
+                const now = new Date();
+                const isToday = dateStr === localDateStr(now);
+                const nowMins = now.getHours() * 60 + now.getMinutes();
+
                 for(let m = startMins; m <= endMins - durationMins; m += 30) {
+                    if (isToday && m <= nowMins) continue;
+
                     let overlap = false;
                     const slotEnd = m + durationMins;
                     
@@ -393,14 +491,15 @@
                 const appDiv = document.getElementById('app');
                 if (!currentClient) { appDiv.innerHTML = renderClientAuth(); } 
                 else { appDiv.innerHTML = renderClientApp(); }
+                window.hasRendered = true;
                 if(window.lucide) lucide.createIcons();
             };
 
             function renderClientAuth() {
-                const logoHtml = t.logo ? `<img src="${t.logo}" class="h-16 w-auto rounded-xl object-contain mx-auto mb-4 border shadow-sm">` : `<div class="w-16 h-16 rounded-xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-2xl">O</div>`;
+                const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="h-16 w-auto rounded-xl object-contain mx-auto mb-4 border shadow-sm">` : `<div class="w-16 h-16 rounded-xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-2xl">O</div>`;
                 return `
                     <div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full m-auto fade-in z-10 my-8">
-                        <div class="text-center mb-6">${logoHtml}<h1 class="text-2xl font-bold text-slate-900">${t.name}</h1><p class="text-sm text-slate-500 mt-1">Área do Cliente</p></div>
+                        <div class="text-center mb-6">${logoHtml}<h1 class="text-2xl font-bold text-slate-900">${esc(t.name)}</h1><p class="text-sm text-slate-500 mt-1">Área do Cliente</p></div>
                         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
                             <button onclick="clientAuthMode='login';render()" class="flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg ${clientAuthMode==='login'?'bg-white text-theme-primary font-bold shadow-sm':'text-slate-600'}">Entrar</button>
                             <button onclick="clientAuthMode='register';render()" class="flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg ${clientAuthMode==='register'?'bg-white text-theme-primary font-bold shadow-sm':'text-slate-600'}">Criar Conta</button>
@@ -432,23 +531,31 @@
                     if (!email || !email.includes('@')) return showModal('Aviso', 'Informe um e-mail válido.', 'error');
                     if (!pass || pass.length < 4) return showModal('Aviso', 'A senha deve ter no mínimo 4 caracteres.', 'error');
 
-                    const existsEmail = t.clients.some(c => c.email && c.email.toLowerCase() === email);
-                    if (existsEmail) return showModal('Cadastro Existente', 'Este e-mail já está cadastrado nesta empresa.', 'error');
-
-                    const existsPhone = t.clients.some(c => cleanPhone(c.phone) === digitsPhone);
-                    if (existsPhone) return showModal('Cadastro Existente', 'Este número de telefone/WhatsApp já está registrado nesta empresa.', 'error');
-
                     const newClient = { id: 'cli-' + Date.now(), name, email, phone: phoneRaw, password: pass, avatar: '' };
-                    t.clients.push(newClient);
-                    saveDB();
-                    currentClient = newClient;
-                    localStorage.setItem('agendaProClient_' + orgSlug, JSON.stringify(currentClient));
-                    render();
+                    let dup = null;
+
+                    runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
+                        dup = null;
+                        const list = toList(cur);
+                        if (list.some(c => c.email && c.email.toLowerCase() === email)) { dup = 'email'; return; }
+                        if (list.some(c => cleanPhone(c.phone) === digitsPhone)) { dup = 'phone'; return; }
+                        list.push(newClient);
+                        return list;
+                    }).then(res => {
+                        if (!res.committed) {
+                            if (dup === 'email') return showModal('Cadastro Existente', 'Este e-mail já está cadastrado nesta empresa.', 'error');
+                            if (dup === 'phone') return showModal('Cadastro Existente', 'Este número de telefone/WhatsApp já está registrado nesta empresa.', 'error');
+                            return showModal('Erro', 'Não foi possível criar a conta. Tente novamente.', 'error');
+                        }
+                        currentClient = newClient;
+                        saveClientId(newClient.id);
+                        render();
+                    }).catch(() => showModal('Erro de conexão', 'Não foi possível criar a conta. Verifique sua internet e tente de novo.', 'error'));
                 } else {
                     const client = t.clients.find(c => c.email && c.email.toLowerCase() === email && c.password === pass);
                     if (client) {
                         currentClient = client;
-                        localStorage.setItem('agendaProClient_' + orgSlug, JSON.stringify(currentClient));
+                        saveClientId(client.id);
                         render();
                     } else {
                         showModal('Acesso Negado', 'E-mail ou senha incorretos para esta organização.', 'error');
@@ -456,32 +563,38 @@
                 }
             };
 
-            window.clientLogout = function() { localStorage.removeItem('agendaProClient_' + orgSlug); currentClient = null; render(); };
+            window.clientLogout = function() { localStorage.removeItem(storageKey); currentClient = null; render(); };
 
             function renderClientApp() {
-                const logoHtml = t.logo ? `<img src="${t.logo}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white shadow-md mx-auto mb-2 sm:mb-3">` : `<div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl btn-theme-primary flex items-center justify-center font-black text-2xl shadow-md mx-auto mb-2 sm:mb-3 border-2 border-white">O</div>`;
+                const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white shadow-md mx-auto mb-2 sm:mb-3">` : `<div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl btn-theme-primary flex items-center justify-center font-black text-2xl shadow-md mx-auto mb-2 sm:mb-3 border-2 border-white">O</div>`;
 
                 return `
                     <div class="min-h-full w-full flex flex-col md:flex-row relative z-10 m-0 p-0">
                         <aside class="fixed bottom-0 left-0 right-0 md:top-0 md:bottom-auto md:right-auto z-40 h-16 md:h-full w-full md:w-20 bg-white/95 backdrop-blur-md border-t md:border-t-0 md:border-r border-slate-200/80 flex md:flex-col items-center justify-around md:justify-between py-2 md:py-6 shadow-lg shrink-0 m-0">
                             <div class="flex md:flex-col items-center justify-around md:justify-start w-full md:space-y-6">
-                                <button onclick="clientActiveTab='profile';render()" class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl border-2 transition-all flex items-center justify-center overflow-hidden font-black text-sm shadow-sm bg-slate-100 ${clientActiveTab==='profile'?'border-indigo-600 shadow-md ring-2 ring-indigo-200':'border-slate-200 hover:border-slate-400'}" title="Meu Perfil">
+                                <button onclick="clientActiveTab='profile';render()" class="flex flex-col items-center" title="Meu Perfil">
+                                    <span class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl border-2 transition-all flex items-center justify-center overflow-hidden font-black text-sm shadow-sm bg-slate-100 ${clientActiveTab==='profile'?'border-indigo-600 shadow-md ring-2 ring-indigo-200':'border-slate-200 hover:border-slate-400'}">
                                     ${currentClient.avatar 
-                                        ? `<img src="${currentClient.avatar}" class="w-full h-full object-cover">` 
-                                        : `<span class="btn-theme-primary w-full h-full flex items-center justify-center text-xs sm:text-sm">${currentClient.name.charAt(0).toUpperCase()}</span>`
+                                        ? `<img src="${esc(currentClient.avatar)}" class="w-full h-full object-cover">` 
+                                        : `<span class="btn-theme-primary w-full h-full flex items-center justify-center text-xs sm:text-sm">${esc(currentClient.name.charAt(0).toUpperCase())}</span>`
                                     }
+                                    </span>
+                                    <span class="text-[10px] font-semibold text-slate-500 mt-0.5 md:hidden">Perfil</span>
                                 </button>
                                 
-                                <button onclick="clientActiveTab='book';render()" class="p-2.5 sm:p-3 rounded-2xl transition-all ${clientActiveTab==='book'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Novo Agendamento">
+                                <button onclick="clientActiveTab='book';render()" class="flex flex-col items-center p-1.5 sm:p-2 md:p-3 rounded-2xl transition-all ${clientActiveTab==='book'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Novo Agendamento">
                                     <i data-lucide="calendar-plus" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                                    <span class="text-[10px] font-semibold mt-0.5 md:hidden">Agendar</span>
                                 </button>
 
-                                <button onclick="clientActiveTab='appointments';render()" class="p-2.5 sm:p-3 rounded-2xl transition-all ${clientActiveTab==='appointments'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Meus Agendamentos">
+                                <button onclick="clientActiveTab='appointments';render()" class="flex flex-col items-center p-1.5 sm:p-2 md:p-3 rounded-2xl transition-all ${clientActiveTab==='appointments'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Meus Agendamentos">
                                     <i data-lucide="list" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                                    <span class="text-[10px] font-semibold mt-0.5 md:hidden">Meus horários</span>
                                 </button>
 
-                                <button onclick="clientLogout()" class="p-2.5 sm:p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all md:hidden" title="Sair">
+                                <button onclick="clientLogout()" class="flex flex-col items-center p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all md:hidden" title="Sair">
                                     <i data-lucide="log-out" class="w-5 h-5"></i>
+                                    <span class="text-[10px] font-semibold mt-0.5">Sair</span>
                                 </button>
                             </div>
 
@@ -493,9 +606,9 @@
                         <main class="flex-1 md:ml-20 p-4 sm:p-6 md:p-8 min-h-full flex flex-col">
                             <div class="max-w-3xl mx-auto flex flex-col items-center text-center mb-6 sm:mb-8 w-full">
                                 ${logoHtml}
-                                <h1 class="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">${t.name}</h1>
+                                <h1 class="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">${esc(t.name)}</h1>
                                 <p class="text-[11px] sm:text-xs font-bold text-theme-primary uppercase tracking-wider mt-0.5">Área de Agendamento</p>
-                                <span class="text-[11px] text-slate-600 font-semibold bg-white/80 px-3 py-1 rounded-full border mt-2 shadow-xs">Conectado como: <b>${currentClient.name}</b></span>
+                                <span class="text-[11px] text-slate-600 font-semibold bg-white/80 px-3 py-1 rounded-full border mt-2 shadow-xs">Conectado como: <b>${esc(currentClient.name)}</b></span>
                             </div>
 
                             <div class="w-full flex-1">
@@ -520,8 +633,8 @@
                                 <div class="relative mb-4">
                                     <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white shadow-md bg-slate-200 flex items-center justify-center font-bold text-3xl text-slate-500 overflow-hidden shrink-0">
                                         ${currentClient.avatar 
-                                            ? `<img src="${currentClient.avatar}" class="w-full h-full object-cover">` 
-                                            : `<span>${currentClient.name.charAt(0).toUpperCase()}</span>`
+                                            ? `<img src="${esc(currentClient.avatar)}" class="w-full h-full object-cover">` 
+                                            : `<span>${esc(currentClient.name.charAt(0).toUpperCase())}</span>`
                                         }
                                     </div>
                                     <label class="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full cursor-pointer shadow-lg hover:bg-indigo-700 transition-colors border-2 border-white">
@@ -535,17 +648,17 @@
                             <form onsubmit="handleSaveClientProfile(event)" class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 mb-1">Nome Completo *</label>
-                                    <input type="text" id="c-prof-name" value="${currentClient.name || ''}" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium">
+                                    <input type="text" id="c-prof-name" value="${esc(currentClient.name)}" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium">
                                 </div>
 
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 mb-1">Telefone / WhatsApp *</label>
-                                    <input type="text" id="c-prof-phone" value="${currentClient.phone || ''}" required oninput="formatPhoneInput(this)" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium">
+                                    <input type="text" id="c-prof-phone" value="${esc(currentClient.phone)}" required oninput="formatPhoneInput(this)" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium">
                                 </div>
 
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 mb-1">E-mail *</label>
-                                    <input type="email" id="c-prof-email" value="${currentClient.email || ''}" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium">
+                                    <input type="email" id="c-prof-email" value="${esc(currentClient.email)}" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium">
                                 </div>
 
                                 <div class="pt-4 border-t border-slate-200">
@@ -722,10 +835,13 @@
                 delete currentClient.avatarPosX;
                 delete currentClient.avatarPosY;
                 
-                updateClientInDatabase();
-                closeCropper();
-                render();
-                showModal('Foto Atualizada!', 'Sua foto de perfil foi ajustada e salva com sucesso.', 'success');
+                updateClientInDatabase()
+                    .then(() => {
+                        closeCropper();
+                        render();
+                        showModal('Foto Atualizada!', 'Sua foto de perfil foi ajustada e salva com sucesso.', 'success');
+                    })
+                    .catch(() => showModal('Erro', 'Não foi possível salvar a foto. Tente novamente.', 'error'));
             };
             // ==========================================
 
@@ -750,31 +866,20 @@
                 const phoneExists = t.clients.some(c => c.id !== currentClient.id && cleanPhone(c.phone) === digitsPhone);
                 if (phoneExists) return showModal('Telefone em uso', 'Este número de telefone já está registrado para outro cliente.', 'error');
 
+                let updatedPassword = currentClient.password;
                 if (oldPass || newPass || confirmPass) {
                     if (oldPass !== currentClient.password) return showModal('Erro de Senha', 'A sua senha atual está incorreta.', 'error');
                     if (!newPass || newPass.length < 4) return showModal('Erro de Senha', 'A nova senha deve possuir pelo menos 4 caracteres.', 'error');
                     if (newPass !== confirmPass) return showModal('Erro de Senha', 'A confirmação da nova senha não confere.', 'error');
-                    currentClient.password = newPass;
+                    updatedPassword = newPass;
                 }
 
-                currentClient.name = newName;
-                currentClient.phone = phoneRaw;
-                currentClient.email = newEmail;
+                currentClient = { ...currentClient, name: newName, phone: phoneRaw, email: newEmail, password: updatedPassword };
 
-                updateClientInDatabase();
-                showModal('Sucesso!', 'Seu perfil foi atualizado com sucesso.', 'success', () => {
-                    render();
-                });
+                updateClientInDatabase()
+                    .then(() => showModal('Sucesso!', 'Seu perfil foi atualizado com sucesso.', 'success', () => { render(); }))
+                    .catch(() => showModal('Erro', 'Não foi possível salvar o perfil. Tente novamente.', 'error'));
             };
-
-            function updateClientInDatabase() {
-                const index = t.clients.findIndex(c => c.id === currentClient.id);
-                if (index !== -1) {
-                    t.clients[index] = currentClient;
-                    saveDB();
-                    localStorage.setItem('agendaProClient_' + orgSlug, JSON.stringify(currentClient));
-                }
-            }
 
             function renderClientAppointments() {
                 const allApps = (t.appointments || [])
@@ -801,11 +906,11 @@
                                         <div class="bg-white/90 backdrop-blur-md p-4 sm:p-5 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 hover:border-slate-300 transition-colors">
                                             <div class="w-full md:w-auto text-left">
                                                 <div class="flex items-center space-x-2 mb-1">
-                                                    <span class="bg-theme-secondary text-theme-primary text-xs font-bold px-2.5 py-1 rounded-lg">${formatDateBR(a.date)} às ${a.time}</span>
+                                                    <span class="bg-theme-secondary text-theme-primary text-xs font-bold px-2.5 py-1 rounded-lg">${formatDateBR(a.date)} às ${esc(a.time)}</span>
                                                     <span class="text-xs text-slate-500 font-medium">${a.totalDuration} min</span>
                                                 </div>
-                                                <p class="font-bold text-slate-800 text-base sm:text-lg leading-tight mt-1">${a.proceduresNames.join(', ')}</p>
-                                                <p class="text-xs sm:text-sm text-slate-500 mt-1">Com <b>${emp?emp.name:'Equipe'}</b> ${isDependent ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${a.beneficiaryName}</span>` : ''}</p>
+                                                <p class="font-bold text-slate-800 text-base sm:text-lg leading-tight mt-1">${esc(a.proceduresNames.join(', '))}</p>
+                                                <p class="text-xs sm:text-sm text-slate-500 mt-1">Com <b>${esc(emp ? emp.name : 'Profissional')}</b> ${isDependent ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${esc(a.beneficiaryName)}</span>` : ''}</p>
                                             </div>
                                             <div class="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto border-t md:border-0 pt-3 md:pt-0">
                                                 <span class="font-black text-emerald-600 text-base sm:text-lg mb-0 md:mb-2">R$ ${a.totalPrice.toFixed(2)}</span>
@@ -845,11 +950,11 @@
                                             <div class="bg-white/80 p-4 rounded-2xl border shadow-xs flex justify-between items-center opacity-85">
                                                 <div class="text-left">
                                                     <div class="flex items-center space-x-2 mb-1">
-                                                        <span class="text-xs font-bold text-slate-600">${formatDateBR(a.date)} às ${a.time}</span>
+                                                        <span class="text-xs font-bold text-slate-600">${formatDateBR(a.date)} às ${esc(a.time)}</span>
                                                         ${statusTag}
                                                     </div>
-                                                    <p class="font-bold text-slate-800 text-sm">${a.proceduresNames.join(', ')}</p>
-                                                    <p class="text-xs text-slate-500 mt-0.5">Com ${emp?emp.name:'Equipe'}</p>
+                                                    <p class="font-bold text-slate-800 text-sm">${esc(a.proceduresNames.join(', '))}</p>
+                                                    <p class="text-xs text-slate-500 mt-0.5">Com ${esc(emp ? emp.name : 'Profissional')}</p>
                                                 </div>
                                                 <div class="text-right">
                                                     <span class="font-bold text-slate-700 text-sm">R$ ${a.totalPrice.toFixed(2)}</span>
@@ -866,12 +971,9 @@
 
             window.cancelClientApp = function(id) {
                 showModal('Cancelar Agendamento', 'Tem certeza que deseja cancelar este agendamento?', 'error', () => {
-                    const app = t.appointments.find(a => a.id === id);
-                    if (app) {
-                        app.status = 'cancelado';
-                        saveDB();
-                        showModal('Sucesso', 'O agendamento foi cancelado.', 'success');
-                    }
+                    setAppointmentStatus(id, 'cancelado')
+                        .then(() => showModal('Sucesso', 'O agendamento foi cancelado.', 'success'))
+                        .catch(() => showModal('Erro', 'Não foi possível cancelar. Tente novamente.', 'error'));
                 });
             };
 
@@ -893,11 +995,11 @@
                     const cells = [];
                     for (let i = 0; i < firstDay; i++) cells.push({ empty: true });
                     for (let d = 1; d <= daysInMonth; d++) {
-                        const cellDate = new Date(clientCalYear, clientCalMonth, d);
                         const dateStr = `${clientCalYear}-${String(clientCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                         
-                        const isBlocked = !isCompanyOpenOnDate(dateStr);
-                        cells.push({ empty: false, day: d, dateStr, isBlocked, isSelected: clientBooking.date === dateStr });
+                        const isOpen = isCompanyOpenOnDate(dateStr);
+                        const isFull = isOpen && !hasAnyFreeSlot(dateStr);
+                        cells.push({ empty: false, day: d, dateStr, isBlocked: !isOpen || isFull, isFull, isSelected: clientBooking.date === dateStr });
                     }
                     return `
                         <div class="max-w-lg mx-auto bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-[2rem] shadow-xl border fade-in"><h2 class="text-xl sm:text-2xl font-black text-center mb-6">Escolha o Dia</h2>
@@ -907,7 +1009,8 @@
                                 <button onclick="if(${canGoNext}) { clientCalMonth++; if(clientCalMonth>11){clientCalMonth=0; clientCalYear++;} render(); }" class="${canGoNext ? 'text-slate-700 hover:bg-slate-200' : 'text-slate-300 cursor-not-allowed'} p-1.5 rounded-xl"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                             </div>
                             <div class="grid grid-cols-7 gap-1 text-center mb-2">${weekShortDays.map(w => `<span class="text-[11px] font-bold text-slate-400 uppercase">${w}</span>`).join('')}</div>
-                            <div class="grid grid-cols-7 gap-1.5">${cells.map(c => c.empty ? `<div></div>` : c.isBlocked ? `<div class="h-10 sm:h-11 flex items-center justify-center rounded-xl bg-slate-100 text-slate-300 text-xs select-none" title="Indisponível">${c.day}</div>` : `<button onclick="clientBooking.date='${c.dateStr}'; render()" class="h-10 sm:h-11 flex items-center justify-center rounded-xl text-xs font-bold ${c.isSelected?'btn-theme-primary':'bg-white border text-slate-700 hover:bg-slate-50'}">${c.day}</button>`).join('')}</div>
+                            <div class="grid grid-cols-7 gap-1.5">${cells.map(c => c.empty ? `<div></div>` : c.isBlocked ? `<div class="h-10 sm:h-11 flex items-center justify-center rounded-xl bg-slate-100 text-slate-300 text-xs select-none" title="${c.isFull ? 'Sem horários livres' : 'Indisponível'}">${c.day}</div>` : `<button onclick="clientBooking.date='${c.dateStr}'; clientBooking.time=null; clientBooking.employeeId=null; render()" class="h-10 sm:h-11 flex items-center justify-center rounded-xl text-xs font-bold ${c.isSelected?'btn-theme-primary':'bg-white border text-slate-700 hover:bg-slate-50'}">${c.day}</button>`).join('')}</div>
+                            <p class="text-[11px] text-slate-400 text-center mt-4">Dias em cinza estão fechados ou sem horários livres.</p>
                             ${clientBooking.date ? `<button onclick="clientBooking.step=2; render()" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-lg mt-6">Continuar</button>` : ''}
                         </div>`;
                 }
@@ -928,7 +1031,7 @@
                                 </div>
                             ` : `
                                 <div class="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">${availableProcedures.map(p => `
-                                    <label class="flex justify-between items-center p-4 border rounded-2xl cursor-pointer hover:bg-slate-50"><div class="flex items-center space-x-3"><input type="checkbox" value="${p.id}" ${clientBooking.procedures.includes(p.id)?'checked':''} class="c-proc-check w-5 h-5 text-indigo-600 rounded"><div><p class="font-bold text-sm text-left">${p.name}</p><p class="text-xs text-slate-500 text-left">${p.duration} min</p></div></div><span class="font-bold text-emerald-600 text-sm">R$ ${p.price.toFixed(2)}</span></label>
+                                    <label class="flex justify-between items-center p-4 border rounded-2xl cursor-pointer hover:bg-slate-50"><div class="flex items-center space-x-3"><input type="checkbox" value="${p.id}" ${clientBooking.procedures.includes(p.id)?'checked':''} class="c-proc-check w-5 h-5 text-indigo-600 rounded"><div><p class="font-bold text-sm text-left">${esc(p.name)}</p><p class="text-xs text-slate-500 text-left">${p.duration} min</p></div></div><span class="font-bold text-emerald-600 text-sm">R$ ${p.price.toFixed(2)}</span></label>
                                 `).join('')}</div>
                                 <button onclick="clientGoStep3()" class="w-full btn-theme-primary font-bold py-4 rounded-2xl shadow-lg mt-6">Continuar</button>
                             `}
@@ -947,14 +1050,15 @@
                             ${empsAvailable.length === 0 ? `
                                 <div class="text-center py-8 bg-rose-50 rounded-2xl border border-rose-100 p-4">
                                     <p class="text-sm text-rose-800 font-bold">Nenhum profissional disponível na data escolhida.</p>
+                                    <p class="text-xs text-rose-700 mt-1">Volte e escolha outros serviços ou outro dia.</p>
                                 </div>
                             ` : `
                                 <div class="grid grid-cols-2 gap-4">${empsAvailable.map(item => `
-                                    <div onclick="clientBooking.employeeId='${item.id}'; clientBooking.step=4; render()" class="p-4 border rounded-2xl flex flex-col items-center cursor-pointer hover:border-indigo-600 bg-slate-50 transition-all">
+                                    <div onclick="clientBooking.employeeId='${item.id}'; clientBooking.time=null; clientBooking.step=4; render()" class="p-4 border rounded-2xl flex flex-col items-center cursor-pointer hover:border-indigo-600 bg-slate-50 transition-all">
                                         <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl mb-2 overflow-hidden shrink-0 border border-slate-200">
-                                            ${item.avatar ? `<img src="${item.avatar}" class="w-full h-full object-cover">` : `<span>${item.name.charAt(0)}</span>`}
+                                            ${item.avatar ? `<img src="${esc(item.avatar)}" class="w-full h-full object-cover">` : `<span>${esc(item.name.charAt(0))}</span>`}
                                         </div>
-                                        <p class="font-bold text-sm text-center truncate w-full">${item.name}</p>
+                                        <p class="font-bold text-sm text-center truncate w-full">${esc(item.name)}</p>
                                     </div>
                                 `).join('')}</div>
                             `}
@@ -967,6 +1071,9 @@
                     const slots = getAvailableTimeSlots(clientBooking.employeeId, clientBooking.date, totalDuration);
                     const emp = clientBooking.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === clientBooking.employeeId);
                     
+                    // se o horário escolhido deixou de existir, limpa a seleção
+                    if (clientBooking.time && !slots.some(s => s.time === clientBooking.time)) clientBooking.time = null;
+
                     const selectedSlotObj = slots.find(s => s.time === clientBooking.time);
                     const isColliding = selectedSlotObj && selectedSlotObj.hasClientCollision;
 
@@ -974,14 +1081,22 @@
                         <div class="max-w-md mx-auto bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-[2rem] shadow-xl border fade-in">
                             <button onclick="clientBooking.step=${t.employees.length>0?3:2};render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
                             <h2 class="text-xl sm:text-2xl font-black text-center mb-6">Confirmar Horário</h2>
-                            <div class="bg-slate-50 p-4 rounded-2xl border mb-6 text-xs sm:text-sm text-left"><p><b>Data:</b> ${formatDateBR(clientBooking.date)}</p><p><b>Profissional:</b> ${emp?emp.name:'Equipe'}</p><p><b>Serviços:</b> ${selectedProcs.map(p=>p.name).join(', ')}</p><p class="mt-2 text-emerald-600 font-bold text-sm sm:text-base">Total: R$ ${totalPrice.toFixed(2)} (${totalDuration} min)</p></div>
+                            <div class="bg-slate-50 p-4 rounded-2xl border mb-6 text-xs sm:text-sm text-left"><p><b>Data:</b> ${formatDateBR(clientBooking.date)}</p><p><b>Profissional:</b> ${esc(emp ? emp.name : 'Profissional')}</p><p><b>Serviços:</b> ${esc(selectedProcs.map(p=>p.name).join(', '))}</p><p class="mt-2 text-emerald-600 font-bold text-sm sm:text-base">Total: R$ ${totalPrice.toFixed(2)} (${totalDuration} min)</p></div>
                             
                             <p class="text-xs font-bold text-slate-500 uppercase mb-2 text-left">Horários Livres do Profissional:</p>
-                            <div class="grid grid-cols-3 gap-2 mb-6 max-h-40 overflow-y-auto custom-scrollbar pr-1">${slots.map(s => `
-                                <button onclick="clientBooking.time='${s.time}'; render()" class="py-2.5 border rounded-xl text-xs font-bold relative ${clientBooking.time===s.time?'btn-theme-primary':'bg-white hover:bg-slate-50'}">
-                                    ${s.time}${s.hasClientCollision ? `<span class="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" title="Você já tem agendamento neste horário"></span>` : ''}
-                                </button>
-                            `).join('')}</div>
+                            ${slots.length === 0 ? `
+                                <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl mb-4 text-center">
+                                    <p class="text-sm font-bold text-amber-900">Não há horários livres neste dia para esse profissional.</p>
+                                    <p class="text-xs text-amber-800 mt-1 mb-3">Tente outro dia ou outro profissional.</p>
+                                    <button onclick="clientBooking.step=1; clientBooking.time=null; render()" class="btn-theme-primary font-bold px-5 py-2.5 rounded-xl text-xs">Escolher outro dia</button>
+                                </div>
+                            ` : `
+                                <div class="grid grid-cols-3 gap-2 mb-6 max-h-40 overflow-y-auto custom-scrollbar pr-1">${slots.map(s => `
+                                    <button onclick="clientBooking.time='${s.time}'; render()" class="py-2.5 border rounded-xl text-xs font-bold relative ${clientBooking.time===s.time?'btn-theme-primary':'bg-white hover:bg-slate-50'}">
+                                        ${s.time}${s.hasClientCollision ? `<span class="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" title="Você já tem agendamento neste horário"></span>` : ''}
+                                    </button>
+                                `).join('')}</div>
+                            `}
 
                             ${clientBooking.time ? `
                                 ${isColliding ? `
@@ -990,11 +1105,11 @@
                                         <p class="text-amber-800 mb-3">Para prosseguir, confirme se este agendamento é para outra pessoa (filho, acompanhante, etc.):</p>
                                         
                                         <label class="block font-bold text-slate-700 mb-1">Nome Completo do Atendido *</label>
-                                        <input type="text" id="beneficiary-name-inp" value="${clientBooking.beneficiaryName}" oninput="clientBooking.beneficiaryName = this.value" placeholder="Ex: João da Silva" class="w-full px-3 py-2 bg-white border rounded-xl outline-none focus:border-indigo-500 text-slate-800 font-semibold">
+                                        <input type="text" id="beneficiary-name-inp" value="${esc(clientBooking.beneficiaryName)}" oninput="clientBooking.beneficiaryName = this.value" placeholder="Ex: João da Silva" class="w-full px-3 py-2 bg-white border rounded-xl outline-none focus:border-indigo-500 text-slate-800 font-semibold">
                                     </div>
                                 ` : ''}
 
-                                <button onclick="clientFinalize(${isColliding})" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-lg transition-all">Confirmar Agendamento</button>
+                                <button onclick="clientFinalize()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-lg transition-all">Confirmar Agendamento</button>
                             ` : ''}
                         </div>`;
                 }
@@ -1002,29 +1117,38 @@
 
             window.clientGoStep3 = function() {
                 const checks = Array.from(document.querySelectorAll('.c-proc-check:checked')).map(c => c.value);
-                if(checks.length === 0) return showModal('Aviso', 'Selecione pelo menos um procedimento.', 'info');
+                if(checks.length === 0) return showModal('Aviso', 'Selecione pelo menos um serviço.', 'info');
                 clientBooking.procedures = checks;
+                clientBooking.time = null;
                 if (!t.employees || t.employees.length === 0) { clientBooking.employeeId = t.admin.id; clientBooking.step = 4; } 
                 else { clientBooking.step = 3; }
                 render();
             };
 
-            window.clientFinalize = function(isColliding) {
+            window.clientFinalize = function() {
                 if (!clientBooking.time) return showModal('Aviso', 'Selecione um horário.', 'info');
-
-                let finalBeneficiary = currentClient.name;
-
-                if (isColliding) {
-                    const inpVal = document.getElementById('beneficiary-name-inp')?.value.trim();
-                    if (!inpVal || inpVal.length < 3) {
-                        return showModal('Aviso Necessário', 'Por favor, informe o Nome Completo da pessoa que receberá o atendimento neste horário sobreposto.', 'error');
-                    }
-                    finalBeneficiary = inpVal;
-                }
 
                 const selectedProcs = t.procedures.filter(p => clientBooking.procedures.includes(p.id));
                 const totalDuration = selectedProcs.reduce((s, p) => s + p.duration, 0);
                 const totalPrice = selectedProcs.reduce((s, p) => s + p.price, 0);
+
+                // confere de novo se o horário continua livre (outra pessoa pode ter agendado)
+                const slot = getAvailableTimeSlots(clientBooking.employeeId, clientBooking.date, totalDuration).find(s => s.time === clientBooking.time);
+                if (!slot) {
+                    clientBooking.time = null;
+                    render();
+                    return showModal('Horário indisponível', 'Esse horário acabou de ser ocupado ou já passou. Escolha outro horário.', 'error');
+                }
+
+                let finalBeneficiary = currentClient.name;
+                if (slot.hasClientCollision) {
+                    const inpVal = document.getElementById('beneficiary-name-inp')?.value.trim();
+                    if (!inpVal || inpVal.length < 3) {
+                        render();
+                        return showModal('Aviso Necessário', 'Por favor, informe o Nome Completo da pessoa que receberá o atendimento neste horário sobreposto.', 'error');
+                    }
+                    finalBeneficiary = inpVal;
+                }
 
                 const newApp = { 
                     id: 'app-' + Date.now(), 
@@ -1040,15 +1164,20 @@
                     totalPrice, 
                     createdAt: new Date().toISOString() 
                 };
+                const bookedDate = clientBooking.date, bookedTime = clientBooking.time, collided = slot.hasClientCollision;
 
-                t.appointments.push(newApp); 
-                saveDB();
-
-                showModal('Sucesso!', `Agendamento confirmado para ${formatDateBR(clientBooking.date)} às ${clientBooking.time}${isColliding ? ` (Para: ${finalBeneficiary})` : ''}!`, 'success', () => {
-                    clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null, isForOther: false, beneficiaryName: '' }; 
-                    clientActiveTab = 'appointments'; 
-                    render();
-                });
+                createAppointment(newApp).then(result => {
+                    if (!result.ok) {
+                        clientBooking.time = null;
+                        render();
+                        return showModal('Horário indisponível', 'Esse horário acabou de ser ocupado por outra pessoa. Escolha outro horário.', 'error');
+                    }
+                    showModal('Sucesso!', `Agendamento confirmado para ${formatDateBR(bookedDate)} às ${esc(bookedTime)}${collided ? ` (Para: ${esc(finalBeneficiary)})` : ''}!`, 'success', () => {
+                        clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null, isForOther: false, beneficiaryName: '' }; 
+                        clientActiveTab = 'appointments'; 
+                        render();
+                    });
+                }).catch(() => showModal('Erro de conexão', 'Não foi possível confirmar o agendamento. Verifique sua internet e tente de novo.', 'error'));
             };
         }
     </script>
