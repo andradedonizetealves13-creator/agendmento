@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Primstav - Painel de Controle</title>
+    <title>AgendaPro - Painel de Controle</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -63,6 +63,7 @@
             width: auto !important; min-width: 140px; max-width: 250px !important;
         }
         .calendar-fullscreen { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: var(--theme-bg); height: 100vh !important; border-radius: 0 !important; }
+        @media (min-width: 768px) { .calendar-fullscreen { left: 5rem !important; } }
         
         .btn-theme-primary { background-color: var(--theme-primary); color: #ffffff; }
         .btn-theme-primary:hover { background-color: var(--theme-primary-hover); }
@@ -324,8 +325,8 @@
             const logoHtml = t.logo ? `<img src="${t.logo}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-lg shadow-sm">O</div>`;
             const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${userProfile.name.charAt(0)}</div>`;
 
-            const sidebarClasses = isSidebarOpenMobile ? "fixed inset-y-0 left-0 z-50 w-72 bg-white/90 backdrop-blur-md shadow-2xl translate-x-0 flex flex-col h-full" : "fixed inset-y-0 left-0 z-50 w-72 bg-white/90 backdrop-blur-md shadow-2xl -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:w-20 hover:md:w-64 transition-all duration-300 group flex flex-col shrink-0 overflow-hidden z-20";
-            const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-40 md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
+            const sidebarClasses = isSidebarOpenMobile ? "fixed inset-y-0 left-0 z-[110] w-72 bg-white/90 backdrop-blur-md shadow-2xl translate-x-0 flex flex-col h-full" : "fixed inset-y-0 left-0 z-[110] w-72 bg-white/90 backdrop-blur-md shadow-2xl -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:w-20 hover:md:w-64 transition-all duration-300 group flex flex-col shrink-0 overflow-hidden";
+            const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-[105] md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
 
             document.getElementById('app').innerHTML = `
                 <div class="flex h-screen w-screen fade-in relative overflow-hidden">
@@ -1017,7 +1018,7 @@
                                         <div class="flex items-start space-x-3">
                                             <div class="bg-theme-secondary text-theme-primary font-bold px-2.5 py-1.5 rounded-lg text-xs shrink-0">${formatDateBR(a.date)}<br>${a.time}</div>
                                             <div>
-                                                <p class="font-bold text-slate-800 text-sm">{${a.clientName}}${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded">Para: ${a.beneficiaryName}</span>` : ''}</p>
+                                                <p class="font-bold text-slate-800 text-sm">${a.clientName}${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded">Para: ${a.beneficiaryName}</span>` : ''}</p>
                                                 <p class="text-xs text-slate-500">${a.proceduresNames.join(', ')} — <b>${empName}</b></p>
                                             </div>
                                         </div>
@@ -1140,7 +1141,7 @@
                     <div class="space-y-4">
                         ${apps.length === 0 ? '<div class="text-center py-16 bg-slate-50 rounded-2xl border-dashed border"><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>' : apps.map(a => {
                             const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
-                            const titleText = (role === 'admin' && hasEmployees) ? `${emp?emp.name:'Equipe'} - {${a.clientName}}` : a.clientName;
+                            const titleText = (role === 'admin' && hasEmployees) ? `${emp?emp.name:'Equipe'} - ${a.clientName}` : a.clientName;
                             return `
                             <div onclick="showAppDetails('${a.id}')" class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-300 bg-white gap-4 cursor-pointer transition-colors">
                                 <div class="flex items-start space-x-4">
@@ -1162,6 +1163,15 @@
             const m = parseInt(monthIndexStr); const today = new Date(); const tgt = new Date(today.getFullYear(), m, 1);
             currentWeekOffset = Math.floor((tgt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 7)); render();
         };
+        window.calPickerOpen = false; window.calPickerYear = null;
+        window.toggleMonthPicker = function(y) { calPickerOpen = !calPickerOpen; calPickerYear = y; render(); };
+        window.changePickerYear = function(d) { calPickerYear += d; render(); };
+        window.jumpToMonthYear = function(y, m) {
+            const sow = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+            const diff = sow(new Date(y, m, 1)) - sow(new Date());
+            currentWeekOffset = Math.round(diff / (7 * 24 * 60 * 60 * 1000));
+            calPickerOpen = false; render();
+        };
         window.toggleFullscreen = function() { isCalendarFullscreen = !isCalendarFullscreen; render(); };
 
         function renderWeeklyCalendar(role, user) {
@@ -1178,6 +1188,18 @@
             });
 
             const currentProfile = role === 'admin' ? t.admin : user;
+            const pickerYear = calPickerYear !== null ? calPickerYear : viewYear;
+            const monthPicker = calPickerOpen ? `
+                <div class="absolute top-full left-0 mt-2 w-64 bg-white border rounded-2xl shadow-xl p-3 z-40 fade-in">
+                    <div class="flex items-center justify-between mb-3">
+                        <button onclick="changePickerYear(-1)" class="p-2 bg-slate-50 border rounded-lg hover:bg-slate-100"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                        <span class="font-bold text-sm text-slate-800">${pickerYear}</span>
+                        <button onclick="changePickerYear(1)" class="p-2 bg-slate-50 border rounded-lg hover:bg-slate-100"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        ${monthNames.map((n, i) => `<button onclick="jumpToMonthYear(${pickerYear}, ${i})" class="px-2 py-2.5 rounded-xl text-xs font-bold transition-colors ${(i === viewMonth && pickerYear === viewYear) ? 'btn-theme-primary' : 'bg-slate-50 text-slate-700 hover:bg-theme-secondary'}">${n.slice(0,3)}</button>`).join('')}
+                    </div>
+                </div>` : '';
             const appsByDayAndSlot = {};
             
             weekApps.forEach(a => {
@@ -1202,7 +1224,7 @@
 
                     const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
                     const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
-                    const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${a.time} - ${emp?emp.name:'Equipe'} - {${a.clientName}}` : `${a.time} - ${a.clientName}`;
+                    const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${a.time} - ${emp?emp.name:'Equipe'} - ${a.clientName}` : `${a.time} - ${a.clientName}`;
 
                     let styleWidth = 'calc(100% - 6px)'; let styleLeft = '3px';
                     if (totalOverlaps > 1) {
@@ -1222,12 +1244,15 @@
                 <div class="bg-white/90 backdrop-blur-md border rounded-2xl shadow-sm overflow-hidden flex flex-col relative ${isCalendarFullscreen ? 'calendar-fullscreen' : 'h-[600px]'}">
                     <div class="p-3 border-b flex justify-between bg-slate-50 shrink-0">
                         <div class="flex space-x-2">
-                            <button onclick="currentWeekOffset--;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
-                            <div class="flex items-center px-4 bg-white border rounded-xl font-bold">${monthNames[viewMonth]} ${viewYear}</div>
-                            <button onclick="currentWeekOffset++;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                            <button onclick="currentWeekOffset--;calPickerOpen=false;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                            <div class="relative">
+                                <button onclick="toggleMonthPicker(${viewYear})" title="Escolher mês" class="h-full flex items-center px-4 bg-white border rounded-xl font-bold hover:bg-slate-100 cursor-pointer">${monthNames[viewMonth]} ${viewYear}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
+                                ${monthPicker}
+                            </div>
+                            <button onclick="currentWeekOffset++;calPickerOpen=false;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                         </div>
                         <div class="flex space-x-3">
-                            <button onclick="currentWeekOffset=0;render()" class="bg-theme-secondary text-theme-primary px-4 py-2.5 rounded-xl font-bold">Hoje</button>
+                            <button onclick="currentWeekOffset=0;calPickerOpen=false;render()" class="bg-theme-secondary text-theme-primary px-4 py-2.5 rounded-xl font-bold">Hoje</button>
                             <button onclick="toggleFullscreen()" class="p-2.5 bg-slate-800 text-white rounded-xl"><i data-lucide="${isCalendarFullscreen ? 'minimize' : 'maximize'}" class="w-5 h-5"></i></button>
                         </div>
                     </div>
@@ -1265,7 +1290,7 @@
             const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
             const msg = `
                 <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
-                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">{${app.clientName}}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${app.beneficiaryName}</span>` : ''}</div></div>
+                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">${app.clientName}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${app.beneficiaryName}</span>` : ''}</div></div>
                     <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${emp?emp.name:'Equipe'}</span></div></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${app.proceduresNames.join(', ')}</span></div>
