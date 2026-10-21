@@ -167,8 +167,8 @@
         const COLOR_PALETTE = ['#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', '#7c3aed', '#c026d3', '#db2777', '#0891b2', '#4b5563'];
 
         window.THEME_PALETTES = [
-            { id: 'wine_velvet', name: 'Vinho & Rosa Seco', bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515', previewBg: '#E8C5D0', previewPrimary: '#4A0E2E', previewAccent: '#B56B82' },
             { id: 'indigo_classic', name: 'Índigo Clássico', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b', previewBg: '#f8fafc', previewPrimary: '#4f46e5', previewAccent: '#e0e7ff' },
+            { id: 'wine_velvet', name: 'Vinho & Rosa Seco', bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515', previewBg: '#E8C5D0', previewPrimary: '#4A0E2E', previewAccent: '#B56B82' },
             { id: 'emerald_nature', name: 'Esmeralda Sofisticado', bg: '#e6f4ea', primary: '#059669', primaryHover: '#047857', secondary: '#a7f3d0', dark: '#064e3b', previewBg: '#e6f4ea', previewPrimary: '#059669', previewAccent: '#a7f3d0' },
             { id: 'amber_gold', name: 'Âmbar Dourado', bg: '#fef3c7', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f', previewBg: '#fef3c7', previewPrimary: '#d97706', previewAccent: '#fde68a' },
             { id: 'slate_dark', name: 'Grafite Elegante', bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a', previewBg: '#f1f5f9', previewPrimary: '#334155', previewAccent: '#cbd5e1' }
@@ -210,7 +210,7 @@
             }
             window.t = data;
             
-            if(!t.themePalette) t.themePalette = 'wine_velvet';
+            if(!t.themePalette) t.themePalette = 'indigo_classic';
             if(!t.admin.workingHours) t.admin.workingHours = getDefWH();
             if(!t.admin.exceptions) t.admin.exceptions = {};
             if(!t.admin.color) t.admin.color = COLOR_PALETTE[0];
@@ -234,7 +234,7 @@
         });
 
         function applyThemeCSS(paletteId) {
-            const palette = THEME_PALETTES.find(p => p.id === paletteId) || THEME_PALETTES[0];
+            const palette = THEME_PALETTES.find(p => p.id === paletteId) || THEME_PALETTES.find(p => p.id === 'indigo_classic');
             document.documentElement.style.setProperty('--theme-bg', palette.bg);
             document.documentElement.style.setProperty('--theme-primary', palette.primary);
             document.documentElement.style.setProperty('--theme-primary-hover', palette.primaryHover);
@@ -693,7 +693,7 @@
             }
 
             if(activeTab === 'profile') {
-                const currentPalette = t.themePalette || 'wine_velvet';
+                const currentPalette = t.themePalette || 'indigo_classic';
                 const isMobileMode = activeBgMode === 'mobile';
 
                 const imgUrl = isMobileMode ? t.bgMobileImage : t.bgCustomImage;
