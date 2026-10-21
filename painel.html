@@ -114,7 +114,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-2">Procedimentos / Serviços</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">Serviços</label>
                     <div id="manual-procedures-list" class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar border p-3 rounded-2xl bg-slate-50"></div>
                 </div>
 
@@ -196,6 +196,7 @@
         window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
         window.activeBgMode = 'desktop';
 
+        const CAL_START_HOUR = 6, CAL_END_HOUR = 22;
         let isDragging = false;
         let activeColumnEl = null;
         let startY = 0;
@@ -266,6 +267,7 @@
         window.timeToMins = function(t) { const [h,m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
         window.minsToTime = function(m) { const h = Math.floor(m/60).toString().padStart(2,'0'); const mins = (m%60).toString().padStart(2,'0'); return `${h}:${mins}`; };
         window.formatDateBR = function(dateStr) { return dateStr.split('-').reverse().join('/'); };
+        window.esc = function(v) { return String(v === undefined || v === null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
 
         window.getEffectiveAppStatus = function(appItem) {
             if (appItem.status === 'cancelado') return 'cancelado';
@@ -323,7 +325,7 @@
             if(!userProfile) return logout();
 
             const logoHtml = t.logo ? `<img src="${t.logo}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-lg shadow-sm">O</div>`;
-            const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${userProfile.name.charAt(0)}</div>`;
+            const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${esc(userProfile.name.charAt(0))}</div>`;
 
             const sidebarClasses = isSidebarOpenMobile ? "fixed inset-y-0 left-0 z-[110] w-72 bg-white/90 backdrop-blur-md shadow-2xl translate-x-0 flex flex-col h-full" : "fixed inset-y-0 left-0 z-[110] w-72 bg-white/90 backdrop-blur-md shadow-2xl -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:w-20 hover:md:w-64 transition-all duration-300 group flex flex-col shrink-0 overflow-hidden";
             const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-[105] md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
@@ -336,19 +338,19 @@
                         <div onclick="activeTab='dashboard'; render()" class="p-5 md:p-4 border-b border-slate-100 flex items-center space-x-3 bg-slate-50/50 w-full h-20 cursor-pointer hover:bg-slate-100/80 transition-colors shrink-0 overflow-hidden">
                             ${logoHtml}
                             <div class="md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 overflow-hidden">
-                                <h2 class="font-bold text-slate-800 text-sm truncate w-36">${t.name}</h2>
+                                <h2 class="font-bold text-slate-800 text-sm truncate w-36">${esc(t.name)}</h2>
                                 <span class="text-[10px] text-theme-primary font-bold uppercase tracking-wider block truncate">Ver Dashboard</span>
                             </div>
                             <button onclick="event.stopPropagation(); toggleMobileMenu()" class="ml-auto md:hidden p-2 text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-6 h-6"></i></button>
                         </div>
 
                         <nav class="flex-1 p-4 md:p-3 space-y-2 overflow-y-auto custom-scrollbar w-full overflow-x-hidden">
-                            <button onclick="activeTab='agenda'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='agenda'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="calendar" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Minha Agenda</span></button>
+                            <button onclick="activeTab='agenda'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='agenda'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="calendar" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Agenda</span></button>
                             <button onclick="activeTab='dashboard'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='dashboard'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="bar-chart-2" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Dashboard</span></button>
-                            <button onclick="activeTab='horarios'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='horarios'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="clock" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Horários & Plantões</span></button>
+                            <button onclick="activeTab='horarios'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='horarios'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="clock" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Horários & Folgas</span></button>
                             ${role === 'admin' ? `
-                                <button onclick="activeTab='procedures'; editProcedureId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='procedures'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="scissors" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Procedimentos</span></button>
-                                <button onclick="activeTab='employees'; editEmployeeId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='employees'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="users" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Equipe</span></button>
+                                <button onclick="activeTab='procedures'; editProcedureId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='procedures'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="scissors" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Serviços</span></button>
+                                <button onclick="activeTab='employees'; editEmployeeId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='employees'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="users" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Profissionais</span></button>
                             ` : ''}
                             <button onclick="activeTab='profile'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='profile'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="settings" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Configurações & Estilos</span></button>
                         </nav>
@@ -356,7 +358,7 @@
                         <div onclick="activeTab='profile'; render()" class="p-3.5 border-t border-slate-100 flex items-center bg-white/90 w-full overflow-hidden cursor-pointer hover:bg-slate-50 transition-colors shrink-0">
                             ${userAvatarHtml}
                             <div class="ml-3 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 w-28 overflow-hidden">
-                                <p class="text-sm font-bold text-slate-900 truncate">${userProfile.name}</p>
+                                <p class="text-sm font-bold text-slate-900 truncate">${esc(userProfile.name)}</p>
                                 <p class="text-[10px] text-theme-primary uppercase font-bold tracking-wider truncate">${role === 'admin' ? 'Administrador' : 'Profissional'}</p>
                             </div>
                             <button onclick="event.stopPropagation(); logout()" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all ml-auto opacity-0 group-hover:opacity-100 shrink-0" title="Sair"><i data-lucide="log-out" class="w-5 h-5"></i></button>
@@ -370,8 +372,8 @@
                                 <h1 class="font-bold text-slate-800 text-sm md:text-base hidden sm:block">Painel de Controle</h1>
                             </div>
                             <div class="flex items-center space-x-3">
-                                <button onclick="openCreateModal()" class="btn-theme-primary px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm transition-all"><i data-lucide="plus" class="w-4 h-4 mr-1"></i> Agendar Manual</button>
-                                <button onclick="activeTab='profile'; render()" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors hidden sm:block">${userProfile.name}</button>
+                                <button onclick="openCreateModal()" class="btn-theme-primary px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm transition-all"><i data-lucide="plus" class="w-4 h-4 mr-1"></i> Novo Agendamento</button>
+                                <button onclick="activeTab='profile'; render()" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors hidden sm:block">${esc(userProfile.name)}</button>
                                 ${role === 'admin' ? `
                                     <button onclick="copiarLinkCliente()" class="text-xs md:text-sm bg-theme-secondary text-theme-primary px-4 py-2 rounded-lg font-bold flex items-center space-x-2 border border-slate-200 transition-colors shadow-sm"><i data-lucide="external-link" class="w-4 h-4"></i> <span class="hidden sm:inline">Copiar Link do Cliente</span><span class="sm:hidden">Link Cliente</span></button>
                                 ` : ''}
@@ -419,32 +421,33 @@
                     }
                 });
             });
-
-            document.addEventListener('mouseup', () => {
-                if (isDragging && activeColumnEl) {
-                    isDragging = false;
-                    
-                    const topY = Math.min(startY, currentY);
-                    const bottomY = Math.max(startY, currentY);
-                    
-                    const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
-                    let endMinsTotal = Math.floor((bottomY / 51) * 60) + 420;
-                    
-                    if (endMinsTotal - startMinsTotal < 15) {
-                        endMinsTotal = startMinsTotal + 30;
-                    }
-
-                    const roundedStartMins = Math.floor(startMinsTotal / 15) * 15;
-                    const roundedEndMins = Math.ceil(endMinsTotal / 15) * 15;
-
-                    const startTimeStr = minsToTime(roundedStartMins);
-                    const endTimeStr = minsToTime(roundedEndMins);
-
-                    removeDragSelectionBox();
-                    openCreateModal(dragDateStr, startTimeStr, endTimeStr);
-                }
-            });
         }
+
+        // registrado uma única vez (antes era recriado a cada render)
+        document.addEventListener('mouseup', () => {
+            if (isDragging && activeColumnEl) {
+                isDragging = false;
+                
+                const topY = Math.min(startY, currentY);
+                const bottomY = Math.max(startY, currentY);
+                
+                const startMinsTotal = Math.floor((topY / 51) * 60) + CAL_START_HOUR * 60;
+                let endMinsTotal = Math.floor((bottomY / 51) * 60) + CAL_START_HOUR * 60;
+                
+                if (endMinsTotal - startMinsTotal < 15) {
+                    endMinsTotal = startMinsTotal + 30;
+                }
+
+                const roundedStartMins = Math.floor(startMinsTotal / 15) * 15;
+                const roundedEndMins = Math.ceil(endMinsTotal / 15) * 15;
+
+                const startTimeStr = minsToTime(roundedStartMins);
+                const endTimeStr = minsToTime(roundedEndMins);
+
+                removeDragSelectionBox();
+                openCreateModal(dragDateStr, startTimeStr, endTimeStr);
+            }
+        });
 
         function updateDragSelectionBox() {
             if (!activeColumnEl) return;
@@ -461,8 +464,8 @@
             box.style.top = topY + 'px';
             box.style.height = heightY + 'px';
 
-            const startMinsTotal = Math.floor((topY / 51) * 60) + 420;
-            const endMinsTotal = Math.floor(((topY + heightY) / 51) * 60) + 420;
+            const startMinsTotal = Math.floor((topY / 51) * 60) + CAL_START_HOUR * 60;
+            const endMinsTotal = Math.floor(((topY + heightY) / 51) * 60) + CAL_START_HOUR * 60;
             box.innerText = `${minsToTime(Math.floor(startMinsTotal/15)*15)} - ${minsToTime(Math.ceil(endMinsTotal/15)*15)}`;
         }
 
@@ -478,13 +481,13 @@
 
             if (role === 'admin') {
                 empSelect.disabled = false;
-                empSelect.innerHTML += `<option value="${t.admin.id}">${t.admin.name} (ADM)</option>`;
+                empSelect.innerHTML += `<option value="${t.admin.id}">${esc(t.admin.name)} (ADM)</option>`;
                 (t.employees || []).forEach(e => {
-                    empSelect.innerHTML += `<option value="${e.id}">${e.name}</option>`;
+                    empSelect.innerHTML += `<option value="${e.id}">${esc(e.name)}</option>`;
                 });
             } else {
                 const userProfile = t.employees.find(e => e.id === session.id);
-                empSelect.innerHTML = `<option value="${userProfile.id}" selected>${userProfile.name}</option>`;
+                empSelect.innerHTML = `<option value="${userProfile.id}" selected>${esc(userProfile.name)}</option>`;
                 empSelect.disabled = true;
             }
 
@@ -498,11 +501,11 @@
                 <label class="flex items-center justify-between p-2.5 bg-white border rounded-xl hover:bg-indigo-50 cursor-pointer">
                     <div class="flex items-center space-x-2">
                         <input type="checkbox" value="${p.id}" class="manual-proc-cb w-4 h-4 text-indigo-600 rounded">
-                        <span class="text-xs font-bold text-slate-800">${p.name} (${p.duration} min)</span>
+                        <span class="text-xs font-bold text-slate-800">${esc(p.name)} (${p.duration} min)</span>
                     </div>
                     <span class="text-xs font-bold text-emerald-600">R$ ${p.price.toFixed(2)}</span>
                 </label>
-            `).join('') || '<p class="text-xs text-slate-400">Nenhum procedimento cadastrado.</p>';
+            `).join('') || '<p class="text-xs text-slate-400">Nenhum serviço cadastrado.</p>';
 
             document.getElementById('create-modal').classList.remove('hidden');
             if(window.lucide) lucide.createIcons();
@@ -521,31 +524,53 @@
             const endTime = document.getElementById('manual-end-time').value;
 
             const selectedProcIds = Array.from(document.querySelectorAll('.manual-proc-cb:checked')).map(cb => cb.value);
-            if (selectedProcIds.length === 0) return showModal('Aviso', 'Selecione pelo menos um procedimento.', 'info');
+            if (selectedProcIds.length === 0) return showModal('Aviso', 'Selecione pelo menos um serviço.', 'info');
+
+            const startMins = timeToMins(startTime);
+            const endMins = timeToMins(endTime);
+            if (endMins <= startMins) return showModal('Horário inválido', 'O horário de fim precisa ser depois do início.', 'error');
+
+            const conflict = (t.appointments || []).find(a => {
+                if (a.employeeId !== employeeId || a.date !== date) return false;
+                if (a.status === 'cancelado' || a.status === 'nao_compareceu') return false;
+                const aStart = timeToMins(a.time);
+                const aEnd = aStart + (a.totalDuration || 0);
+                return startMins < aEnd && endMins > aStart;
+            });
+            if (conflict) {
+                return showModal('Horário ocupado', `Este profissional já tem um agendamento nesse horário (${esc(conflict.time)} - ${esc(conflict.clientName)}).`, 'error');
+            }
 
             const selectedProcs = t.procedures.filter(p => selectedProcIds.includes(p.id));
-            const totalDuration = Math.max(timeToMins(endTime) - timeToMins(startTime), 15);
+            const totalDuration = endMins - startMins;
             const totalPrice = selectedProcs.reduce((s, p) => s + p.price, 0);
 
-            const newApp = {
-                id: 'app-' + Date.now(),
-                clientId: 'manual-cli-' + Date.now(),
-                clientName: clientName,
-                beneficiaryName: clientName,
-                employeeId: employeeId,
-                date: date,
-                time: startTime,
-                proceduresNames: selectedProcs.map(p => p.name),
-                totalDuration: totalDuration,
-                totalPrice: totalPrice,
-                createdAt: new Date().toISOString()
+            const doSave = () => {
+                const newApp = {
+                    id: 'app-' + Date.now(),
+                    clientId: 'manual-cli-' + Date.now(),
+                    clientName: clientName,
+                    beneficiaryName: clientName,
+                    employeeId: employeeId,
+                    date: date,
+                    time: startTime,
+                    proceduresNames: selectedProcs.map(p => p.name),
+                    totalDuration: totalDuration,
+                    totalPrice: totalPrice,
+                    createdAt: new Date().toISOString()
+                };
+                if(!t.appointments) t.appointments = [];
+                t.appointments.push(newApp);
+                saveDB();
+                closeCreateModal();
+                showModal('Sucesso!', 'Agendamento cadastrado com sucesso.', 'success');
             };
 
-            if(!t.appointments) t.appointments = [];
-            t.appointments.push(newApp);
-            saveDB();
-            closeCreateModal();
-            showModal('Sucesso!', 'Agendamento cadastrado com sucesso.', 'success');
+            const profile = employeeId === t.admin.id ? t.admin : (t.employees || []).find(x => x.id === employeeId);
+            if (profile && !doesEmployeeWorkOnDate(profile, date)) {
+                return showModal('Dia de folga', 'Este profissional está de folga nessa data. Deseja agendar mesmo assim?', 'info', doSave);
+            }
+            doSave();
         };
 
         function renderDashboardContent(role, user) {
@@ -579,12 +604,12 @@
                         <div class="max-w-4xl mx-auto space-y-6 fade-in">
                             ${pendingRequests.length > 0 ? `
                                 <div class="bg-amber-50/90 border-2 border-amber-200 p-6 rounded-2xl shadow-sm">
-                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes de Folga / Plantão (${pendingRequests.length})</h3>
+                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes de Folga / Horário Extra (${pendingRequests.length})</h3>
                                     <div class="space-y-3">
                                         ${pendingRequests.map(r => `
                                             <div class="bg-white p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                                                 <div>
-                                                    <p class="font-bold text-slate-800 text-sm">${r.empName} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência/Folga':'Hora a mais (Plantão)'}</span></p>
+                                                    <p class="font-bold text-slate-800 text-sm">${esc(r.empName)} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Folga':'Horário extra'}</span></p>
                                                     <p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b> ${r.type==='plantao'? `(${r.start} às ${r.end})`:''}</p>
                                                 </div>
                                                 <div class="flex items-center space-x-2">
@@ -624,13 +649,13 @@
 
                                 <div class="space-y-6">
                                     <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                        <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral (Empresa)</h3>
+                                        <h3 class="font-bold text-lg mb-2">Folga / Horário Extra Geral (Empresa)</h3>
                                         <div class="space-y-4 mt-4">
                                             <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
                                             <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
                                                 <select id="exc-type" onchange="document.getElementById('exc-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium">
-                                                    <option value="folga">Ausência / Folga Geral</option>
-                                                    <option value="plantao">Plantão Geral</option>
+                                                    <option value="folga">Folga Geral</option>
+                                                    <option value="plantao">Horário Extra Geral</option>
                                                 </select>
                                             </div>
                                             <div id="exc-times" class="hidden flex items-center space-x-4">
@@ -647,7 +672,7 @@
                                             ${excs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma cadastrada.</p>' : excs.map(e => `
                                                 <div class="p-3 border rounded-xl flex items-center justify-between ${e.type==='folga'?'bg-rose-50/50 border-rose-100':'bg-emerald-50/50 border-emerald-100'}">
                                                     <div>
-                                                        <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} - ${e.type==='folga'?'Folga Geral':'Plantão Geral'}</p>
+                                                        <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} - ${e.type==='folga'?'Folga Geral':'Horário Extra Geral'}</p>
                                                         ${e.type==='plantao' ? `<p class="text-xs text-emerald-600 font-medium">${e.start} às ${e.end}</p>` : ''}
                                                     </div>
                                                     <button onclick="removeException('${e.date}')" class="text-rose-500 bg-white hover:bg-rose-50 p-2 rounded-lg shadow-sm border border-transparent hover:border-rose-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -664,12 +689,12 @@
                     return `
                         <div class="max-w-2xl mx-auto space-y-6 fade-in">
                             <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                <h3 class="font-bold text-lg mb-1">Solicitar Ausência ou Hora a Mais</h3>
-                                <form onsubmit="handleCreateRequest(event, '${user.id}', '${user.name}')" class="space-y-4 mt-4">
+                                <h3 class="font-bold text-lg mb-1">Solicitar Folga ou Horário Extra</h3>
+                                <form onsubmit="handleCreateRequest(event, '${user.id}')" class="space-y-4 mt-4">
                                     <div><label class="block text-xs font-bold mb-1.5">Tipo de Solicitação</label>
                                         <select id="req-type" onchange="document.getElementById('req-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-3 border rounded-xl text-sm bg-white font-medium">
-                                            <option value="folga">Solicitar Folga / Ausência (Dia inteiro)</option>
-                                            <option value="plantao">Solicitar Hora a Mais (Plantão)</option>
+                                            <option value="folga">Solicitar Folga (dia inteiro)</option>
+                                            <option value="plantao">Solicitar Horário Extra</option>
                                         </select>
                                     </div>
                                     <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="req-date" required class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div>
@@ -682,7 +707,7 @@
                                 <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
                                     ${myReqs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma solicitação enviada.</p>' : myReqs.map(r => `
                                         <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
-                                            <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Ausência/Folga':'Hora a mais'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
+                                            <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Folga':'Horário extra'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
                                             <span class="text-xs font-bold px-3 py-1.5 rounded-full border ${r.status==='approved'?'bg-emerald-50 text-emerald-700 border-emerald-200':(r.status==='rejected'?'bg-rose-50 text-rose-700 border-rose-200':'bg-amber-50 text-amber-700 border-amber-200')}">${r.status==='approved'?'Aprovado':(r.status==='rejected'?'Recusado':'Pendente')}</span>
                                         </div>
                                     `).join('')}
@@ -712,7 +737,7 @@
                                     ${THEME_PALETTES.map(p => `
                                         <div onclick="selectThemePalette('${p.id}')" class="p-4 border-2 ${currentPalette === p.id ? 'border-indigo-600 bg-indigo-50/20' : 'border-slate-200 bg-white'} rounded-2xl cursor-pointer hover:border-indigo-400 transition-all shadow-sm">
                                             <div class="flex items-center justify-between mb-3">
-                                                <span class="font-bold text-sm text-slate-800">${p.name}</span>
+                                                <span class="font-bold text-sm text-slate-800">${esc(p.name)}</span>
                                                 ${currentPalette === p.id ? '<span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Ativo</span>' : ''}
                                             </div>
                                             <div class="flex h-10 rounded-xl overflow-hidden border shadow-inner">
@@ -786,8 +811,8 @@
                         ` : ''}
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            ${role === 'admin' ? `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${t.logo ? `<img src="${t.logo}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${t.name}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>` : ''}
-                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${user.avatar ? `<img src="${user.avatar}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar', '${user.id}')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${user.name}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${user.email}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="btn-theme-primary font-bold px-4 py-3.5 rounded-xl text-sm w-full mt-4">Salvar Meu Perfil</button></div></div>
+                            ${role === 'admin' ? `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${t.logo ? `<img src="${t.logo}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${esc(t.name)}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>` : ''}
+                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${user.avatar ? `<img src="${user.avatar}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar', '${user.id}')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${esc(user.name)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${esc(user.email)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="btn-theme-primary font-bold px-4 py-3.5 rounded-xl text-sm w-full mt-4">Salvar Meu Perfil</button></div></div>
                         </div>
                     </div>`;
             }
@@ -795,7 +820,7 @@
             if(role === 'admin' && activeTab === 'employees') {
                 const empToEdit = editEmployeeId ? t.employees.find(e=>e.id===editEmployeeId) : null;
                 return `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${empToEdit?empToEdit.name:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${empToEdit?empToEdit.email:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-2">Procedimentos</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${p.name}</span></label>`).join('')}</div></div><div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Equipe</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${e.name}</p><p class="text-xs text-slate-500">${e.email}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button></div>`).join('')}</div></div></div>`;
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div><div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}</p><p class="text-xs text-slate-500">${esc(e.email)}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button></div>`).join('')}</div></div></div>`;
             }
 
             if(role === 'admin' && activeTab === 'procedures') {
@@ -803,26 +828,26 @@
                 return `
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in">
                         <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit">
-                            <h3 class="font-bold text-lg mb-4">${procToEdit ? 'Editar Procedimento' : 'Adicionar Procedimento'}</h3>
+                            <h3 class="font-bold text-lg mb-4">${procToEdit ? 'Editar Serviço' : 'Adicionar Serviço'}</h3>
                             <form onsubmit="saveProcedure(event)" class="space-y-4">
-                                <div><label class="block text-xs font-semibold mb-1">Nome do Serviço</label><input type="text" id="p-name" value="${procToEdit?procToEdit.name:''}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>
+                                <div><label class="block text-xs font-semibold mb-1">Nome do Serviço</label><input type="text" id="p-name" value="${esc(procToEdit?procToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div><label class="block text-xs font-semibold mb-1">Duração (min)</label><input type="number" id="p-time" value="${procToEdit?procToEdit.duration:''}" required min="5" step="5" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>
                                     <div><label class="block text-xs font-semibold mb-1">Valor (R$)</label><input type="number" id="p-price" value="${procToEdit?procToEdit.price:''}" required step="0.01" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>
                                 </div>
                                 <div class="flex space-x-3 mt-4">
                                     ${procToEdit ? `<button type="button" onclick="editProcedureId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-xl text-sm font-bold">Cancelar</button>` : ''}
-                                    <button type="submit" class="flex-1 btn-theme-primary py-3.5 rounded-xl text-sm font-bold shadow-md">${procToEdit ? 'Salvar Alterações' : 'Salvar Procedimento'}</button>
+                                    <button type="submit" class="flex-1 btn-theme-primary py-3.5 rounded-xl text-sm font-bold shadow-md">${procToEdit ? 'Salvar Alterações' : 'Salvar Serviço'}</button>
                                 </div>
                             </form>
                         </div>
                         <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                            <h3 class="font-bold text-lg mb-4">Lista de Procedimentos</h3>
+                            <h3 class="font-bold text-lg mb-4">Lista de Serviços</h3>
                             <div class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
-                                ${t.procedures.length === 0 ? '<p class="text-xs text-slate-400">Nenhum procedimento cadastrado.</p>' : t.procedures.map(p=>`
+                                ${t.procedures.length === 0 ? '<p class="text-xs text-slate-400">Nenhum serviço cadastrado.</p>' : t.procedures.map(p=>`
                                     <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50 hover:bg-white transition-all">
                                         <div>
-                                            <p class="font-bold text-sm text-slate-900">${p.name}</p>
+                                            <p class="font-bold text-sm text-slate-900">${esc(p.name)}</p>
                                             <p class="text-xs text-slate-500 mt-1">${p.duration} minutos — <b class="text-emerald-600">R$ ${p.price.toFixed(2)}</b></p>
                                         </div>
                                         <div class="flex items-center space-x-2">
@@ -1006,7 +1031,7 @@
                             ${filteredApps.length === 0 ? '<p class="text-xs text-slate-400 py-4 text-center">Nenhum agendamento encontrado para este mês.</p>' : filteredApps.map(a => {
                                 const st = getEffectiveAppStatus(a);
                                 const emp = a.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e=>e.id===a.employeeId);
-                                const empName = emp ? emp.name : 'Equipe';
+                                const empName = emp ? emp.name : 'Profissional';
                                 
                                 let statusBadge = `<span class="bg-theme-secondary text-theme-primary border text-[10px] font-bold px-2.5 py-1 rounded-full">Agendado</span>`;
                                 if (st === 'realizado') statusBadge = `<span class="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Concluído</span>`;
@@ -1018,8 +1043,8 @@
                                         <div class="flex items-start space-x-3">
                                             <div class="bg-theme-secondary text-theme-primary font-bold px-2.5 py-1.5 rounded-lg text-xs shrink-0">${formatDateBR(a.date)}<br>${a.time}</div>
                                             <div>
-                                                <p class="font-bold text-slate-800 text-sm">${a.clientName}${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded">Para: ${a.beneficiaryName}</span>` : ''}</p>
-                                                <p class="text-xs text-slate-500">${a.proceduresNames.join(', ')} — <b>${empName}</b></p>
+                                                <p class="font-bold text-slate-800 text-sm">${esc(a.clientName)}${a.beneficiaryName && a.beneficiaryName !== a.clientName ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded">Para: ${esc(a.beneficiaryName)}</span>` : ''}</p>
+                                                <p class="text-xs text-slate-500">${esc(a.proceduresNames.join(', '))} — <b>${esc(empName)}</b></p>
                                             </div>
                                         </div>
                                         <div class="flex items-center justify-between sm:justify-end space-x-3 border-t sm:border-0 pt-2 sm:pt-0">
@@ -1033,11 +1058,11 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                            <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="scissors" class="w-5 h-5 mr-2 text-theme-primary"></i> Atendimentos por Procedimento</h3>
+                            <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="scissors" class="w-5 h-5 mr-2 text-theme-primary"></i> Atendimentos por Serviço</h3>
                             <div class="space-y-3 max-h-72 overflow-y-auto custom-scrollbar pr-2">
                                 ${Object.keys(procStats).length === 0 ? '<p class="text-xs text-slate-400">Nenhum serviço cadastrado.</p>' : Object.keys(procStats).map(pName => `
                                     <div class="flex items-center justify-between p-3.5 bg-slate-50 border rounded-xl">
-                                        <span class="font-bold text-sm text-slate-700">${pName}</span>
+                                        <span class="font-bold text-sm text-slate-700">${esc(pName)}</span>
                                         <span class="font-black text-theme-primary bg-theme-secondary px-3 py-1 rounded-lg border text-sm">${procStats[pName]} realizados</span>
                                     </div>
                                 `).join('')}
@@ -1046,19 +1071,19 @@
 
                         ${role === 'admin' ? `
                             <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="users" class="w-5 h-5 mr-2 text-theme-primary"></i> Desempenho por Colaborador</h3>
+                                <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="users" class="w-5 h-5 mr-2 text-theme-primary"></i> Desempenho por Profissional</h3>
                                 <div class="space-y-3 max-h-72 overflow-y-auto custom-scrollbar pr-2">
                                     ${Object.keys(staffStats).map(empId => {
                                         const st = staffStats[empId];
                                         return `
                                             <div class="p-3.5 bg-slate-50 border rounded-xl flex items-center justify-between">
                                                 <div>
-                                                    <p class="font-bold text-sm text-slate-800">${st.name}</p>
+                                                    <p class="font-bold text-sm text-slate-800">${esc(st.name)}</p>
                                                     <p class="text-xs text-slate-500 mt-0.5">${st.completed} concluídos</p>
                                                 </div>
                                                 <div class="flex space-x-2 text-xs font-bold">
                                                     <span class="bg-rose-50 text-rose-700 px-2.5 py-1 rounded-lg border border-rose-100">${st.canceled} cancelados</span>
-                                                    <span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg border border-amber-100">${st.noShow} faltas</span>
+                                                    <span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg border border-amber-100">${st.noShow} não compareceram</span>
                                                 </div>
                                             </div>
                                         `;
@@ -1071,7 +1096,8 @@
             `;
         }
 
-        window.handleCreateRequest = function(e, empId, empName) {
+        window.handleCreateRequest = function(e, empId) {
+            const empName = ((t.employees || []).find(x => x.id === empId) || {}).name || '';
             e.preventDefault(); const date = document.getElementById('req-date').value; const type = document.getElementById('req-type').value;
             if(!date) return showModal('Erro', 'Selecione uma data.', 'error');
             const newReq = { id: 'req-' + Date.now(), empId, empName, date, type, status: 'pending' };
@@ -1141,12 +1167,12 @@
                     <div class="space-y-4">
                         ${apps.length === 0 ? '<div class="text-center py-16 bg-slate-50 rounded-2xl border-dashed border"><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>' : apps.map(a => {
                             const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
-                            const titleText = (role === 'admin' && hasEmployees) ? `${emp?emp.name:'Equipe'} - ${a.clientName}` : a.clientName;
+                            const titleText = (role === 'admin' && hasEmployees) ? `${esc(emp?emp.name:'Profissional')} - ${esc(a.clientName)}` : a.clientName;
                             return `
                             <div onclick="showAppDetails('${a.id}')" class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-300 bg-white gap-4 cursor-pointer transition-colors">
                                 <div class="flex items-start space-x-4">
                                     <div class="bg-theme-secondary text-theme-primary w-14 h-14 rounded-xl flex flex-col items-center justify-center border shrink-0"><span class="text-[10px] font-bold uppercase">${a.date.split('-')[1]}</span><span class="text-xl font-bold">${a.date.split('-')[2]}</span></div>
-                                    <div><p class="font-bold text-slate-900 text-base">${titleText}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} -${a.proceduresNames.join(', ')}</p></div>
+                                    <div><p class="font-bold text-slate-900 text-base">${titleText}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} -${esc(a.proceduresNames.join(', '))}</p></div>
                                 </div>
                                 <div class="flex items-center justify-between md:justify-end space-x-4 border-t md:border-0 pt-4 md:pt-0 w-full md:w-auto">
                                     <p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">R$ ${a.totalPrice.toFixed(2)}</p>
@@ -1177,9 +1203,9 @@
         function renderWeeklyCalendar(role, user) {
             const today = new Date(); const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + (currentWeekOffset * 7));
             const weekDays = []; for(let i=0; i<7; i++) { const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i); weekDays.push(d); }
-            const viewMonth = weekDays[0].getMonth(); const viewYear = weekDays[0].getFullYear();
+            const viewMonth = weekDays[3].getMonth(); const viewYear = weekDays[3].getFullYear();
             const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-            const hours = []; for(let i=7; i<=20; i++) hours.push(`${i.toString().padStart(2, '0')}:00`);
+            const hours = []; for(let i=CAL_START_HOUR; i<=CAL_END_HOUR; i++) hours.push(`${i.toString().padStart(2, '0')}:00`);
 
             const weekApps = t.appointments.filter(a => {
                 if(role === 'employee' && a.employeeId !== user.id) return false;
@@ -1205,7 +1231,7 @@
             weekApps.forEach(a => {
                 const aDate = new Date(a.date + 'T00:00:00'); const dayIdx = aDate.getDay();
                 const [h, m] = a.time.split(':').map(Number);
-                if(h < 7 || h > 20) return;
+                if(h < CAL_START_HOUR || h > CAL_END_HOUR) return;
                 const startMins = timeToMins(a.time); const endMins = startMins + a.totalDuration;
                 if (!appsByDayAndSlot[dayIdx]) appsByDayAndSlot[dayIdx] = [];
                 appsByDayAndSlot[dayIdx].push({ ...a, startMins, endMins, h, m });
@@ -1219,12 +1245,12 @@
                 dayApps.forEach((a) => {
                     const overlapping = dayApps.filter(o => (a.startMins < o.endMins && a.endMins > o.startMins));
                     const totalOverlaps = overlapping.length; const overlapIndex = overlapping.findIndex(o => o.id === a.id);
-                    const topPixels = ((a.startMins - 420) / 60) * 51;
+                    const topPixels = ((a.startMins - CAL_START_HOUR * 60) / 60) * 51;
                     const heightPixels = Math.max((a.totalDuration / 60) * 51, 22);
 
                     const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
                     const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
-                    const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${a.time} - ${emp?emp.name:'Equipe'} - ${a.clientName}` : `${a.time} - ${a.clientName}`;
+                    const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${a.time} - ${esc(emp?emp.name:'Profissional')} - ${esc(a.clientName)}` : `${a.time} - ${esc(a.clientName)}`;
 
                     let styleWidth = 'calc(100% - 6px)'; let styleLeft = '3px';
                     if (totalOverlaps > 1) {
@@ -1232,7 +1258,7 @@
                     }
 
                     postitsHtmlByDay[dayIdx].push(`
-                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${a.proceduresNames.join(', ')}" class="appointment-postit" 
+                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${esc(a.proceduresNames.join(', '))}" class="appointment-postit" 
                              style="top: ${topPixels}px; height: ${heightPixels}px; width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
                             <p class="font-bold truncate text-[10px] text-white">${postitTitle}</p>
                         </div>
@@ -1273,7 +1299,7 @@
                                 const dateStr = d.toISOString().split('T')[0];
                                 const isWorking = doesEmployeeWorkOnDate(currentProfile, dateStr);
                                 return `
-                                    <div data-date="${dateStr}" class="calendar-day-column border-r relative ${isWorking?'bg-white':'bg-slate-200 opacity-60 pointer-events-none'}" style="height: ${14 * 51}px;">
+                                    <div data-date="${dateStr}" class="calendar-day-column border-r relative ${isWorking?'bg-white':'bg-slate-200 opacity-60 pointer-events-none'}" style="height: ${hours.length * 51}px;">
                                         ${hours.map(() => `<div class="h-[51px] border-b border-slate-100/80"></div>`).join('')}
                                         ${(postitsHtmlByDay[dayIdx] || []).join('')}
                                     </div>
@@ -1290,20 +1316,25 @@
             const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
             const msg = `
                 <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
-                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">${app.clientName}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${app.beneficiaryName}</span>` : ''}</div></div>
-                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${emp?emp.name:'Equipe'}</span></div></div>
+                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">${esc(app.clientName)}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${esc(app.beneficiaryName)}</span>` : ''}</div></div>
+                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${esc(emp?emp.name:'Profissional')}</span></div></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
-                    <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${app.proceduresNames.join(', ')}</span></div>
+                    <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${esc(app.proceduresNames.join(', '))}</span></div>
                     <div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>
                     
                     <div class="pt-4 border-t flex flex-col sm:flex-row gap-2">
-                        <button onclick="updateAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">Cancelar Agendamento</button>
-                        <button onclick="updateAppStatus('${app.id}', 'nao_compareceu')" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-100 transition-colors">Não Compareceu</button>
+                        <button onclick="confirmAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">Cancelar Agendamento</button>
+                        <button onclick="confirmAppStatus('${app.id}', 'nao_compareceu')" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-100 transition-colors">Não Compareceu</button>
                     </div>
                 </div>`;
             showModal('Detalhes do Agendamento', msg, 'info');
         };
 
+        window.confirmAppStatus = function(appId, status) {
+            closeModal();
+            const msg = status === 'cancelado' ? 'Deseja realmente cancelar este agendamento?' : 'Marcar este cliente como "Não compareceu"?';
+            showModal('Confirmar', msg, 'error', () => updateAppStatus(appId, status));
+        };
         window.updateAppStatus = function(appId, status) {
             const app = t.appointments.find(a => a.id === appId); if(!app) return;
             app.status = status; saveDB();
@@ -1333,74 +1364,10 @@
         };
 
         window.deleteProcedure = function(id) {
-            showModal('Excluir Procedimento', 'Tem certeza que deseja excluir este procedimento?', 'error', () => {
+            showModal('Excluir Serviço', 'Tem certeza que deseja excluir este serviço?', 'error', () => {
                 t.procedures = t.procedures.filter(p => p.id !== id);
                 saveDB();
             });
-        };
-
-        window.selectThemePalette = function(paletteId) {
-            t.themePalette = paletteId;
-            applyThemeCSS(paletteId);
-            saveDB();
-            showModal('Estilo Aplicado!', 'A nova paleta de cores foi salva para toda a organização.', 'success');
-        };
-
-        window.handleBgUpload = function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const isMobile = activeBgMode === 'mobile';
-                if (isMobile) {
-                    t.bgMobileImage = event.target.result;
-                    if(t.bgMobileOpacity === undefined) t.bgMobileOpacity = 0.15;
-                    if(t.bgMobileBlur === undefined) t.bgMobileBlur = 0;
-                } else {
-                    t.bgCustomImage = event.target.result;
-                    if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.15;
-                    if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
-                }
-                applyBgImageSettings();
-                saveDB();
-                render();
-                showModal('Imagem Salva!', `Foto de fundo salva para a aba ${isMobile ? 'Mobile' : 'Computador'}.`, 'success');
-            };
-            reader.readAsDataURL(file);
-        };
-
-        window.removeBgImage = function() {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) delete t.bgMobileImage;
-            else delete t.bgCustomImage;
-            applyBgImageSettings();
-            saveDB();
-            render();
-            showModal('Removido', 'Foto de fundo removida.', 'info');
-        };
-
-        window.updateBgOpacity = function(val) {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) t.bgMobileOpacity = parseFloat(val);
-            else t.bgCustomOpacity = parseFloat(val);
-            applyBgImageSettings();
-            saveDB();
-            const previewBox = document.getElementById('preview-bg-box');
-            if (previewBox) previewBox.style.opacity = val;
-            const lbl = document.getElementById('opacity-val-label');
-            if (lbl) lbl.innerText = Math.round(val * 100) + '%';
-        };
-
-        window.updateBgBlur = function(val) {
-            const isMobile = activeBgMode === 'mobile';
-            if (isMobile) t.bgMobileBlur = parseInt(val);
-            else t.bgCustomBlur = parseInt(val);
-            applyBgImageSettings();
-            saveDB();
-            const previewBox = document.getElementById('preview-bg-box');
-            if (previewBox) previewBox.style.filter = `blur(${val}px)`;
-            const lbl = document.getElementById('blur-val-label');
-            if (lbl) lbl.innerText = val + 'px';
         };
 
         window.cancelarAgendamento = function(id) { updateAppStatus(id, 'cancelado'); };
