@@ -160,12 +160,13 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-        import { hashSenha, verificarSenha, validarNovaSenha, semSenha } from './seguranca.js';
+        import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { auth, rtdb, signOut, onAuthStateChanged, ref, update, onValue, runTransaction, get, child, set } from './firebase-config.js';
 
-        const sessionStr = localStorage.getItem('agendaProSession');
-        if (!sessionStr) { window.location.href = 'index.html'; }
-        const session = JSON.parse(sessionStr || '{}');
+        async function hashSenha(p) { return 'PROTECTED_BY_FIREBASE_AUTH'; }
+        async function verificarSenha(p, h) { return { ok: true }; }
+        function validarNovaSenha(p, c) { return p !== c ? 'Senhas não conferem' : (p.length < 6 ? 'Mínimo 6 caracteres' : null); }
+        function semSenha(obj) { const o = {...obj}; delete o.password; return o; }
 
         const firebaseConfig = {
             apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
@@ -176,9 +177,20 @@
             messagingSenderId: "865554229500",
             appId: "1:865554229500:web:f786ebd6f0d0781019cf79"
         };
+        const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+        const secondaryAuth = getAuth(secondaryApp);
 
-        const app = initializeApp(firebaseConfig);
-        const rtdb = getDatabase(app);
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                localStorage.removeItem('agendaProSession');
+                window.location.href = 'index.html';
+            }
+        });
+
+        const sessionStr = localStorage.getItem('agendaProSession');
+        if (!sessionStr) { window.location.href = 'index.html'; }
+        const session = JSON.parse(sessionStr || '{}');
+
         const basePath = 'agendapro_saas/tenants/' + (session.slug || 'demo');
         const tenantRef = ref(rtdb, basePath);
 
@@ -459,7 +471,7 @@
             document.querySelectorAll('.custom-dropdown-menu').forEach(m => m.classList.add('hidden'));
         });
         
-        window.logout = function() { localStorage.removeItem('agendaProSession'); window.location.href = 'index.html'; };
+        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'index.html'; };
 
         window.render = function() {
             if(!window.t) return;
@@ -536,7 +548,7 @@
         };
 
         window.copiarLinkCliente = function() { 
-            const baseUrl = window.location.href.replace('painel.html', 'cliente.html').split('?')[0];
+            const baseUrl = window.location.href.replace('painel_do_profissional.html', 'cliente.html').split('?')[0];
             const link = baseUrl + '?org=' + session.slug; 
             navigator.clipboard.writeText(link); 
             showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); 
@@ -1867,8 +1879,6 @@
                 const oldP = document.getElementById('prof-old-pass').value;
                 const newP = document.getElementById('prof-new-pass').value;
                 if (oldP || newP || conf) {
-                    const r = await verificarSenha(oldP, user.password);
-                    if (!r.ok) return showModal('Erro', 'Senha atual incorreta.', 'error');
                     const err = validarNovaSenha(newP, conf);
                     if (err) return showModal('Erro', err, 'error');
                     novoHash = await hashSenha(newP);
@@ -1901,6 +1911,13 @@
                 const err = validarNovaSenha(pass, pass2);
                 if (err) return showModal('Erro', err, 'error');
                 senhaHash = await hashSenha(pass);
+                if (!editEmployeeId) {
+                    try {
+                        await createUserWithEmailAndPassword(secondaryAuth, email, pass);
+                    } catch(errAuth) {
+                        return showModal('Erro', 'Não foi possível criar a conta no Firebase: ' + errAuth.message, 'error');
+                    }
+                }
             }
             if (editEmployeeId) {
                 const emp = t.employees.find(x => x.id === editEmployeeId);
@@ -1943,6 +1960,11 @@
             e.preventDefault();
             const err = validarNovaSenha(document.getElementById('c-pass').value, document.getElementById('c-pass2').value);
             if (err) return showModal('Erro', err, 'error');
+            try {
+                await createUserWithEmailAndPassword(secondaryAuth, document.getElementById('c-email').value.trim(), document.getElementById('c-pass').value);
+            } catch(errAuth) {
+                return showModal('Erro', 'Erro ao criar conta no Firebase Auth: ' + errAuth.message, 'error');
+            }
             const novo = {
                 id: 'cli-' + Date.now(),
                 name: document.getElementById('c-name').value.trim(),
@@ -1960,7 +1982,11 @@
                 return list;
             }).then(r => {
                 if (duplicado) return showModal('Aviso', 'Já existe um cliente com este e-mail.', 'error');
-                if (r.committed) showModal('Sucesso', 'Cliente cadastrado!', 'success');
+                if (r.committed) {
+                    showModal('Sucesso', 'Cliente cadastrado!', 'success');
+                    document.getElementById('client-form').reset();
+                    document.getElementById('client-form').classList.add('hidden');
+                }
             }).catch(() => showModal('Erro de conexão', 'Não foi possível salvar o cliente.', 'error'));
         };
 
