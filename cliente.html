@@ -132,8 +132,19 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { 
+            auth, 
+            rtdb, 
+            googleProvider,
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            signInWithPopup,
+            signOut, 
+            onAuthStateChanged, 
+            ref, 
+            onValue, 
+            runTransaction 
+        } from './firebase-config.js';
 
         const THEME_PALETTES = [
             { id: 'indigo_classic', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b' },
@@ -162,18 +173,6 @@
         if (slugInvalid) {
             document.getElementById('app').innerHTML = `<div class="bg-white p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Link Inválido</h2><p class="text-slate-500 text-sm">Nenhuma organização válida foi especificada no link de agendamento.</p></div>`;
         } else {
-            const firebaseConfig = {
-                apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
-                authDomain: "agenda-16a31.firebaseapp.com",
-                databaseURL: "https://agenda-16a31-default-rtdb.firebaseio.com",
-                projectId: "agenda-16a31",
-                storageBucket: "agenda-16a31.firebasestorage.app",
-                messagingSenderId: "865554229500",
-                appId: "1:865554229500:web:f786ebd6f0d0781019cf79"
-            };
-
-            const app = initializeApp(firebaseConfig);
-            const rtdb = getDatabase(app);
             const basePath = 'agendapro_saas/tenants/' + orgSlug;
             const tenantRef = ref(rtdb, basePath);
             const storageKey = 'agendaProClient_' + orgSlug;
@@ -188,18 +187,32 @@
             window.showHistoryApps = false;
             window.hasRendered = false;
 
-            // Guarda só o ID do cliente (nunca a senha) no navegador
-            function readSavedClientId() {
-                try {
-                    const raw = localStorage.getItem(storageKey);
-                    if (!raw) return null;
-                    const obj = JSON.parse(raw);
-                    return obj && obj.id ? obj.id : null;
-                } catch (err) { localStorage.removeItem(storageKey); return null; }
-            }
             function saveClientId(id) { localStorage.setItem(storageKey, JSON.stringify({ id })); }
 
             window.currentClient = null;
+
+            // Monitor de Autenticação Oficial do Firebase
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    saveClientId(user.uid);
+                    if (window.t && window.t.clients) {
+                        const freshClient = window.t.clients.find(c => c.id === user.uid || (c.email && c.email.toLowerCase() === (user.email || '').toLowerCase()));
+                        if (freshClient) {
+                            freshClient.id = user.uid;
+                            currentClient = freshClient;
+                        } else {
+                            currentClient = { id: user.uid, name: user.displayName || (user.email ? user.email.split('@')[0] : 'Cliente'), email: user.email || '', phone: user.phoneNumber || '', avatar: user.photoURL || '' };
+                        }
+                    } else {
+                        currentClient = { id: user.uid, name: user.displayName || (user.email ? user.email.split('@')[0] : 'Cliente'), email: user.email || '', phone: user.phoneNumber || '', avatar: user.photoURL || '' };
+                    }
+                    if (window.hasRendered) safeRender();
+                } else {
+                    currentClient = null;
+                    localStorage.removeItem(storageKey);
+                    if (window.hasRendered) safeRender();
+                }
+            });
 
             // ---------- render seguro: não apaga o que a pessoa está digitando ----------
             let pendingRender = false;
@@ -233,15 +246,11 @@
                 applyThemeCSS(t.themePalette || 'indigo_classic');
                 applyBgImageSettings();
                 
-                const sid = currentClient ? currentClient.id : readSavedClientId();
-                if (sid) {
-                    const freshClient = t.clients.find(c => c.id === sid);
+                if (auth.currentUser) {
+                    const freshClient = t.clients.find(c => c.id === auth.currentUser.uid || (c.email && c.email.toLowerCase() === (auth.currentUser.email || '').toLowerCase()));
                     if (freshClient) {
+                        freshClient.id = auth.currentUser.uid;
                         currentClient = freshClient;
-                        saveClientId(freshClient.id);
-                    } else {
-                        currentClient = null;
-                        localStorage.removeItem(storageKey);
                     }
                 }
 
@@ -316,8 +325,11 @@
                 return runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
                     const list = toList(cur);
                     const i = list.findIndex(c => c.id === me.id);
-                    if (i === -1) return;
-                    list[i] = me;
+                    if (i === -1) {
+                        list.push(me);
+                    } else {
+                        list[i] = me;
+                    }
                     return list;
                 }).then(() => { saveClientId(me.id); });
             };
@@ -604,10 +616,45 @@
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">Senha *</label><input type="password" id="c-auth-pass" required placeholder="••••••••" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium"></div>
                             <button type="submit" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-4">${clientAuthMode==='login'?'Entrar na Conta':'Criar Minha Conta'}</button>
                         </form>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-100 text-center">
+                            <button type="button" onclick="handleClientGoogleAuth()" class="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 px-4 border border-slate-200 rounded-xl shadow-sm flex items-center justify-center space-x-2 transition-all text-xs sm:text-sm">
+                                <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                                </svg>
+                                <span>Entrar com o Google</span>
+                            </button>
+                        </div>
                     </div>`;
             }
 
-            window.handleClientAuthSubmit = function(e) {
+            window.handleClientGoogleAuth = async function() {
+                try {
+                    const result = await signInWithPopup(auth, googleProvider);
+                    const user = result.user;
+                    const email = (user.email || '').toLowerCase();
+                    const name = user.displayName || (user.email ? user.email.split('@')[0] : 'Cliente');
+                    const phone = user.phoneNumber || '';
+                    
+                    await runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
+                        const list = toList(cur);
+                        let existing = list.find(c => c.id === user.uid || (c.email && c.email.toLowerCase() === email));
+                        if (!existing) {
+                            list.push({ id: user.uid, name, email, phone, avatar: user.photoURL || '' });
+                        } else if (!existing.id || existing.id !== user.uid) {
+                            existing.id = user.uid;
+                        }
+                        return list;
+                    });
+                } catch (err) {
+                    showModal('Erro no Google', err.message, 'error');
+                }
+            };
+
+            window.handleClientAuthSubmit = async function(e) {
                 e.preventDefault();
                 const email = document.getElementById('c-auth-email').value.trim().toLowerCase();
                 const pass = document.getElementById('c-auth-pass').value.trim();
@@ -620,41 +667,57 @@
                     if (!name || name.length < 3) return showModal('Aviso', 'Por favor, informe seu nome completo.', 'error');
                     if (digitsPhone.length !== 11) return showModal('Telefone Inválido', 'Informe um telefone/WhatsApp válido com DDD e 9 dígitos. Exemplo: (11) 98765-4321', 'error');
                     if (!email || !email.includes('@')) return showModal('Aviso', 'Informe um e-mail válido.', 'error');
-                    if (!pass || pass.length < 4) return showModal('Aviso', 'A senha deve ter no mínimo 4 caracteres.', 'error');
+                    if (!pass || pass.length < 6) return showModal('Aviso', 'A senha deve ter no mínimo 6 caracteres.', 'error');
 
-                    const newClient = { id: 'cli-' + Date.now(), name, email, phone: phoneRaw, password: pass, avatar: '' };
-                    let dup = null;
-
-                    runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
-                        dup = null;
-                        const list = toList(cur);
-                        if (list.some(c => c.email && c.email.toLowerCase() === email)) { dup = 'email'; return; }
-                        if (list.some(c => cleanPhone(c.phone) === digitsPhone)) { dup = 'phone'; return; }
-                        list.push(newClient);
-                        return list;
-                    }).then(res => {
-                        if (!res.committed) {
-                            if (dup === 'email') return showModal('Cadastro Existente', 'Este e-mail já está cadastrado nesta empresa.', 'error');
-                            if (dup === 'phone') return showModal('Cadastro Existente', 'Este número de telefone/WhatsApp já está registrado nesta empresa.', 'error');
-                            return showModal('Erro', 'Não foi possível criar a conta. Tente novamente.', 'error');
+                    let user;
+                    try {
+                        const userCred = await createUserWithEmailAndPassword(auth, email, pass);
+                        user = userCred.user;
+                    } catch(err) {
+                        if(err.code === 'auth/email-already-in-use') {
+                            try {
+                                const userCred = await signInWithEmailAndPassword(auth, email, pass);
+                                user = userCred.user;
+                            } catch(err2) {
+                                return showModal('Acesso Negado', 'Este e-mail já tem conta, mas a senha está incorreta. Se você já agendou antes, use a senha que criou.', 'error');
+                            }
+                        } else {
+                            return showModal('Erro no Registo', err.message, 'error');
                         }
-                        currentClient = newClient;
-                        saveClientId(newClient.id);
-                        render();
-                    }).catch(() => showModal('Erro de conexão', 'Não foi possível criar a conta. Verifique sua internet e tente de novo.', 'error'));
+                    }
+
+                    const newClient = { id: user.uid, name, email, phone: phoneRaw, avatar: '' };
+                    await runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
+                        const list = toList(cur);
+                        if (!list.some(c => c.id === user.uid)) {
+                            list.push(newClient);
+                        }
+                        return list;
+                    });
                 } else {
-                    const client = t.clients.find(c => c.email && c.email.toLowerCase() === email && c.password === pass);
-                    if (client) {
-                        currentClient = client;
-                        saveClientId(client.id);
-                        render();
-                    } else {
-                        showModal('Acesso Negado', 'E-mail ou senha incorretos para esta organização.', 'error');
+                    try {
+                        const userCred = await signInWithEmailAndPassword(auth, email, pass);
+                        const user = userCred.user;
+                        
+                        await runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
+                            const list = toList(cur);
+                            if (!list.some(c => c.id === user.uid)) {
+                                list.push({ id: user.uid, name: user.displayName || email.split('@')[0], email, phone: '', avatar: '' });
+                            }
+                            return list;
+                        });
+                    } catch (err) {
+                        showModal('Acesso Negado', 'E-mail ou senha incorretos.', 'error');
                     }
                 }
             };
 
-            window.clientLogout = function() { localStorage.removeItem(storageKey); currentClient = null; render(); };
+            window.clientLogout = async function() { 
+                await signOut(auth); 
+                localStorage.removeItem(storageKey); 
+                currentClient = null; 
+                render(); 
+            };
 
             function renderClientApp() {
                 const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white shadow-md mx-auto mb-2 sm:mb-3">` : `<div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl btn-theme-primary flex items-center justify-center font-black text-2xl shadow-md mx-auto mb-2 sm:mb-3 border-2 border-white">O</div>`;
@@ -716,7 +779,7 @@
                     <div class="max-w-xl mx-auto fade-in space-y-6">
                         <div class="bg-white/95 backdrop-blur-md p-5 sm:p-8 rounded-3xl shadow-xl border border-slate-100">
                             <h2 class="text-xl sm:text-2xl font-black text-slate-900 mb-1 text-center">Meu Perfil</h2>
-                            <p class="text-xs text-slate-500 text-center mb-6">Atualize suas fotos, dados cadastrais e senha de acesso</p>
+                            <p class="text-xs text-slate-500 text-center mb-6">Atualize suas fotos e dados cadastrais</p>
 
                             <div class="p-4 sm:p-5 bg-slate-50 border rounded-2xl mb-6 flex flex-col items-center justify-center">
                                 <label class="block text-xs font-bold text-slate-700 mb-3 text-center">Foto do Perfil</label>
@@ -748,28 +811,8 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-700 mb-1">E-mail *</label>
-                                    <input type="email" id="c-prof-email" value="${esc(currentClient.email)}" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium">
-                                </div>
-
-                                <div class="pt-4 border-t border-slate-200">
-                                    <p class="text-xs font-bold text-slate-900 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1 text-theme-primary"></i> Alterar Senha de Acesso</p>
-                                    <div class="space-y-3">
-                                        <div>
-                                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Senha Atual (obrigatória para alterar a senha)</label>
-                                            <input type="password" id="c-prof-old-pass" placeholder="Digite sua senha atual" class="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm outline-none">
-                                        </div>
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <div>
-                                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nova Senha</label>
-                                                <input type="password" id="c-prof-new-pass" placeholder="Nova senha" class="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm outline-none">
-                                            </div>
-                                            <div>
-                                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Confirmar Nova Senha</label>
-                                                <input type="password" id="c-prof-confirm-pass" placeholder="Repita a nova senha" class="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm outline-none">
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">E-mail</label>
+                                    <input type="email" value="${esc(currentClient.email)}" disabled class="w-full px-4 py-3 bg-slate-100 border rounded-xl text-sm outline-none text-slate-500 font-medium cursor-not-allowed">
                                 </div>
 
                                 <button type="submit" class="w-full btn-theme-primary font-bold py-4 rounded-2xl shadow-lg mt-6 transition-all">Salvar Alterações do Perfil</button>
@@ -797,13 +840,11 @@
                     img.src = event.target.result;
                     
                     img.onload = () => {
-                        // Reseta as variáveis
                         cropScale = 1; 
                         cropX = 0; 
                         cropY = 0;
                         document.getElementById('cropper-zoom').value = 1;
                         
-                        // Define o tamanho base da imagem para cobrir a tela (sem distorcer)
                         const container = document.getElementById('cropper-container');
                         const iRatio = img.naturalWidth / img.naturalHeight;
                         const cRatio = container.offsetWidth / container.offsetHeight;
@@ -822,7 +863,7 @@
                     }
                 };
                 reader.readAsDataURL(file);
-                e.target.value = ''; // Limpa o input para poder selecionar a mesma imagem se quiser
+                e.target.value = '';
             };
 
             window.updateCropperTransform = function() {
@@ -830,7 +871,6 @@
                 img.style.transform = `translate(${cropX}px, ${cropY}px) scale(${cropScale})`;
             };
 
-            // Evento do Slider de Zoom
             const zoomInput = document.getElementById('cropper-zoom');
             if(zoomInput) {
                 zoomInput.addEventListener('input', (e) => {
@@ -839,7 +879,6 @@
                 });
             }
 
-            // Eventos de arrastar e soltar (Mouse e Touch)
             const cropperContainer = document.getElementById('cropper-container');
             
             function startDragCrop(clientX, clientY) {
@@ -860,68 +899,52 @@
             }
 
             if(cropperContainer) {
-                // Mouse
                 cropperContainer.addEventListener('mousedown', e => startDragCrop(e.clientX, e.clientY));
                 window.addEventListener('mousemove', e => dragCrop(e.clientX, e.clientY));
                 window.addEventListener('mouseup', stopDragCrop);
 
-                // Touch
                 cropperContainer.addEventListener('touchstart', e => startDragCrop(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
                 cropperContainer.addEventListener('touchmove', e => { 
                     if(isDraggingCrop) {
-                        e.preventDefault(); // Previne scroll da tela
+                        e.preventDefault();
                         dragCrop(e.touches[0].clientX, e.touches[0].clientY); 
                     }
                 }, {passive: false});
                 cropperContainer.addEventListener('touchend', stopDragCrop);
             }
 
-            // Fechar o modal
             window.closeCropper = function() {
                 document.getElementById('cropper-modal').classList.add('hidden');
             };
 
-            // Aplicar o Corte usando BoundingClientRect e Canvas
             window.applyCrop = function() {
                 const mask = document.querySelector('.cropper-mask');
                 const img = document.getElementById('cropper-img');
                 
-                // Pega a posição exata da máscara redonda (área visível)
                 const cRect = mask.getBoundingClientRect();
-                // Pega a posição exata da imagem renderizada
                 const iRect = img.getBoundingClientRect();
                 
-                // Cria um canvas para salvar a imagem numa boa resolução e quadrada
                 const canvas = document.createElement('canvas');
-                const SIZE = 400; // Tamanho ideal para avatar (400x400)
+                const SIZE = 400;
                 canvas.width = SIZE;
                 canvas.height = SIZE;
                 const ctx = canvas.getContext('2d');
                 
-                // Escala entre a imagem original e o tamanho que ela aparece na tela
                 const scaleX = img.naturalWidth / iRect.width;
                 const scaleY = img.naturalHeight / iRect.height;
                 
-                // Calcula as coordenadas de recorte com base em onde a máscara está sobre a imagem
                 let cropX_img = (cRect.left - iRect.left) * scaleX;
                 let cropY_img = (cRect.top - iRect.top) * scaleY;
                 let cropW_img = cRect.width * scaleX;
                 let cropH_img = cRect.height * scaleY;
                 
-                // Preenche o fundo de branco caso a imagem tenha áreas transparentes (PNG)
                 ctx.fillStyle = '#ffffff'; 
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Desenha a porção cortada no Canvas
                 ctx.drawImage(img, cropX_img, cropY_img, cropW_img, cropH_img, 0, 0, SIZE, SIZE);
                 
-                // Gera a nova imagem otimizada em base64 (JPEG, 85% de qualidade)
                 const base64 = canvas.toDataURL('image/jpeg', 0.85);
-                
-                // Atualiza o cliente
                 currentClient.avatar = base64;
                 
-                // Limpa variáveis de estilo antigas (se existirem)
                 delete currentClient.avatarScale; 
                 delete currentClient.avatarPosX;
                 delete currentClient.avatarPosY;
@@ -940,32 +963,13 @@
                 e.preventDefault();
                 const newName = document.getElementById('c-prof-name').value.trim();
                 const phoneRaw = document.getElementById('c-prof-phone').value;
-                const newEmail = document.getElementById('c-prof-email').value.trim().toLowerCase();
-                const oldPass = document.getElementById('c-prof-old-pass').value.trim();
-                const newPass = document.getElementById('c-prof-new-pass').value.trim();
-                const confirmPass = document.getElementById('c-prof-confirm-pass').value.trim();
 
                 const digitsPhone = cleanPhone(phoneRaw);
 
                 if (!newName || newName.length < 3) return showModal('Aviso', 'Informe seu nome completo.', 'error');
                 if (digitsPhone.length !== 11) return showModal('Telefone Inválido', 'Informe um telefone/WhatsApp válido com DDD e 9 dígitos.', 'error');
-                if (!newEmail || !newEmail.includes('@')) return showModal('Aviso', 'Informe um e-mail válido.', 'error');
 
-                const emailExists = t.clients.some(c => c.id !== currentClient.id && c.email && c.email.toLowerCase() === newEmail);
-                if (emailExists) return showModal('E-mail em uso', 'Este e-mail já pertence a outra conta nesta empresa.', 'error');
-
-                const phoneExists = t.clients.some(c => c.id !== currentClient.id && cleanPhone(c.phone) === digitsPhone);
-                if (phoneExists) return showModal('Telefone em uso', 'Este número de telefone já está registrado para outro cliente.', 'error');
-
-                let updatedPassword = currentClient.password;
-                if (oldPass || newPass || confirmPass) {
-                    if (oldPass !== currentClient.password) return showModal('Erro de Senha', 'A sua senha atual está incorreta.', 'error');
-                    if (!newPass || newPass.length < 4) return showModal('Erro de Senha', 'A nova senha deve possuir pelo menos 4 caracteres.', 'error');
-                    if (newPass !== confirmPass) return showModal('Erro de Senha', 'A confirmação da nova senha não confere.', 'error');
-                    updatedPassword = newPass;
-                }
-
-                currentClient = { ...currentClient, name: newName, phone: phoneRaw, email: newEmail, password: updatedPassword };
+                currentClient = { ...currentClient, name: newName, phone: phoneRaw };
 
                 updateClientInDatabase()
                     .then(() => showModal('Sucesso!', 'Seu perfil foi atualizado com sucesso.', 'success', () => { render(); }))
