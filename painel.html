@@ -146,6 +146,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, update, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { hashSenha, verificarSenha, validarNovaSenha, semSenha } from './seguranca.js';
 
         const sessionStr = localStorage.getItem('agendaProSession');
         if (!sessionStr) { window.location.href = 'index.html'; }
@@ -196,6 +197,12 @@
         window.listFilterMonth = ''; window.listFilterDate = '';
         window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
         window.activeBgMode = 'desktop';
+
+        // alterações de logo/foto/fundo que só são gravadas ao clicar em Salvar
+        window.draft = {};
+        const BG_KEYS = ['bgCustomImage','bgCustomOpacity','bgCustomBlur','bgMobileImage','bgMobileOpacity','bgMobileBlur'];
+        window.bgGet = (k) => (k in draft) ? draft[k] : t[k];
+        const bgK = (n) => (activeBgMode === 'mobile' ? 'bgMobile' : 'bgCustom') + n;
 
         const CAL_START_HOUR = 6, CAL_END_HOUR = 22;
         let isDragging = false;
@@ -272,7 +279,7 @@
         // ---------- GRAVAÇÃO SEGURA ----------
         // 'clients' e 'appointments' recebem escritas dos clientes ao mesmo tempo, então o painel
         // NUNCA os regrava por inteiro (isso apagaria cadastros e agendamentos novos).
-        // Agendamentos e solicitações usam transações; o resto grava só os campos da empresa.
+        // Agendamentos, solicitações e clientes usam transações; o resto grava só os campos da empresa.
         const LIVE_KEYS = ['clients', 'appointments'];
         window.saveDB = function(keys) {
             const list = keys || Object.keys(window.t).filter(k => !LIVE_KEYS.includes(k));
@@ -416,6 +423,7 @@
                             ${role === 'admin' ? `
                                 <button onclick="activeTab='procedures'; editProcedureId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='procedures'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="scissors" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Serviços</span></button>
                                 <button onclick="activeTab='employees'; editEmployeeId=null; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='employees'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="users" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Profissionais</span></button>
+                                <button onclick="activeTab='clients'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='clients'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="user-cog" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Clientes</span></button>
                             ` : ''}
                             <button onclick="activeTab='profile'; isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab==='profile'?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="settings" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Configurações & Estilos</span></button>
                         </nav>
@@ -790,9 +798,12 @@
                 const currentPalette = t.themePalette || 'indigo_classic';
                 const isMobileMode = activeBgMode === 'mobile';
 
-                const imgUrl = isMobileMode ? t.bgMobileImage : t.bgCustomImage;
-                const imgOpacity = isMobileMode ? (t.bgMobileOpacity !== undefined ? t.bgMobileOpacity : 0.15) : (t.bgCustomOpacity !== undefined ? t.bgCustomOpacity : 0.15);
-                const imgBlur = isMobileMode ? (t.bgMobileBlur || 0) : (t.bgCustomBlur || 0);
+                const imgUrl = bgGet(bgK('Image'));
+                const imgOpacity = bgGet(bgK('Opacity')) !== undefined ? bgGet(bgK('Opacity')) : 0.15;
+                const imgBlur = bgGet(bgK('Blur')) || 0;
+
+                const logoShown = draft.logo || t.logo;
+                const avatarShown = draft.avatar || user.avatar;
 
                 return `
                     <div class="space-y-6 max-w-5xl mx-auto fade-in">
@@ -823,7 +834,7 @@
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                                     <div>
                                         <h3 class="font-bold text-lg text-slate-900 flex items-center"><i data-lucide="image" class="w-5 h-5 mr-2 text-theme-primary"></i> Foto de Plano de Fundo da Área do Cliente</h3>
-                                        <p class="text-xs text-slate-500">Configure o papel de parede para Mobile ou Computador.</p>
+                                        <p class="text-xs text-slate-500">Configure o papel de parede para Mobile ou Computador. As alterações só são gravadas ao clicar em Salvar Fundo.</p>
                                     </div>
 
                                     <div class="flex bg-slate-100 p-1 rounded-2xl border shrink-0">
@@ -864,6 +875,8 @@
                                                 <button onclick="removeBgImage()" class="w-full text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 py-2.5 rounded-xl hover:bg-rose-100 transition-colors">Remover Imagem de Fundo</button>
                                             </div>
                                         ` : `<p class="text-xs text-slate-400 text-center py-6 border border-dashed rounded-2xl">Nenhuma imagem cadastrada para ${isMobileMode ? 'Mobile' : 'Computador'}.</p>`}
+
+                                        <button onclick="salvarFundo()" class="w-full btn-theme-primary text-xs font-bold py-2.5 rounded-xl">Salvar Fundo</button>
                                     </div>
 
                                     <div class="lg:col-span-7 border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden bg-slate-100 ${isMobileMode ? 'w-[230px] h-[400px] mx-auto' : 'min-h-[220px] w-full'}">
@@ -879,8 +892,8 @@
                         ` : ''}
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            ${role === 'admin' ? `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${t.logo ? `<img src="${t.logo}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${esc(t.name)}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">Reagendar até quantas horas antes?</label><input type="number" id="org-cancel-hours" min="0" step="1" value="${Number(t.cancelMinHours) || 0}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"><p class="text-[11px] text-slate-400 mt-1 mb-4">Vale só para reagendamento na área do cliente (cancelar é sempre liberado). Use 0 para não ter limite.</p></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>` : ''}
-                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${user.avatar ? `<img src="${user.avatar}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar', '${user.id}')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${esc(user.name)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${esc(user.email)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="btn-theme-primary font-bold px-4 py-3.5 rounded-xl text-sm w-full mt-4">Salvar Meu Perfil</button></div></div>
+                            ${role === 'admin' ? `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${logoShown ? `<img src="${logoShown}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${esc(t.name)}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">Reagendar até quantas horas antes?</label><input type="number" id="org-cancel-hours" min="0" step="1" value="${Number(t.cancelMinHours) || 0}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"><p class="text-[11px] text-slate-400 mt-1 mb-4">Vale só para reagendamento na área do cliente (cancelar é sempre liberado). Use 0 para não ter limite.</p></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>` : ''}
+                            <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${avatarShown ? `<img src="${avatarShown}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${esc(user.name)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${esc(user.email)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div><div><input type="password" id="prof-pass-conf" placeholder="Repita a Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm mt-3"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><input type="password" id="prof-pass-conf" placeholder="Repita a Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm mt-3 outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="btn-theme-primary font-bold px-4 py-3.5 rounded-xl text-sm w-full mt-4">Salvar Meu Perfil</button></div></div>
                         </div>
                     </div>`;
             }
@@ -888,7 +901,7 @@
             if(role === 'admin' && activeTab === 'employees') {
                 const empToEdit = editEmployeeId ? t.employees.find(e=>e.id===editEmployeeId) : null;
                 return `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div><div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}</p><p class="text-xs text-slate-500">${esc(e.email)}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button></div>`).join('')}</div></div></div>`;
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Repita a Senha</label><input type="password" id="e-pass2" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div><div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}</p><p class="text-xs text-slate-500">${esc(e.email)}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button></div>`).join('')}</div></div></div>`;
             }
 
             if(role === 'admin' && activeTab === 'procedures') {
@@ -928,6 +941,37 @@
                         </div>
                     </div>`;
             }
+
+            if(role === 'admin' && activeTab === 'clients') {
+                const lista = t.clients.map(semSenha);   // senha nunca chega à tela
+                return `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in">
+                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit">
+                        <h3 class="font-bold text-lg mb-4">Incluir Cliente</h3>
+                        <form onsubmit="saveClient(event)" class="space-y-4">
+                            <input type="text" id="c-name" required placeholder="Nome" class="w-full px-4 py-3 border rounded-xl text-sm outline-none">
+                            <input type="email" id="c-email" required placeholder="E-mail" class="w-full px-4 py-3 border rounded-xl text-sm outline-none">
+                            <input type="tel" id="c-phone" placeholder="Telefone" class="w-full px-4 py-3 border rounded-xl text-sm outline-none">
+                            <input type="password" id="c-pass" required placeholder="Senha" class="w-full px-4 py-3 border rounded-xl text-sm outline-none">
+                            <input type="password" id="c-pass2" required placeholder="Repita a Senha" class="w-full px-4 py-3 border rounded-xl text-sm outline-none">
+                            <button type="submit" class="w-full btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar Cliente</button>
+                        </form>
+                    </div>
+                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                        <h3 class="font-bold text-lg mb-4">Clientes (${lista.length})</h3>
+                        <div class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                            ${lista.length === 0 ? '<p class="text-xs text-slate-400">Nenhum cliente cadastrado.</p>' : lista.map(c => `
+                                <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50 ${c.blocked ? 'opacity-70' : ''}">
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">${esc(c.name)} ${c.blocked ? '<span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold ml-1">Bloqueado</span>' : ''}</p>
+                                        <p class="text-xs text-slate-500">${esc(c.email)} ${c.phone ? '• ' + esc(c.phone) : ''}</p>
+                                    </div>
+                                    <button onclick="toggleBlockClient('${esc(c.id)}')" class="text-xs font-bold px-4 py-2 rounded-lg border ${c.blocked ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}">${c.blocked ? 'Desbloquear' : 'Bloquear'}</button>
+                                </div>`).join('')}
+                        </div>
+                    </div>
+                </div>`;
+            }
             return '';
         }
 
@@ -938,67 +982,35 @@
             showModal('Estilo Aplicado!', 'A nova paleta de cores foi salva para toda a organização.', 'success');
         };
 
+        // ---------- FUNDO (rascunho até clicar em Salvar Fundo) ----------
         window.handleBgUpload = function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
-            reader.onload = (event) => {
-                if (activeBgMode === 'mobile') {
-                    t.bgMobileImage = event.target.result;
-                    if(t.bgMobileOpacity === undefined) t.bgMobileOpacity = 0.15;
-                    if(t.bgMobileBlur === undefined) t.bgMobileBlur = 0;
-                } else {
-                    t.bgCustomImage = event.target.result;
-                    if(t.bgCustomOpacity === undefined) t.bgCustomOpacity = 0.15;
-                    if(t.bgCustomBlur === undefined) t.bgCustomBlur = 0;
-                }
-                applyBgImageSettings();
-                saveDB();
+            reader.onload = (ev) => {
+                draft[bgK('Image')] = ev.target.result;
+                if (bgGet(bgK('Opacity')) === undefined) draft[bgK('Opacity')] = 0.15;
+                if (bgGet(bgK('Blur')) === undefined) draft[bgK('Blur')] = 0;
                 render();
-                showModal('Imagem Salva!', `Foto de fundo configurada para ${activeBgMode === 'mobile' ? 'Mobile' : 'Computador'}.`, 'success');
             };
             reader.readAsDataURL(file);
         };
-
-        window.removeBgImage = function() {
-            // null remove o campo no Firebase (delete não chegaria ao banco com gravação parcial)
-            if (activeBgMode === 'mobile') {
-                t.bgMobileImage = null;
-            } else {
-                t.bgCustomImage = null;
-            }
-            applyBgImageSettings();
-            saveDB();
-            render();
-            showModal('Removido', 'Foto de fundo removida.', 'info');
-        };
-
+        window.removeBgImage = function() { draft[bgK('Image')] = null; render(); };
         window.updateBgOpacity = function(val) {
-            if (activeBgMode === 'mobile') {
-                t.bgMobileOpacity = parseFloat(val);
-            } else {
-                t.bgCustomOpacity = parseFloat(val);
-            }
-            applyBgImageSettings();
-            saveDB();
-            const previewBox = document.getElementById('preview-bg-box');
-            if (previewBox) previewBox.style.opacity = val;
-            const lbl = document.getElementById('opacity-val-label');
-            if (lbl) lbl.innerText = Math.round(val * 100) + '%';
+            draft[bgK('Opacity')] = parseFloat(val);
+            const p = document.getElementById('preview-bg-box'); if (p) p.style.opacity = val;
+            const l = document.getElementById('opacity-val-label'); if (l) l.innerText = Math.round(val * 100) + '%';
         };
-
         window.updateBgBlur = function(val) {
-            if (activeBgMode === 'mobile') {
-                t.bgMobileBlur = parseInt(val);
-            } else {
-                t.bgCustomBlur = parseInt(val);
-            }
-            applyBgImageSettings();
-            saveDB();
-            const previewBox = document.getElementById('preview-bg-box');
-            if (previewBox) previewBox.style.filter = `blur(${val}px)`;
-            const lbl = document.getElementById('blur-val-label');
-            if (lbl) lbl.innerText = val + 'px';
+            draft[bgK('Blur')] = parseInt(val);
+            const p = document.getElementById('preview-bg-box'); if (p) p.style.filter = `blur(${val}px)`;
+            const l = document.getElementById('blur-val-label'); if (l) l.innerText = val + 'px';
+        };
+        window.salvarFundo = function() {
+            const keys = BG_KEYS.filter(k => k in draft);
+            keys.forEach(k => { t[k] = draft[k]; delete draft[k]; });
+            if (keys.length) saveDB(keys);
+            applyBgImageSettings(); render();
+            showModal('Salvo!', 'Plano de fundo atualizado.', 'success');
         };
 
         function renderDashboardAnalytics(role, user) {
@@ -1420,17 +1432,121 @@
                 .catch(() => showModal('Erro de conexão', 'Não foi possível atualizar o agendamento. Tente novamente.', 'error'));
         };
 
+        // ---------- ORGANIZAÇÃO / PERFIL / PROFISSIONAIS ----------
         window.salvarOrg = function() {
             t.name = document.getElementById('org-name').value;
             const hours = parseInt(document.getElementById('org-cancel-hours').value);
             t.cancelMinHours = (isNaN(hours) || hours < 0) ? 0 : hours;
-            saveDB(['name', 'cancelMinHours']);
+            const keys = ['name', 'cancelMinHours'];
+            if (draft.logo) { t.logo = draft.logo; keys.push('logo'); delete draft.logo; }
+            saveDB(keys);
             showModal('Sucesso', 'Organização atualizada!', 'success');
         };
-        window.handleImageUpload = function(e, type, userId = null) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (event) => { if(type === 'logo') { t.logo = event.target.result; saveDB(['logo']); } else { let user = t.admin.id === userId ? t.admin : t.employees.find(emp=>emp.id===userId); user.avatar = event.target.result; saveDB(['admin', 'employees']); } }; reader.readAsDataURL(file); };
-        window.salvarPerfil = function(userId) { const role = session.role; let user = role === 'admin' ? t.admin : t.employees.find(emp=>emp.id===userId); user.name = document.getElementById('prof-name').value; user.email = document.getElementById('prof-email').value; if(role === 'employee') { const oldP = document.getElementById('prof-old-pass').value; const newP = document.getElementById('prof-new-pass').value; if(oldP || newP) { if(oldP !== user.password) return showModal('Erro', 'Senha atual incorreta.', 'error'); if(!newP) return showModal('Erro', 'Digite a nova senha.', 'error'); user.password = newP; } } else { const adminP = document.getElementById('prof-pass-admin').value; if(adminP) user.password = adminP; } saveDB(['admin', 'employees']); showModal('Sucesso', 'Perfil atualizado!', 'success'); };
-        window.saveEmployee = function(e) { e.preventDefault(); const name = document.getElementById('e-name').value; const email = document.getElementById('e-email').value; const pass = document.getElementById('e-pass').value; const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value); if(editEmployeeId) { let emp = t.employees.find(x=>x.id===editEmployeeId); emp.name = name; emp.email = email; emp.procedures = checks; if(pass) emp.password = pass; } else { const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length]; t.employees.push({ id: 'emp-'+Date.now(), name, email, password: pass, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} }); } editEmployeeId = null; saveDB(['employees']); };
-        
+
+        // só pré-visualiza; grava ao clicar em Salvar
+        window.handleImageUpload = function(e, type) {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => { draft[type] = ev.target.result; render(); };
+            reader.readAsDataURL(file);
+        };
+
+        window.salvarPerfil = async function(userId) {
+            const role = session.role;
+            const user = role === 'admin' ? t.admin : t.employees.find(emp => emp.id === userId);
+            const conf = document.getElementById('prof-pass-conf').value;
+            let novoHash = null;
+
+            if (role === 'employee') {
+                const oldP = document.getElementById('prof-old-pass').value;
+                const newP = document.getElementById('prof-new-pass').value;
+                if (oldP || newP || conf) {
+                    const r = await verificarSenha(oldP, user.password);
+                    if (!r.ok) return showModal('Erro', 'Senha atual incorreta.', 'error');
+                    const err = validarNovaSenha(newP, conf);
+                    if (err) return showModal('Erro', err, 'error');
+                    novoHash = await hashSenha(newP);
+                }
+            } else {
+                const newP = document.getElementById('prof-pass-admin').value;
+                if (newP || conf) {
+                    const err = validarNovaSenha(newP, conf);
+                    if (err) return showModal('Erro', err, 'error');
+                    novoHash = await hashSenha(newP);
+                }
+            }
+            user.name = document.getElementById('prof-name').value;
+            user.email = document.getElementById('prof-email').value;
+            if (novoHash) user.password = novoHash;
+            if (draft.avatar) { user.avatar = draft.avatar; delete draft.avatar; }
+            saveDB(['admin', 'employees']);
+            showModal('Sucesso', 'Perfil atualizado!', 'success');
+        };
+
+        window.saveEmployee = async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('e-name').value;
+            const email = document.getElementById('e-email').value;
+            const pass = document.getElementById('e-pass').value;
+            const pass2 = document.getElementById('e-pass2').value;
+            const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value);
+            let senhaHash = null;
+            if (!editEmployeeId || pass || pass2) {
+                const err = validarNovaSenha(pass, pass2);
+                if (err) return showModal('Erro', err, 'error');
+                senhaHash = await hashSenha(pass);
+            }
+            if (editEmployeeId) {
+                const emp = t.employees.find(x => x.id === editEmployeeId);
+                emp.name = name; emp.email = email; emp.procedures = checks;
+                if (senhaHash) emp.password = senhaHash;
+            } else {
+                const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length];
+                t.employees.push({ id: 'emp-' + Date.now(), name, email, password: senhaHash, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} });
+            }
+            editEmployeeId = null;
+            saveDB(['employees']);
+        };
+
+        // ---------- GESTÃO DE CLIENTES ----------
+        // 'clients' recebe escrita dos clientes ao mesmo tempo, então só por transação
+        window.toggleBlockClient = function(id) {
+            runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
+                if (!cur) return;
+                const list = toList(cur);
+                const c = list.find(x => x.id === id);
+                if (!c) return;
+                c.blocked = !c.blocked;
+                return list;
+            }).catch(() => showModal('Erro de conexão', 'Não foi possível atualizar o cliente.', 'error'));
+        };
+
+        window.saveClient = async function(e) {
+            e.preventDefault();
+            const err = validarNovaSenha(document.getElementById('c-pass').value, document.getElementById('c-pass2').value);
+            if (err) return showModal('Erro', err, 'error');
+            const novo = {
+                id: 'cli-' + Date.now(),
+                name: document.getElementById('c-name').value.trim(),
+                email: document.getElementById('c-email').value.trim(),
+                phone: document.getElementById('c-phone').value.trim(),
+                password: await hashSenha(document.getElementById('c-pass').value),
+                blocked: false
+            };
+            let duplicado = false;
+            runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
+                duplicado = false;
+                const list = toList(cur);
+                if (list.some(c => (c.email || '').toLowerCase() === novo.email.toLowerCase())) { duplicado = true; return; }
+                list.push(novo);
+                return list;
+            }).then(r => {
+                if (duplicado) return showModal('Aviso', 'Já existe um cliente com este e-mail.', 'error');
+                if (r.committed) showModal('Sucesso', 'Cliente cadastrado!', 'success');
+            }).catch(() => showModal('Erro de conexão', 'Não foi possível salvar o cliente.', 'error'));
+        };
+
+        // ---------- SERVIÇOS ----------
         window.saveProcedure = function(e) { 
             e.preventDefault(); 
             const name = document.getElementById('p-name').value;
