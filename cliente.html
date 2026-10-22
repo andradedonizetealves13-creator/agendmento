@@ -145,6 +145,11 @@
             onValue, 
             runTransaction 
         } from './firebase-config.js';
+        import { 
+            updatePassword, 
+            reauthenticateWithCredential, 
+            EmailAuthProvider 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const THEME_PALETTES = [
             { id: 'indigo_classic', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b' },
@@ -775,6 +780,8 @@
             }
 
             function renderClientProfileTab() {
+                const isPasswordUser = auth.currentUser && auth.currentUser.providerData.some(p => p.providerId === 'password');
+
                 return `
                     <div class="max-w-xl mx-auto fade-in space-y-6">
                         <div class="bg-white/95 backdrop-blur-md p-5 sm:p-8 rounded-3xl shadow-xl border border-slate-100">
@@ -814,6 +821,33 @@
                                     <label class="block text-xs font-bold text-slate-700 mb-1">E-mail</label>
                                     <input type="email" value="${esc(currentClient.email)}" disabled class="w-full px-4 py-3 bg-slate-100 border rounded-xl text-sm outline-none text-slate-500 font-medium cursor-not-allowed">
                                 </div>
+
+                                ${isPasswordUser ? `
+                                <div class="pt-4 border-t border-slate-200">
+                                    <p class="text-xs font-bold text-slate-900 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1 text-theme-primary"></i> Alterar Senha de Acesso</p>
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Senha Atual (obrigatória para alterar a senha)</label>
+                                            <input type="password" id="c-prof-old-pass" placeholder="Digite sua senha atual" class="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm outline-none">
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nova Senha</label>
+                                                <input type="password" id="c-prof-new-pass" placeholder="Nova senha" class="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm outline-none">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Confirmar Nova Senha</label>
+                                                <input type="password" id="c-prof-confirm-pass" placeholder="Repita a nova senha" class="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm outline-none">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : `
+                                <div class="pt-3 border-t border-slate-100 flex items-center text-xs text-slate-400">
+                                    <i data-lucide="shield-check" class="w-4 h-4 mr-1.5 text-emerald-600 shrink-0"></i>
+                                    <span>Conta autenticada e protegida diretamente via <b>Google</b>.</span>
+                                </div>
+                                `}
 
                                 <button type="submit" class="w-full btn-theme-primary font-bold py-4 rounded-2xl shadow-lg mt-6 transition-all">Salvar Alterações do Perfil</button>
                             </form>
@@ -959,7 +993,7 @@
             };
             // ==========================================
 
-            window.handleSaveClientProfile = function(e) {
+            window.handleSaveClientProfile = async function(e) {
                 e.preventDefault();
                 const newName = document.getElementById('c-prof-name').value.trim();
                 const phoneRaw = document.getElementById('c-prof-phone').value;
@@ -968,6 +1002,32 @@
 
                 if (!newName || newName.length < 3) return showModal('Aviso', 'Informe seu nome completo.', 'error');
                 if (digitsPhone.length !== 11) return showModal('Telefone Inválido', 'Informe um telefone/WhatsApp válido com DDD e 9 dígitos.', 'error');
+
+                // Verificação e atualização de senha para usuários normais (e-mail e senha)
+                const oldPassEl = document.getElementById('c-prof-old-pass');
+                const newPassEl = document.getElementById('c-prof-new-pass');
+                const confirmPassEl = document.getElementById('c-prof-confirm-pass');
+
+                if (oldPassEl && newPassEl && confirmPassEl) {
+                    const oldPass = oldPassEl.value.trim();
+                    const newPass = newPassEl.value.trim();
+                    const confirmPass = confirmPassEl.value.trim();
+
+                    if (oldPass || newPass || confirmPass) {
+                        if (!oldPass) return showModal('Erro de Senha', 'Digite sua senha atual para autorizar a alteração.', 'error');
+                        if (newPass.length < 6) return showModal('Erro de Senha', 'A nova senha deve possuir pelo menos 6 caracteres.', 'error');
+                        if (newPass !== confirmPass) return showModal('Erro de Senha', 'A confirmação da nova senha não confere.', 'error');
+
+                        try {
+                            const user = auth.currentUser;
+                            const cred = EmailAuthProvider.credential(user.email, oldPass);
+                            await reauthenticateWithCredential(user, cred);
+                            await updatePassword(user, newPass);
+                        } catch (errAuth) {
+                            return showModal('Erro ao alterar senha', 'Senha atual incorreta ou tempo de sessão expirado.', 'error');
+                        }
+                    }
+                }
 
                 currentClient = { ...currentClient, name: newName, phone: phoneRaw };
 
