@@ -132,6 +132,11 @@
     </div>
 
     <script type="module">
+        // Remove .html da barra de endereço
+        if (window.location.pathname.endsWith('.html')) {
+            window.history.replaceState(null, '', window.location.pathname.replace(/\.html$/, '') + window.location.search);
+        }
+
         import { 
             auth, 
             rtdb, 
