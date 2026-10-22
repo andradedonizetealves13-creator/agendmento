@@ -5,9 +5,20 @@ import {
     createUserWithEmailAndPassword, 
     GoogleAuthProvider, 
     signInWithPopup, 
-    signOut 
+    signOut,
+    onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { 
+    getDatabase, 
+    ref, 
+    set, 
+    get, 
+    child, 
+    update, 
+    onValue, 
+    runTransaction, 
+    push 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
@@ -21,7 +32,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getDatabase(app);
+export const rtdb = getDatabase(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export { 
@@ -29,8 +40,13 @@ export {
     createUserWithEmailAndPassword, 
     signInWithPopup, 
     signOut, 
+    onAuthStateChanged,
     ref, 
     set, 
     get, 
-    child 
-};
+    child, 
+    update, 
+    onValue, 
+    runTransaction, 
+    push 
+}
