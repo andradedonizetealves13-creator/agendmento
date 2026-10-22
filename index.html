@@ -14,32 +14,22 @@
 </head>
 <body class="min-h-screen w-full flex items-center justify-center p-4">
 
-    <!-- Container da Interface -->
     <div id="app-container" class="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full fade-in relative">
-        
         <div class="text-center mb-6 flex flex-col items-center">
-            <!-- Logo Primstav AUMENTADA -->
             <img src="image_cbdce4.png" alt="Logo Primstav" class="h-20 sm:h-24 w-auto object-contain mb-2">
-            
-            <!-- Subtítulo -->
             <p class="text-sm text-slate-500 font-medium">Portal do Profissional</p>
         </div>
 
-        <!-- Abas de Navegação -->
         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
-            <!-- Cor alterada para text-amber-600 -->
             <button id="tab-login" class="flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all">Entrar</button>
             <button id="tab-register" class="flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all">Criar Empresa</button>
         </div>
 
-        <!-- Mensagens de Erro -->
         <div id="error-msg" class="hidden mb-4 p-3 bg-rose-50 text-rose-600 text-sm rounded-lg border border-rose-100 text-center font-medium"></div>
 
-        <!-- Formulário -->
         <form id="auth-form" class="space-y-4">
             <div id="box-empresa" class="hidden">
                 <label class="block text-xs font-semibold mb-1 text-slate-700">Nome da Empresa</label>
-                <!-- Foco alterado para focus:border-amber-500 -->
                 <input type="text" id="inp-empresa" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
             </div>
             <div>
@@ -51,21 +41,19 @@
                 <input type="password" id="inp-pass" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
             </div>
             <div id="box-confirm" class="hidden">
-                <label class="block text-xs font-semibold mb-1 text-slate-700">Confirmar Senha</label>
+                <label class="block text-xs font-semibold mb-1 text-slate-700">Repetir Senha</label>
                 <input type="password" id="inp-confirm" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
+                <p class="text-[11px] text-slate-400 mt-1">Mínimo de 8 caracteres, com letras e números.</p>
             </div>
-            
-            <!-- Botão com fundo bg-amber-600 -->
             <button type="submit" id="btn-submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md mt-2 transition-all">Acessar Painel</button>
         </form>
     </div>
 
-    <!-- Firebase e Lógica -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { hashSenha, verificarSenha, validarNovaSenha } from './seguranca.js';
 
-        // Configuração do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",
             authDomain: "agenda-16a31.firebaseapp.com",
@@ -78,52 +66,40 @@
 
         const app = initializeApp(firebaseConfig);
         const rtdb = getDatabase(app);
+        const TENANTS = 'agendapro_saas/tenants';
 
         let mode = 'login';
-        
-        // Elementos da UI
         const tabLogin = document.getElementById('tab-login');
         const tabReg = document.getElementById('tab-register');
         const boxEmpresa = document.getElementById('box-empresa');
         const boxConfirm = document.getElementById('box-confirm');
         const btnSubmit = document.getElementById('btn-submit');
         const errorMsg = document.getElementById('error-msg');
-        
-        function showError(msg) {
-            errorMsg.textContent = msg;
-            errorMsg.classList.remove('hidden');
+
+        const ON = 'flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all';
+        const OFF = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all';
+
+        function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.remove('hidden'); }
+
+        function setMode(m) {
+            mode = m;
+            const reg = m === 'register';
+            tabLogin.className = reg ? OFF : ON;
+            tabReg.className = reg ? ON : OFF;
+            boxEmpresa.classList.toggle('hidden', !reg);
+            boxConfirm.classList.toggle('hidden', !reg);
+            document.getElementById('inp-empresa').required = reg;
+            document.getElementById('inp-confirm').required = reg;
+            btnSubmit.textContent = reg ? 'Criar Conta' : 'Acessar Painel';
+            errorMsg.classList.add('hidden');
+        }
+        tabLogin.onclick = () => setMode('login');
+        tabReg.onclick = () => setMode('register');
+
+        function generateSlug(text) {
+            return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
         }
 
-        // Alternar abas (Javascript atualizado para a cor text-amber-600)
-        tabLogin.onclick = () => {
-            mode = 'login';
-            tabLogin.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all';
-            tabReg.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all';
-            boxEmpresa.classList.add('hidden');
-            boxConfirm.classList.add('hidden');
-            document.getElementById('inp-empresa').required = false;
-            document.getElementById('inp-confirm').required = false;
-            btnSubmit.textContent = 'Acessar Painel';
-            errorMsg.classList.add('hidden');
-        };
-
-        tabReg.onclick = () => {
-            mode = 'register';
-            tabReg.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all';
-            tabLogin.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all';
-            boxEmpresa.classList.remove('hidden');
-            boxConfirm.classList.remove('hidden');
-            document.getElementById('inp-empresa').required = true;
-            document.getElementById('inp-confirm').required = true;
-            btnSubmit.textContent = 'Criar Conta';
-            errorMsg.classList.add('hidden');
-        };
-
-        function generateSlug(text) { 
-            return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''); 
-        }
-
-        // Submissão do Formulário
         document.getElementById('auth-form').onsubmit = async (e) => {
             e.preventDefault();
             errorMsg.classList.add('hidden');
@@ -131,54 +107,61 @@
             btnSubmit.disabled = true;
 
             const email = document.getElementById('inp-email').value.trim();
-            const pass = document.getElementById('inp-pass').value.trim();
+            const pass = document.getElementById('inp-pass').value;
 
             try {
-                const snapshot = await get(ref(rtdb, 'agendapro_saas/tenants'));
-                let tenants = snapshot.val() || {};
-
                 if (mode === 'register') {
                     const empresa = document.getElementById('inp-empresa').value.trim();
-                    const confirm = document.getElementById('inp-confirm').value.trim();
-                    
-                    if (pass !== confirm) throw new Error('As senhas não coincidem.');
-                    
+                    const confirm = document.getElementById('inp-confirm').value;
+
+                    const err = validarNovaSenha(pass, confirm);
+                    if (err) throw new Error(err);
+
                     const slug = generateSlug(empresa);
-                    if (tenants[slug]) throw new Error('Este nome de empresa já está em uso.');
+                    if (!slug) throw new Error('Informe um nome de empresa válido.');
 
-                    // Estrutura inicial
-                    tenants[slug] = {
+                    // grava só a nova empresa (nunca sobrescreve as outras)
+                    const existente = await get(ref(rtdb, TENANTS + '/' + slug));
+                    if (existente.exists()) throw new Error('Este nome de empresa já está em uso.');
+
+                    const adminId = 'adm-' + Date.now();
+                    await set(ref(rtdb, TENANTS + '/' + slug), {
                         name: empresa,
-                        admin: { id: 'adm-'+Date.now(), name: 'Administrador', email: email, password: pass },
-                        employees: [], procedures: [], appointments: [], clients: []
-                    };
-                    
-                    await set(ref(rtdb, 'agendapro_saas/tenants'), tenants);
-                    
-                    // Salvar sessão e redirecionar
-                    localStorage.setItem('agendaProSession', JSON.stringify({ slug, id: tenants[slug].admin.id, role: 'admin' }));
-                    window.location.href = 'painel.html';
+                        admin: { id: adminId, name: 'Administrador', email, password: await hashSenha(pass) }
+                    });
 
+                    localStorage.setItem('agendaProSession', JSON.stringify({ slug, id: adminId, role: 'admin' }));
+                    window.location.href = 'painel.html';
                 } else {
-                    // Login
-                    let foundUser = null;
+                    const snapshot = await get(ref(rtdb, TENANTS));
+                    const tenants = snapshot.val() || {};
+                    const mail = email.toLowerCase();
+                    let found = null;
+
                     for (const slug in tenants) {
                         const t = tenants[slug];
-                        if (t.admin && t.admin.email === email && t.admin.password === pass) { 
-                            foundUser = { slug, id: t.admin.id, role: 'admin' }; break; 
+                        if (t.admin && (t.admin.email || '').toLowerCase() === mail) {
+                            const chk = await verificarSenha(pass, t.admin.password);
+                            if (chk.ok) {
+                                if (chk.precisaMigrar) await set(ref(rtdb, `${TENANTS}/${slug}/admin/password`), await hashSenha(pass));
+                                found = { slug, id: t.admin.id, role: 'admin' }; break;
+                            }
                         }
-                        if (t.employees) {
-                            const emp = t.employees.find(e => e.email === email && e.password === pass);
-                            if (emp) { foundUser = { slug, id: emp.id, role: 'employee' }; break; }
+                        const emps = Array.isArray(t.employees) ? t.employees.map((x, i) => [i, x]) : Object.entries(t.employees || {});
+                        for (const [key, emp] of emps) {
+                            if (!emp || (emp.email || '').toLowerCase() !== mail) continue;
+                            const chk = await verificarSenha(pass, emp.password);
+                            if (chk.ok) {
+                                if (chk.precisaMigrar) await set(ref(rtdb, `${TENANTS}/${slug}/employees/${key}/password`), await hashSenha(pass));
+                                found = { slug, id: emp.id, role: 'employee' }; break;
+                            }
                         }
+                        if (found) break;
                     }
 
-                    if (foundUser) {
-                        localStorage.setItem('agendaProSession', JSON.stringify(foundUser));
-                        window.location.href = 'painel.html';
-                    } else {
-                        throw new Error('E-mail ou senha incorretos.');
-                    }
+                    if (!found) throw new Error('E-mail ou senha incorretos.');
+                    localStorage.setItem('agendaProSession', JSON.stringify(found));
+                    window.location.href = 'painel.html';
                 }
             } catch (err) {
                 showError(err.message);
