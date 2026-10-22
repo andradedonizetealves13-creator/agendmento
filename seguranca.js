@@ -1,48 +1,257 @@
-// seguranca.js — módulo compartilhado (index.html, painel.html, cliente.html)
-// Uso: import { hashSenha, verificarSenha, validarNovaSenha, semSenha } from './seguranca.js';
 
-const ITERACOES = 150000;
+ // seguranca.js — módulo compartilhado (index.html, painel.html, cliente.html)
+ // Uso: import { hashSenha, verificarSenha, validarNovaSenha, semSenha } from './seguranca.js';
+ //
+ // IMPORTANTE:
+ // Este módulo não configura TLS/HTTPS nem substitui a segurança do backend.
+
+const ITERACOES = 600000;
+const TAMANHO_SALT = 16;
+const TAMANHO_HASH_BITS = 256;
+const TAMANHO_HASH_BYTES = TAMANHO_HASH_BITS / 8;
+const PREFIXO_HASH = 'pbkdf2';
+const ITERACOES_MINIMAS = 100000;
+const ITERACOES_MAXIMAS = 1000000;
 const enc = new TextEncoder();
-const toB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
-const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
-async function derivar(senha, salt, iter) {
-    const chave = await crypto.subtle.importKey('raw', enc.encode(senha), 'PBKDF2', false, ['deriveBits']);
-    return crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, chave, 256);
+function exigirContextoSeguro() {
+    if (
+        typeof globalThis.isSecureContext === 'boolean' &&
+        !globalThis.isSecureContext
+    ) {
+        throw new Error(
+            'Acesse a aplicação por HTTPS válido ou localhost.'
+        );
+    }
+
+    if (!globalThis.crypto?.subtle ||
+        !globalThis.crypto?.getRandomValues) {
+        throw new Error(
+            'Web Crypto API indisponível. Verifique o HTTPS e o navegador.'
+        );
+    }
 }
 
-export const ehHash = (s) => typeof s === 'string' && s.startsWith('pbkdf2$');
+function toB64(buf) {
+    const bytes = new Uint8Array(buf);
+    let binario = '';
 
-// Gera "pbkdf2$iteracoes$salt$hash" (salt aleatório por senha)
+    for (const byte of bytes) {
+        binario += String.fromCharCode(byte);
+    }
+
+    return btoa(binario);
+}
+
+function fromB64(valor) {
+    if (
+        typeof valor !== 'string' ||
+        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(valor)
+    ) {
+        throw new Error('Base64 inválido.');
+    }
+
+    const binario = atob(valor);
+
+    return Uint8Array.from(
+        binario,
+        caractere => caractere.charCodeAt(0)
+    );
+}
+
+async function derivar(senha, salt, iteracoes) {
+    exigirContextoSeguro();
+
+    if (typeof senha !== 'string') {
+        throw new TypeError('A senha deve ser uma string.');
+    }
+
+    if (!(salt instanceof Uint8Array) ||
+        salt.length !== TAMANHO_SALT) {
+        throw new Error('Salt inválido.');
+    }
+
+    if (
+        !Number.isSafeInteger(iteracoes) ||
+        iteracoes < ITERACOES_MINIMAS ||
+        iteracoes > ITERACOES_MAXIMAS
+    ) {
+        throw new Error('Número de iterações inválido.');
+    }
+
+    const chave = await crypto.subtle.importKey(
+        'raw',
+        enc.encode(senha),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveBits']
+    );
+
+    return crypto.subtle.deriveBits(
+        {
+            name: 'PBKDF2',
+            salt,
+            iterations: iteracoes,
+            hash: 'SHA-256'
+        },
+        chave,
+        TAMANHO_HASH_BITS
+    );
+}
+
+export const ehHash = valor =>
+    typeof valor === 'string' &&
+    valor.startsWith(`${PREFIXO_HASH}$`);
+
 export async function hashSenha(senha) {
-    const salt = crypto.getRandomValues(new Uint8Array(16));
+    exigirContextoSeguro();
+
+    if (typeof senha !== 'string' || senha.length === 0) {
+        throw new TypeError('Informe uma senha válida.');
+    }
+
+    const salt = crypto.getRandomValues(
+        new Uint8Array(TAMANHO_SALT)
+    );
+
     const bits = await derivar(senha, salt, ITERACOES);
-    return `pbkdf2$${ITERACOES}$${toB64(salt)}$${toB64(bits)}`;
+
+    return `${PREFIXO_HASH}$${ITERACOES}$${toB64(salt)}$${toB64(bits)}`;
 }
 
-// Confere a senha. Aceita contas antigas (texto puro) e avisa para converter.
-// Retorna { ok, precisaMigrar }. Se precisaMigrar for true, salve hashSenha(senha) no cadastro.
+function compararBytes(a, b) {
+    if (
+        !(a instanceof Uint8Array) ||
+        !(b instanceof Uint8Array) ||
+        a.length !== b.length
+    ) {
+        return false;
+    }
+
+    let diferenca = 0;
+
+    for (let i = 0; i < a.length; i++) {
+        diferenca |= a[i] ^ b[i];
+    }
+
+    return diferenca === 0;
+}
+
+function interpretarHash(guardado) {
+    const partes = guardado.split('$');
+
+    if (partes.length !== 4 || partes[0] !== PREFIXO_HASH) {
+        throw new Error('Formato de hash inválido.');
+    }
+
+    const iteracoes = Number(partes[1]);
+
+    if (
+        !Number.isSafeInteger(iteracoes) ||
+        iteracoes < ITERACOES_MINIMAS ||
+        iteracoes > ITERACOES_MAXIMAS
+    ) {
+        throw new Error('Número de iterações inválido.');
+    }
+
+    const salt = fromB64(partes[2]);
+    const hash = fromB64(partes[3]);
+
+    if (
+        salt.length !== TAMANHO_SALT ||
+        hash.length !== TAMANHO_HASH_BYTES
+    ) {
+        throw new Error('Tamanho de hash ou salt inválido.');
+    }
+
+    return { iteracoes, salt, hash };
+}
+
+// Retorna { ok, precisaMigrar }.
+// Senhas antigas em texto puro são aceitas apenas para migração.
+// Migre o registro no backend após autenticação válida.
 export async function verificarSenha(senha, guardado) {
-    if (!guardado) return { ok: false, precisaMigrar: false };
+    exigirContextoSeguro();
+
+    if (
+        typeof senha !== 'string' ||
+        typeof guardado !== 'string' ||
+        guardado.length === 0
+    ) {
+        return { ok: false, precisaMigrar: false };
+    }
+
     if (!ehHash(guardado)) {
         const ok = senha === guardado;
-        return { ok, precisaMigrar: ok };
+
+        return {
+            ok,
+            precisaMigrar: ok
+        };
     }
-    const [, iter, salt, hash] = guardado.split('$');
-    const bits = await derivar(senha, fromB64(salt), parseInt(iter, 10));
-    return { ok: toB64(bits) === hash, precisaMigrar: parseInt(iter, 10) < ITERACOES };
+
+    try {
+        const { iteracoes, salt, hash } =
+            interpretarHash(guardado);
+
+        const calculado = new Uint8Array(
+            await derivar(senha, salt, iteracoes)
+        );
+
+        return {
+            ok: compararBytes(calculado, hash),
+            precisaMigrar: iteracoes < ITERACOES
+        };
+    } catch {
+        return {
+            ok: false,
+            precisaMigrar: false
+        };
+    }
 }
 
-// Validação para QUALQUER criação/troca de senha. Retorna texto do erro ou null se estiver ok.
+// Retorna a mensagem de erro ou null se estiver válido.
 export function validarNovaSenha(nova, confirmacao) {
-    if (!nova || nova.length < 8) return 'A senha deve ter pelo menos 8 caracteres.';
-    if (!/[A-Za-z]/.test(nova) || !/\d/.test(nova)) return 'A senha deve ter letras e números.';
-    if (nova !== confirmacao) return 'A confirmação não é igual à nova senha.';
+    if (typeof nova !== 'string' || nova.length < 12) {
+        return 'A senha deve ter pelo menos 12 caracteres.';
+    }
+
+    if (nova.length > 1024) {
+        return 'A senha excede o tamanho máximo permitido.';
+    }
+
+    if (!/[A-Za-zÀ-ÿ]/.test(nova) || !/\d/.test(nova)) {
+        return 'A senha deve conter letras e números.';
+    }
+
+    if (nova !== confirmacao) {
+        return 'A confirmação não é igual à nova senha.';
+    }
+
     return null;
 }
 
-// Remove a senha de um objeto antes de exibir/listar (ex.: gestão de clientes)
+// Remove campos de senha e hash antes de exibir objetos.
+// A API também deve retornar somente os campos necessários.
 export function semSenha(obj) {
-    const { password, ...resto } = obj || {};
+    if (
+        !obj ||
+        typeof obj !== 'object' ||
+        Array.isArray(obj)
+    ) {
+        return {};
+    }
+
+    const {
+        password,
+        senha,
+        senha_hash,
+        password_hash,
+        passwordHash,
+        senhaHash,
+        hash_senha,
+        ...resto
+    } = obj;
+
     return resto;
 }
