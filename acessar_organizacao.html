@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Primstav - Login e Registo</title>
+    <title>Primstav - Acesso Organização</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -17,7 +17,7 @@
     <div id="app-container" class="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full fade-in relative">
         <div class="text-center mb-6 flex flex-col items-center">
             <img src="image_cbdce4.png" alt="Logo Primstav" class="h-20 sm:h-24 w-auto object-contain mb-2">
-            <p class="text-sm text-slate-500 font-medium">Portal do Profissional</p>
+            <p class="text-sm text-slate-500 font-medium">Portal da Organização</p>
         </div>
 
         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
@@ -62,6 +62,11 @@
     </div>
 
     <script type="module">
+        // Remove .html da barra de endereço
+        if (window.location.pathname.endsWith('.html')) {
+            window.history.replaceState(null, '', window.location.pathname.replace(/\.html$/, '') + window.location.search);
+        }
+
         import { 
             auth, 
             googleProvider, 
