@@ -468,7 +468,7 @@
             if(!userProfile) return logout();
 
             const logoHtml = t.logo ? `<img src="${t.logo}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-lg shadow-sm">O</div>`;
-            const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${esc(userProfile.name.charAt(0))}</div>`;
+            const userAvatarHtml = userProfile.avatar ? `<img src="${userProfile.avatar}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-300">${userProfile.name.charAt(0)}</div>`;
 
             const sidebarClasses = isSidebarOpenMobile ? "fixed inset-y-0 left-0 z-[110] w-72 bg-white/90 backdrop-blur-md shadow-2xl translate-x-0 flex flex-col h-full" : "fixed inset-y-0 left-0 z-[110] w-72 bg-white/90 backdrop-blur-md shadow-2xl -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:w-20 hover:md:w-64 transition-all duration-300 group flex flex-col shrink-0 overflow-hidden";
             const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-[105] md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
@@ -871,12 +871,12 @@
                         <div class="max-w-4xl mx-auto space-y-6 fade-in">
                             ${pendingRequests.length > 0 ? `
                                 <div class="bg-amber-50/90 border-2 border-amber-200 p-6 rounded-2xl shadow-sm">
-                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes de Folga / Horário Extra (${pendingRequests.length})</h3>
+                                    <h3 class="font-bold text-base text-amber-900 mb-3 flex items-center"><i data-lucide="bell" class="w-5 h-5 mr-2"></i> Solicitações Pendentes de Folga / Plantão (${pendingRequests.length})</h3>
                                     <div class="space-y-3">
                                         ${pendingRequests.map(r => `
                                             <div class="bg-white p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                                                 <div>
-                                                    <p class="font-bold text-slate-800 text-sm">${esc(r.empName)} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Folga':'Horário extra'}</span></p>
+                                                    <p class="font-bold text-slate-800 text-sm">${esc(r.empName)} — <span class="${r.type==='folga'?'text-rose-600':'text-emerald-600'}">${r.type==='folga'?'Ausência/Folga':'Hora a mais (Plantão)'}</span></p>
                                                     <p class="text-xs text-slate-500">Data: <b>${formatDateBR(r.date)}</b> ${r.type==='plantao'? `(${r.start} às ${r.end})`:''}</p>
                                                 </div>
                                                 <div class="flex items-center space-x-2">
@@ -916,13 +916,13 @@
 
                                 <div class="space-y-6">
                                     <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                        <h3 class="font-bold text-lg mb-2">Folga / Horário Extra Geral (Empresa)</h3>
+                                        <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral (Empresa)</h3>
                                         <div class="space-y-4 mt-4">
                                             <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
                                             <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
                                                 <select id="exc-type" onchange="document.getElementById('exc-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium">
-                                                    <option value="folga">Folga Geral</option>
-                                                    <option value="plantao">Horário Extra Geral</option>
+                                                    <option value="folga">Ausência / Folga Geral</option>
+                                                    <option value="plantao">Plantão Geral</option>
                                                 </select>
                                             </div>
                                             <div id="exc-times" class="hidden flex items-center space-x-4">
@@ -939,7 +939,7 @@
                                             ${excs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma cadastrada.</p>' : excs.map(e => `
                                                 <div class="p-3 border rounded-xl flex items-center justify-between ${e.type==='folga'?'bg-rose-50/50 border-rose-100':'bg-emerald-50/50 border-emerald-100'}">
                                                     <div>
-                                                        <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} - ${e.type==='folga'?'Folga Geral':'Horário Extra Geral'}</p>
+                                                        <p class="font-bold text-sm ${e.type==='folga'?'text-rose-700':'text-emerald-700'}">${formatDateBR(e.date)} - ${e.type==='folga'?'Folga Geral':'Plantão Geral'}</p>
                                                         ${e.type==='plantao' ? `<p class="text-xs text-emerald-600 font-medium">${e.start} às ${e.end}</p>` : ''}
                                                     </div>
                                                     <button onclick="removeException('${e.date}')" class="text-rose-500 bg-white hover:bg-rose-50 p-2 rounded-lg shadow-sm border border-transparent hover:border-rose-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -956,12 +956,12 @@
                     return `
                         <div class="max-w-2xl mx-auto space-y-6 fade-in">
                             <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
-                                <h3 class="font-bold text-lg mb-1">Solicitar Folga ou Horário Extra</h3>
+                                <h3 class="font-bold text-lg mb-1">Solicitar Ausência ou Hora a Mais</h3>
                                 <form onsubmit="handleCreateRequest(event, '${user.id}')" class="space-y-4 mt-4">
                                     <div><label class="block text-xs font-bold mb-1.5">Tipo de Solicitação</label>
                                         <select id="req-type" onchange="document.getElementById('req-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-3 border rounded-xl text-sm bg-white font-medium">
-                                            <option value="folga">Solicitar Folga (dia inteiro)</option>
-                                            <option value="plantao">Solicitar Horário Extra</option>
+                                            <option value="folga">Solicitar Folga / Ausência (Dia inteiro)</option>
+                                            <option value="plantao">Solicitar Hora a Mais (Plantão)</option>
                                         </select>
                                     </div>
                                     <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="req-date" required class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div>
@@ -974,7 +974,7 @@
                                 <div class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
                                     ${myReqs.length === 0 ? '<p class="text-xs text-slate-400">Nenhuma solicitação enviada.</p>' : myReqs.map(r => `
                                         <div class="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
-                                            <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Folga':'Horário extra'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
+                                            <div><p class="font-bold text-sm text-slate-800">${formatDateBR(r.date)} — ${r.type==='folga'?'Ausência/Folga':'Hora a mais'}</p>${r.type==='plantao'? `<p class="text-xs text-slate-500 font-medium">${r.start} às ${r.end}</p>`:''}</div>
                                             <span class="text-xs font-bold px-3 py-1.5 rounded-full border ${r.status==='approved'?'bg-emerald-50 text-emerald-700 border-emerald-200':(r.status==='rejected'?'bg-rose-50 text-rose-700 border-rose-200':'bg-amber-50 text-amber-700 border-amber-200')}">${r.status==='approved'?'Aprovado':(r.status==='rejected'?'Recusado':'Pendente')}</span>
                                         </div>
                                     `).join('')}
