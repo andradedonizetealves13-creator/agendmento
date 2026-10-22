@@ -183,12 +183,12 @@
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'index.html';
+                window.location.href = 'acessar_organizacao.html';
             }
         });
 
         const sessionStr = localStorage.getItem('agendaProSession');
-        if (!sessionStr) { window.location.href = 'index.html'; }
+        if (!sessionStr) { window.location.href = 'acessar_organizacao.html'; }
         const session = JSON.parse(sessionStr || '{}');
 
         const basePath = 'agendapro_saas/tenants/' + (session.slug || 'demo');
@@ -271,7 +271,7 @@
             const data = snapshot.val();
             if (!data) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'index.html';
+                window.location.href = 'acessar_organizacao.html';
                 return;
             }
             window.t = data;
@@ -471,7 +471,7 @@
             document.querySelectorAll('.custom-dropdown-menu').forEach(m => m.classList.add('hidden'));
         });
         
-        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'index.html'; };
+        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'acessar_organizacao.html'; };
 
         window.render = function() {
             if(!window.t) return;
@@ -548,7 +548,7 @@
         };
 
         window.copiarLinkCliente = function() { 
-            const baseUrl = window.location.href.replace('painel_do_profissional.html', 'cliente.html').split('?')[0];
+            const baseUrl = window.location.href.replace(/painel_do_profissional(\.html)?/, 'cliente').split('?')[0];
             const link = baseUrl + '?org=' + session.slug; 
             navigator.clipboard.writeText(link); 
             showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); 
