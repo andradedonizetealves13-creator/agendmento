@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Primstav - Painel de Controle</title>
+    <title>AgendaPro - Painel de Controle</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -74,7 +74,6 @@
         .bg-theme-secondary { background-color: var(--theme-secondary); }
         .text-theme-primary { color: var(--theme-primary); }
 
-        /* Faz as cores "índigo" fixas acompanharem o tema escolhido */
         .text-indigo-600, .text-indigo-700 { color: var(--theme-primary) !important; }
         .bg-indigo-600 { background-color: var(--theme-primary) !important; }
         .bg-indigo-50, .bg-indigo-100, .hover\:bg-indigo-50:hover, .hover\:bg-indigo-100:hover { background-color: var(--theme-secondary) !important; }
@@ -95,7 +94,6 @@
         <p class="text-sm text-slate-500 font-medium">Sincronizando com a sua empresa...</p>
     </div>
 
-    <!-- MODAL DE CRIAÇÃO MANUAL -->
     <div id="create-modal" class="hidden fixed inset-0 z-[115] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 relative">
             <button onclick="closeCreateModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
@@ -141,7 +139,6 @@
         </div>
     </div>
 
-    <!-- MODAL CUSTOMIZADO DE AVISOS -->
     <div id="custom-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div id="modal-icon-container" class="mb-4 flex items-center justify-center w-12 h-12 rounded-full mx-auto"></div>
@@ -159,6 +156,10 @@
     </div>
 
     <script type="module">
+        if (window.location.pathname.endsWith('.html')) {
+            window.history.replaceState(null, '', window.location.pathname.replace(/\.html$/, '') + window.location.search);
+        }
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { auth, rtdb, signOut, onAuthStateChanged, ref, update, onValue, runTransaction, get, child, set } from './firebase-config.js';
@@ -183,12 +184,12 @@
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'acessar_organizacao.html';
+                window.location.href = 'index.html';
             }
         });
 
         const sessionStr = localStorage.getItem('agendaProSession');
-        if (!sessionStr) { window.location.href = 'acessar_organizacao.html'; }
+        if (!sessionStr) { window.location.href = 'index.html'; }
         const session = JSON.parse(sessionStr || '{}');
 
         const basePath = 'agendapro_saas/tenants/' + (session.slug || 'demo');
@@ -204,7 +205,6 @@
             { id: 'slate_dark', name: 'Grafite Elegante', bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a', previewBg: '#f1f5f9', previewPrimary: '#334155', previewAccent: '#cbd5e1' }
         ];
 
-        // 10 temas novos (os campos de preview são gerados automaticamente)
         const P = (id, name, bg, primary, primaryHover, secondary, dark) =>
             ({ id, name, bg, primary, primaryHover, secondary, dark, previewBg: bg, previewPrimary: primary, previewAccent: secondary });
 
@@ -248,12 +248,10 @@
         window.listFilterMonth = ''; window.listFilterDate = '';
         window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
         window.activeBgMode = 'desktop';
-        window.profileTab = 'aparencia';      // aparencia | empresa | perfil
-        window.agendaFilterEmp = 'all';       // filtro de profissional na agenda (admin)
+        window.profileTab = 'aparencia';     
+        window.agendaFilterEmp = 'all';      
 
-        // alterações de logo/foto/fundo que só são gravadas ao clicar em Salvar
         window.draft = {};
-        // inclui posição (PosX/PosY, em %) e zoom (em %) da imagem de fundo, e a opção de aplicar no painel
         const BG_KEYS = ['bgCustomImage','bgCustomOpacity','bgCustomBlur','bgCustomPosX','bgCustomPosY','bgCustomZoom',
                          'bgMobileImage','bgMobileOpacity','bgMobileBlur','bgMobilePosX','bgMobilePosY','bgMobileZoom',
                          'bgApplyPanel'];
@@ -271,7 +269,7 @@
             const data = snapshot.val();
             if (!data) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'acessar_organizacao.html';
+                window.location.href = 'index.html';
                 return;
             }
             window.t = data;
@@ -286,7 +284,6 @@
             if(!t.appointments) t.appointments = [];
             if(!t.clients) t.clients = [];
             
-            // o Firebase pode devolver listas como objeto; normaliza
             ['requests', 'employees', 'procedures', 'appointments', 'clients'].forEach(k => { t[k] = toList(t[k]); });
 
             t.employees.forEach((e, idx) => {
@@ -311,7 +308,6 @@
             document.documentElement.style.setProperty('--theme-text-primary', palette.dark);
         }
 
-        // A foto de fundo só aparece no painel se a opção "Aplicar também no painel" estiver marcada (bgApplyPanel)
         function applyBgImageSettings() {
             const isMobile = window.innerWidth <= 768;
             const useMobile = isMobile && !!t.bgMobileImage;
@@ -340,10 +336,6 @@
 
         function toList(v) { return Array.isArray(v) ? v.filter(x => x) : (v ? Object.values(v) : []); }
 
-        // ---------- GRAVAÇÃO SEGURA ----------
-        // 'clients' e 'appointments' recebem escritas dos clientes ao mesmo tempo, então o painel
-        // NUNCA os regrava por inteiro (isso apagaria cadastros e agendamentos novos).
-        // Agendamentos, solicitações e clientes usam transações; o resto grava só os campos da empresa.
         const LIVE_KEYS = ['clients', 'appointments'];
         window.saveDB = function(keys) {
             const list = keys || Object.keys(window.t).filter(k => !LIVE_KEYS.includes(k));
@@ -430,7 +422,6 @@
             return whSource?.[dayOfWeek]?.active !== false;
         };
 
-        // ---------- AVISOS (modal para confirmações/erros, toast para sucessos simples) ----------
         window.showToast = function(message, title) {
             const c = document.getElementById('toast-container');
             const el = document.createElement('div');
@@ -465,13 +456,12 @@
         window.toggleDropdown = function(id) { document.querySelectorAll('.custom-dropdown-menu').forEach(el => { if(el.id !== id) el.classList.add('hidden'); }); document.getElementById(id).classList.toggle('hidden'); };
         window.toggleMobileMenu = function() { isSidebarOpenMobile = !isSidebarOpenMobile; render(); };
 
-        // fecha dropdowns ao clicar fora
         document.addEventListener('click', (e) => {
             if (e.target.closest('.custom-dropdown-menu') || e.target.closest('[onclick^="toggleDropdown"]')) return;
             document.querySelectorAll('.custom-dropdown-menu').forEach(m => m.classList.add('hidden'));
         });
         
-        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'acessar_organizacao.html'; };
+        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'index.html'; };
 
         window.render = function() {
             if(!window.t) return;
@@ -545,17 +535,15 @@
                 </div>`;
             if(window.lucide) lucide.createIcons();
             attachDragHandlers();
-            fitPreviews();
         };
 
         window.copiarLinkCliente = function() { 
-            const baseUrl = window.location.href.replace(/painel_do_profissional(\.html)?/, 'cliente').split('?')[0];
+            const baseUrl = window.location.href.replace(/acesso_organizacao(\.html)?/, 'cliente').split('?')[0];
             const link = baseUrl + '?org=' + session.slug; 
             navigator.clipboard.writeText(link); 
             showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); 
         };
 
-        // ---------- CALENDÁRIO: arrastar com mouse / tocar no celular ----------
         function attachDragHandlers() {
             const dayColumns = document.querySelectorAll('.calendar-day-column');
             
@@ -583,7 +571,6 @@
                     }
                 });
 
-                // toque no celular: abre o modal no horário tocado (1h de duração)
                 col.addEventListener('click', (e) => {
                     if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
                     if (e.target.closest('.appointment-postit')) return;
@@ -595,7 +582,6 @@
             });
         }
 
-        // registrado uma única vez (antes era recriado a cada render)
         document.addEventListener('pointerup', (e) => {
             if (e.pointerType !== 'mouse') return;
             if (isDragging && activeColumnEl) {
@@ -658,7 +644,6 @@
                 (t.employees || []).forEach(e => {
                     empSelect.innerHTML += `<option value="${e.id}">${esc(e.name)}</option>`;
                 });
-                // se a agenda está filtrada por um profissional, já vem selecionado
                 if (agendaFilterEmp !== 'all') empSelect.value = agendaFilterEmp;
             } else {
                 const userProfile = t.employees.find(e => e.id === session.id);
@@ -666,7 +651,6 @@
                 empSelect.disabled = true;
             }
 
-            // data local (toISOString usava UTC e, à noite no Brasil, sugeria o dia seguinte)
             document.getElementById('manual-date').value = defaultDate || localDateStr();
             document.getElementById('manual-start-time').value = defaultStart;
             document.getElementById('manual-end-time').value = defaultEnd;
@@ -751,7 +735,6 @@
             doSave();
         };
 
-        // ---------- AGENDA: escopo, resumo do dia e legenda por profissional ----------
         function agendaScope(role, user) {
             let apps = (t.appointments || []).filter(a => a.status !== 'cancelado' && a.status !== 'nao_compareceu');
             if (role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
@@ -772,133 +755,71 @@
             return `<div class="flex flex-wrap gap-2 mb-4">${chip('all', 'Todos', '')}${people.map(p => chip(p.id, p.name, p.color)).join('')}</div>`;
         }
 
-        // ---------- PRÉ-VISUALIZAÇÃO DA TELA DO CLIENTE (réplica da tela de agendamento) ----------
-        // IMPORTANTE: a imagem (data URL) é colocada entre ASPAS SIMPLES porque este CSS vai dentro de style="...".
-        // Com aspas duplas o atributo quebrava e a imagem nunca aparecia.
         function bgLayerCss(o) {
-            return `background-image:${o.url ? `url('${o.url}')` : 'none'}; background-repeat:no-repeat; background-size:cover; background-position:${o.x}% ${o.y}%; opacity:${o.op}; filter:blur(${o.blur}px); transform:scale(${o.zoom / 100}); transform-origin:${o.x}% ${o.y}%;`;
-        }
-
-        // Tamanho "real" da tela do cliente que a pré-visualização simula
-        const PV = { desktop: { w: 1280, h: 720 }, mobile: { w: 390, h: 844 } };
-
-        // guarda o tamanho original da imagem (necessário para o arraste acompanhar o dedo/mouse)
-        let _dim = { url: null, w: 0, h: 0 };
-        function ensureImgDims(url) {
-            if (!url || _dim.url === url) return;
-            const im = new Image();
-            im.onload = () => { _dim = { url, w: im.naturalWidth, h: im.naturalHeight }; };
-            im.src = url;
-        }
-
-        function previewCalendar(mobile) {
-            const now = new Date(), y = now.getFullYear(), m = now.getMonth();
-            const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-            const first = new Date(y, m, 1).getDay(), total = new Date(y, m + 1, 0).getDate();
-            const cellH = mobile ? 40 : 44;
-            let cells = '';
-            for (let i = 0; i < first; i++) cells += '<div></div>';
-            for (let d = 1; d <= total; d++) {
-                const on = d >= now.getDate();
-                cells += `<div style="height:${cellH}px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:${mobile ? 13 : 14}px; font-weight:${on ? 700 : 500}; ${on ? 'background:#fff; border:1px solid #e2e8f0; color:#1e293b;' : 'background:#eef2f9; color:#cbd5e1;'}">${d}</div>`;
-            }
-            const wk = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'].map(s => `<div style="text-align:center; font-size:${mobile ? 10 : 11}px; font-weight:800; color:#94a3b8;">${s}</div>`).join('');
-            return `
-                <p style="text-align:center; font-size:${mobile ? 20 : 24}px; font-weight:800; color:#1e293b; margin:0 0 ${mobile ? 14 : 22}px;">Escolha o Dia</p>
-                <div style="display:flex; align-items:center; justify-content:space-between; height:${mobile ? 44 : 52}px; padding:0 20px; border:1px solid #e2e8f0; border-radius:16px; background:#f8fafc; margin-bottom:${mobile ? 14 : 20}px;">
-                    <i data-lucide="chevron-left" class="w-4 h-4" style="color:#cbd5e1"></i>
-                    <b style="font-size:${mobile ? 14 : 15}px; color:#1e293b;">${nomes[m]} ${y}</b>
-                    <i data-lucide="chevron-right" class="w-4 h-4" style="color:#1e293b"></i>
-                </div>
-                <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:8px;">${wk}</div>
-                <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px;">${cells}</div>`;
+            return `background-image:${o.url ? `url("${o.url}")` : 'none'}; background-size:cover; background-position:${o.x}% ${o.y}%; opacity:${o.op}; filter:blur(${o.blur}px); transform:scale(${o.zoom / 100}); transform-origin:${o.x}% ${o.y}%;`;
         }
 
         function clientPreviewHtml(isMobile, o) {
-            ensureImgDims(o.url);
-            const { w: W, h: H } = PV[isMobile ? 'mobile' : 'desktop'];
             const logoSrc = draft.logo || t.logo;
-            const photoSize = isMobile ? 62 : 80;
-            const photo = logoSrc
-                ? `<img src="${logoSrc}" style="width:${photoSize}px; height:${photoSize}px; border-radius:16px; object-fit:cover; border:3px solid #fff; box-shadow:0 6px 16px rgba(0,0,0,.18);">`
-                : `<div class="btn-theme-primary" style="width:${photoSize}px; height:${photoSize}px; border-radius:16px; border:3px solid #fff; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:800;">${esc((t.name || 'O').charAt(0))}</div>`;
+            const logo = logoSrc
+                ? `<img src="${logoSrc}" class="${isMobile ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl object-cover border-2 border-white shadow-md mx-auto mb-2">`
+                : `<div class="${isMobile ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl btn-theme-primary flex items-center justify-center font-black text-xl shadow-md mx-auto mb-2 border-2 border-white">O</div>`;
 
-            const header = `
-                ${photo}
-                <h1 style="margin:${isMobile ? 10 : 14}px 0 0; font-size:${isMobile ? 20 : 30}px; font-weight:800; color:#0f172a; text-align:center; line-height:1.15;">${esc(t.name || 'Sua empresa')}</h1>
-                <span style="margin-top:${isMobile ? 6 : 8}px; font-size:11px; font-weight:800; letter-spacing:.08em; color:var(--theme-primary); ${isMobile ? '' : 'background:rgba(255,255,255,.92); border-radius:999px; padding:4px 16px;'}">ÁREA DE AGENDAMENTO</span>
-                <span style="margin-top:${isMobile ? 8 : 10}px; font-size:11px; color:#475569; background:rgba(255,255,255,.92); border-radius:999px; padding:5px 16px;">Conectado como: <b>Cliente</b></span>
-                <div style="width:${isMobile ? 'calc(100% - 32px)' : '510px'}; margin-top:${isMobile ? 16 : 24}px; background:rgba(255,255,255,.92); border-radius:${isMobile ? 24 : 32}px; padding:${isMobile ? 20 : 32}px; box-shadow:0 20px 40px rgba(15,23,42,.08); box-sizing:border-box;">
-                    ${previewCalendar(isMobile)}
-                </div>`;
-
-            const desktopScreen = `
-                <div style="position:absolute; inset:0; display:flex; pointer-events:none; font-family:Inter,sans-serif;">
-                    <div style="width:80px; background:rgba(255,255,255,.95); border-right:1px solid #e2e8f0; display:flex; flex-direction:column; align-items:center; padding:20px 0; gap:16px; box-sizing:border-box;">
-                        <div class="btn-theme-primary" style="width:40px; height:40px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-weight:800;">C</div>
-                        <div style="width:48px; height:48px; border-radius:14px; background:var(--theme-secondary); color:var(--theme-primary); display:flex; align-items:center; justify-content:center;"><i data-lucide="calendar-plus" class="w-6 h-6"></i></div>
-                        <div style="width:48px; height:40px; color:#94a3b8; display:flex; align-items:center; justify-content:center;"><i data-lucide="list" class="w-5 h-5"></i></div>
-                        <div style="flex:1"></div>
-                        <div style="color:#94a3b8;"><i data-lucide="log-out" class="w-6 h-6"></i></div>
-                    </div>
-                    <div style="flex:1; display:flex; flex-direction:column; align-items:center; padding-top:32px; overflow:hidden;">${header}</div>
-                </div>`;
-
-            const navItem = (icon, label, active) => `
-                <div style="display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; font-weight:700; color:${active ? 'var(--theme-primary)' : '#94a3b8'}; ${active ? 'background:var(--theme-secondary); border-radius:14px; padding:8px 14px;' : 'padding:8px 6px;'}">
-                    <i data-lucide="${icon}" class="w-5 h-5"></i><span>${label}</span>
-                </div>`;
-            const mobileScreen = `
-                <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; padding-top:56px; pointer-events:none; font-family:Inter,sans-serif; overflow:hidden;">
-                    ${header}
-                    <div style="position:absolute; left:0; right:0; bottom:0; height:78px; background:rgba(255,255,255,.96); border-top:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-around; padding:0 8px; box-sizing:border-box;">
-                        <div style="display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; font-weight:700; color:#94a3b8;"><div class="btn-theme-primary" style="width:30px; height:30px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:12px;">C</div><span>Perfil</span></div>
-                        ${navItem('calendar-plus', 'Agendar', true)}
-                        ${navItem('list', 'Meus horários', false)}
-                        ${navItem('log-out', 'Sair', false)}
-                    </div>
-                </div>`;
-
-            const outerStyle = isMobile
-                ? 'width:260px; margin:0 auto; border-radius:34px; border:5px solid #1e293b;'
-                : 'width:100%; border-radius:12px; border:2px solid #cbd5e1;';
+            const frame = isMobile
+                ? 'w-[260px] h-[460px] mx-auto rounded-[32px] border-[6px] border-slate-800 shadow-2xl bg-white overflow-hidden relative'
+                : 'w-full aspect-[16/10] max-h-[500px] rounded-xl border-2 border-slate-300 shadow-lg bg-white overflow-hidden relative';
 
             return `
-                <div style="${outerStyle} overflow:hidden; box-shadow:0 12px 30px rgba(15,23,42,.18); background:#fff;">
-                    <div id="preview-frame" data-w="${W}" data-h="${H}" class="relative overflow-hidden select-none ${o.url ? 'cursor-grab active:cursor-grabbing' : ''}"
-                         style="width:100%; aspect-ratio:${W} / ${H}; background:var(--theme-bg); touch-action:none;"
-                         onpointerdown="startBgDrag(event)" onwheel="wheelBgZoom(event)">
-                        <div id="preview-screen" style="position:absolute; left:0; top:0; width:${W}px; height:${H}px; transform-origin:0 0;">
-                            <div id="preview-bg-box" style="position:absolute; inset:0; ${bgLayerCss(o)}"></div>
-                            ${isMobile ? mobileScreen : desktopScreen}
+                <div id="preview-frame" class="${frame} select-none ${o.url ? 'cursor-grab active:cursor-grabbing' : ''}" style="background-color: var(--theme-bg); touch-action: none;" onpointerdown="startBgDrag(event)">
+                    <div id="preview-bg-box" class="absolute inset-0" style="${bgLayerCss(o)}"></div>
+                    
+                    <div class="relative z-10 w-full h-full flex flex-col p-4 pointer-events-none overflow-hidden">
+                        <div class="text-center mb-4">
+                            ${logo}
+                            <h1 class="${isMobile ? 'text-sm' : 'text-xl'} font-black text-slate-900 tracking-tight">${esc(t.name || 'Sua Empresa')}</h1>
+                            <p class="text-[8px] sm:text-[10px] font-bold text-theme-primary uppercase tracking-wider mt-0.5">Área de Agendamento</p>
+                        </div>
+                        
+                        <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border p-4 mx-auto w-full max-w-sm flex-1 flex flex-col">
+                            <h2 class="${isMobile ? 'text-sm' : 'text-lg'} font-black text-center mb-3">Escolha o Dia</h2>
+                            <div class="flex justify-between items-center mb-3 bg-slate-50 p-1.5 rounded-xl border">
+                                <i data-lucide="chevron-left" class="w-3 h-3 text-slate-400"></i>
+                                <span class="text-[10px] font-black">Outubro 2026</span>
+                                <i data-lucide="chevron-right" class="w-3 h-3 text-slate-700"></i>
+                            </div>
+                            <div class="grid grid-cols-7 gap-1 text-center mb-1">
+                                ${['DOM','SEG','TER','QUA','QUI','SEX','SÁB'].map(d => `<span class="text-[7px] font-bold text-slate-400 uppercase">${d}</span>`).join('')}
+                            </div>
+                            <div class="grid grid-cols-7 gap-1 flex-1">
+                                ${Array(31).fill(0).map((_, i) => {
+                                    const day = i + 1;
+                                    const isPast = day < 23;
+                                    const isToday = day === 23;
+                                    if (isPast) return `<div class="flex items-center justify-center rounded-lg bg-slate-100 text-slate-300 text-[9px]">${day}</div>`;
+                                    return `<div class="flex items-center justify-center rounded-lg text-[9px] font-bold ${isToday ? 'btn-theme-primary' : 'bg-white border text-slate-700'}">${day}</div>`;
+                                }).join('')}
+                            </div>
                         </div>
                     </div>
-                </div>
-                ${o.url ? `
-                <div class="flex items-center justify-center gap-2 mt-3">
-                    <button type="button" onclick="nudgeBgZoom(-10)" class="w-9 h-9 rounded-xl bg-white border font-black text-slate-700 hover:bg-slate-100">−</button>
-                    <span class="text-[11px] text-slate-500 font-medium">Arraste a tela • role o mouse ou use − / + para o zoom</span>
-                    <button type="button" onclick="nudgeBgZoom(10)" class="w-9 h-9 rounded-xl bg-white border font-black text-slate-700 hover:bg-slate-100">+</button>
-                </div>` : `<p class="text-center text-[11px] font-bold text-slate-400 mt-3">Sem imagem de fundo — envie uma imagem para ajustar.</p>`}`;
+                    ${!o.url ? `<p class="absolute inset-x-0 bottom-2 text-center text-[9px] font-bold text-slate-500 z-10 pointer-events-none">Sem imagem de fundo</p>` : ''}
+                </div>`;
+        } relative overflow-hidden select-none ${o.url ? 'cursor-grab active:cursor-grabbing' : ''}" style="background:var(--theme-bg); touch-action:none;" onpointerdown="startBgDrag(event)">
+                    <div id="preview-bg-box" class="absolute inset-0" style="${bgLayerCss(o)}"></div>
+                    <div class="relative z-10 h-full flex flex-col pointer-events-none">
+                        <div class="bg-white/90 border-b px-3 py-2 flex items-center gap-2 shrink-0">
+                            ${logo}
+                            <span class="text-[10px] font-bold text-slate-800 truncate">${esc(t.name || 'Sua empresa')}</span>
+                        </div>
+                        <div class="flex-1 p-3 flex flex-col ${isMobile ? '' : 'items-center'} gap-2 overflow-hidden">
+                            <p class="text-[11px] font-extrabold text-slate-800 ${isMobile ? '' : 'text-center'}">Escolha seu serviço</p>
+                            <div class="${isMobile ? 'space-y-2 w-full' : 'grid grid-cols-3 gap-2 w-full'}">${cards}</div>
+                            <div class="btn-theme-primary rounded-lg text-[10px] font-bold text-center py-2 w-full ${isMobile ? 'mt-auto' : 'max-w-[160px] mt-1'}">Continuar</div>
+                        </div>
+                    </div>
+                    ${!o.url ? `<p class="absolute inset-x-0 bottom-2 text-center text-[9px] font-bold text-slate-500 z-10">Sem imagem de fundo</p>` : ''}
+                </div>`;
         }
 
-        // reduz a tela "real" para caber no painel, e refaz o cálculo se o tamanho mudar
-        let _pvObserver = null;
-        function fitPreviews() {
-            const frame = document.getElementById('preview-frame');
-            if (!frame) return;
-            const apply = () => {
-                const screen = document.getElementById('preview-screen');
-                if (!screen) return;
-                const s = frame.clientWidth / parseFloat(frame.dataset.w);
-                screen.style.transform = `scale(${s})`;
-            };
-            apply();
-            if (_pvObserver) _pvObserver.disconnect();
-            if (window.ResizeObserver) { _pvObserver = new ResizeObserver(apply); _pvObserver.observe(frame); }
-        }
-
-        // atualiza a pré-visualização e os sliders sem refazer a tela (para o arraste ficar fluido)
         function refreshPreviewDom() {
             const x = bgGet(bgK('PosX')) ?? 50, y = bgGet(bgK('PosY')) ?? 50, z = bgGet(bgK('Zoom')) ?? 100;
             const layer = document.getElementById('preview-bg-box');
@@ -913,60 +834,23 @@
             });
         }
 
-        // arrastar a imagem diretamente na pré-visualização (mouse ou toque)
-        // A imagem acompanha exatamente o mouse/dedo, mesmo com zoom.
         let bgDrag = null;
-
-        function bgOverflow() {
-            const mobile = activeBgMode === 'mobile';
-            const { w: W, h: H } = PV[mobile ? 'mobile' : 'desktop'];
-            const url = bgGet(bgK('Image'));
-            const z = (bgGet(bgK('Zoom')) ?? 100) / 100;
-            let ovx = 0, ovy = 0;
-            if (_dim.url === url && _dim.w) {
-                const s = Math.max(W / _dim.w, H / _dim.h);
-                ovx = _dim.w * s - W; ovy = _dim.h * s - H;
-            }
-            return { W, ex: W * (z - 1) + z * ovx, ey: H * (z - 1) + z * ovy };
-        }
-
         window.startBgDrag = function(e) {
             if (!bgGet(bgK('Image'))) return;
-            const frame = e.currentTarget;
-            const r = frame.getBoundingClientRect();
-            const ov = bgOverflow();
-            bgDrag = {
-                sx: e.clientX, sy: e.clientY,
-                k: r.width / ov.W,                 // pixels da tela por pixel "real"
-                ex: ov.ex, ey: ov.ey,
-                px: bgGet(bgK('PosX')) ?? 50, py: bgGet(bgK('PosY')) ?? 50
-            };
-            try { frame.setPointerCapture(e.pointerId); } catch (_) {}
+            const r = e.currentTarget.getBoundingClientRect();
+            bgDrag = { sx: e.clientX, sy: e.clientY, w: r.width, h: r.height, px: bgGet(bgK('PosX')) ?? 50, py: bgGet(bgK('PosY')) ?? 50 };
+            try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
             e.preventDefault();
         };
         window.addEventListener('pointermove', (e) => {
             if (!bgDrag) return;
             const clamp = (v) => Math.max(0, Math.min(100, v));
-            const dx = (e.clientX - bgDrag.sx) / bgDrag.k;
-            const dy = (e.clientY - bgDrag.sy) / bgDrag.k;
-            if (bgDrag.ex > 1) draft[bgK('PosX')] = clamp(bgDrag.px - dx / bgDrag.ex * 100);
-            if (bgDrag.ey > 1) draft[bgK('PosY')] = clamp(bgDrag.py - dy / bgDrag.ey * 100);
+            draft[bgK('PosX')] = clamp(bgDrag.px - (e.clientX - bgDrag.sx) / bgDrag.w * 100);
+            draft[bgK('PosY')] = clamp(bgDrag.py - (e.clientY - bgDrag.sy) / bgDrag.h * 100);
             refreshPreviewDom();
         });
         window.addEventListener('pointerup', () => { bgDrag = null; });
         window.addEventListener('pointercancel', () => { bgDrag = null; });
-
-        // zoom direto na pré-visualização (roda do mouse e botões − / +)
-        window.nudgeBgZoom = function(d) {
-            const z = Math.max(100, Math.min(300, (bgGet(bgK('Zoom')) ?? 100) + d));
-            draft[bgK('Zoom')] = z;
-            refreshPreviewDom();
-        };
-        window.wheelBgZoom = function(e) {
-            if (!bgGet(bgK('Image'))) return;
-            e.preventDefault();
-            nudgeBgZoom(e.deltaY < 0 ? 5 : -5);
-        };
 
         function renderDashboardContent(role, user) {
             if(activeTab === 'agenda') {
@@ -1143,7 +1027,6 @@
                         ${tabs.map(([id, icon, label]) => `<button onclick="profileTab='${id}'; render()" class="px-4 py-2.5 rounded-xl text-sm font-bold flex items-center transition-all ${profileTab === id ? 'bg-theme-secondary text-theme-primary' : 'text-slate-500 hover:text-slate-900'}"><i data-lucide="${icon}" class="w-4 h-4 mr-2"></i>${label}</button>`).join('')}
                     </div>`;
 
-                // OBS: o primeiro card tem "relative z-20" para o menu de temas ficar POR CIMA do card seguinte
                 const aparenciaHtml = `
                     <div class="relative z-20 bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm">
                         <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="palette" class="w-5 h-5 mr-2 text-theme-primary"></i> Estilos e Tema da Organização</h3>
@@ -1164,7 +1047,6 @@
                         </div>
                     </div>
 
-                    <!-- IMAGENS DE FUNDO COM SELEÇÃO MOBILE / DESKTOP -->
                     <div class="relative z-10 bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm space-y-6">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                             <div>
@@ -1183,7 +1065,7 @@
                         </div>
 
                         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                            <div class="lg:col-span-4 space-y-4">
+                            <div class="lg:col-span-5 space-y-4">
                                 <label class="block text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-3.5 rounded-xl cursor-pointer text-center hover:bg-indigo-100 transition-colors shadow-xs">
                                     <i data-lucide="upload" class="w-4 h-4 inline mr-2"></i> Upload Imagem (${isMobileMode ? 'Mobile' : 'Computador'})
                                     <input type="file" class="hidden" accept="image/*" onchange="handleBgUpload(event)">
@@ -1247,7 +1129,7 @@
                                 <button onclick="salvarFundo()" class="w-full btn-theme-primary text-xs font-bold py-2.5 rounded-xl">Salvar Fundo</button>
                             </div>
 
-                            <div class="lg:col-span-8">
+                            <div class="lg:col-span-7">
                                 <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 text-center">Pré-visualização da tela do cliente (${isMobileMode ? 'Mobile' : 'Computador'})</p>
                                 ${clientPreviewHtml(isMobileMode, { url: imgUrl, op: imgOpacity, blur: imgBlur, x: imgPosX, y: imgPosY, zoom: imgZoom })}
                             </div>
@@ -1333,7 +1215,7 @@
                     const s = stats[a.clientId] || (stats[a.clientId] = { total: 0, last: '' });
                     s.total++; if (a.date > s.last) s.last = a.date;
                 });
-                const lista = t.clients.map(semSenha).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));   // senha nunca chega à tela
+                const lista = t.clients.map(semSenha).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));  
                 return `
                 <div class="max-w-5xl mx-auto space-y-4 fade-in">
                     <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl border shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
@@ -1400,15 +1282,13 @@
             render();
         };
 
-        // ---------- FUNDO (rascunho até clicar em Salvar Fundo) ----------
         window.handleBgUpload = function(e) {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = (ev) => {
                 draft[bgK('Image')] = ev.target.result;
-                if (bgGet(bgK('Opacity')) === undefined || bgGet(bgK('Opacity')) === null) draft[bgK('Opacity')] = 0.35;
+                if (bgGet(bgK('Opacity')) === undefined || bgGet(bgK('Opacity')) === null) draft[bgK('Opacity')] = 0.15;
                 if (bgGet(bgK('Blur')) === undefined || bgGet(bgK('Blur')) === null) draft[bgK('Blur')] = 0;
-                // imagem nova começa centralizada e sem zoom
                 draft[bgK('PosX')] = 50; draft[bgK('PosY')] = 50; draft[bgK('Zoom')] = 100;
                 render();
             };
@@ -1446,7 +1326,6 @@
             showModal('Salvo!', 'Plano de fundo atualizado.', 'success');
         };
 
-        // ---------- DASHBOARD ----------
         function renderDashboardAnalytics(role, user) {
             const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
             const isActive = (a) => a.status !== 'cancelado' && a.status !== 'nao_compareceu';
@@ -1468,7 +1347,6 @@
             const avgTicket = completedApps.length ? totalRevenue / completedApps.length : 0;
             const pctOf = (n) => filteredApps.length ? (n / filteredApps.length * 100) : 0;
 
-            // comparação com o mês anterior
             let pm = parseInt(dashboardFilterMonth) - 1, py = parseInt(dashboardFilterYear);
             if (pm === 0) { pm = 12; py--; }
             const pmStr = String(pm).padStart(2, '0');
@@ -1479,7 +1357,6 @@
                 ? `<p class="text-[11px] text-slate-400 mt-0.5">Sem dados no mês anterior</p>`
                 : `<p class="text-[11px] font-bold mt-0.5 ${delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)}% <span class="text-slate-400 font-medium">vs mês anterior (${brl(prevRevenue)})</span></p>`;
 
-            // por serviço (quantidade e faturamento estimado pelo preço atual)
             const procStats = {};
             t.procedures.forEach(p => { procStats[p.name] = 0; });
             completedApps.forEach(a => {
@@ -1490,7 +1367,6 @@
             const priceByName = {}; t.procedures.forEach(p => { priceByName[p.name] = p.price; });
             const procRows = Object.keys(procStats).map(n => ({ name: n, count: procStats[n], revenue: procStats[n] * (priceByName[n] || 0) })).sort((a, b) => b.count - a.count);
 
-            // por profissional
             const staffStats = {};
             if(role === 'admin') {
                 t.employees.forEach(e => {
@@ -1509,14 +1385,12 @@
                 });
             }
 
-            // faturamento por dia
             const [fy, fm] = [parseInt(dashboardFilterYear), parseInt(dashboardFilterMonth)];
             const daysInMonth = new Date(fy, fm, 0).getDate();
             const revByDay = Array(daysInMonth).fill(0);
             completedApps.forEach(a => { const d = parseInt(a.date.split('-')[2]); if (d >= 1 && d <= daysInMonth) revByDay[d - 1] += (a.totalPrice || 0); });
             const maxDay = Math.max(1, ...revByDay);
 
-            // horários e dias de pico (todos os agendamentos ativos do mês)
             const activeMonth = filteredApps.filter(isActive);
             const byHour = {}; const byWeekday = Array(7).fill(0);
             activeMonth.forEach(a => {
@@ -1528,7 +1402,6 @@
             const maxWd = Math.max(1, ...byWeekday);
             const wdNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-            // clientes novos x recorrentes
             const keyOf = (a) => (a.clientId && !String(a.clientId).startsWith('manual-cli-')) ? a.clientId : (a.clientName || '').toLowerCase();
             const monthStart = `${dashboardFilterYear}-${dashboardFilterMonth}-01`;
             const before = new Set(apps.filter(a => isActive(a) && a.date < monthStart).map(keyOf));
@@ -1828,7 +1701,6 @@
                 const aDate = new Date(a.date + 'T00:00:00'); return aDate >= weekDays[0] && aDate <= weekDays[6];
             });
 
-            // perfil usado para marcar "Folga" no cabeçalho (respeita o filtro de profissional)
             const filteredProfile = (role === 'admin' && agendaFilterEmp !== 'all') ? [t.admin, ...t.employees].find(p => p.id === agendaFilterEmp) : null;
             const currentProfile = role === 'admin' ? (filteredProfile || t.admin) : user;
             const pickerYear = calPickerYear !== null ? calPickerYear : viewYear;
@@ -1884,7 +1756,6 @@
                 });
             });
 
-            // linha vermelha do horário atual
             const nowD = new Date(); const nowM = nowD.getHours() * 60 + nowD.getMinutes();
             const todayStrNow = localDateStr(nowD);
             const nowInRange = nowM >= CAL_START_HOUR * 60 && nowM <= (CAL_END_HOUR + 1) * 60;
@@ -1971,7 +1842,6 @@
                 .catch(() => showModal('Erro de conexão', 'Não foi possível atualizar o agendamento. Tente novamente.', 'error'));
         };
 
-        // ---------- ORGANIZAÇÃO / PERFIL / PROFISSIONAIS ----------
         window.salvarOrg = function() {
             t.name = document.getElementById('org-name').value;
             const hours = parseInt(document.getElementById('org-cancel-hours').value);
@@ -1982,7 +1852,6 @@
             showModal('Sucesso', 'Organização atualizada!', 'success');
         };
 
-        // só pré-visualiza; grava ao clicar em Salvar
         window.handleImageUpload = function(e, type) {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -2044,7 +1913,6 @@
                 const emp = t.employees.find(x => x.id === editEmployeeId);
                 emp.name = name; emp.email = email; emp.procedures = checks;
                 if (senhaHash) emp.password = senhaHash;
-                // horário de trabalho do profissional
                 if (document.getElementById('ewh-cb-0')) {
                     const wh = {};
                     for (let i = 0; i < 7; i++) {
@@ -2064,8 +1932,6 @@
             saveDB(['employees']);
         };
 
-        // ---------- GESTÃO DE CLIENTES ----------
-        // 'clients' recebe escrita dos clientes ao mesmo tempo, então só por transação
         window.toggleBlockClient = function(id) {
             runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
                 if (!cur) return;
@@ -2111,7 +1977,6 @@
             }).catch(() => showModal('Erro de conexão', 'Não foi possível salvar o cliente.', 'error'));
         };
 
-        // ---------- SERVIÇOS ----------
         window.saveProcedure = function(e) { 
             e.preventDefault(); 
             const name = document.getElementById('p-name').value;
