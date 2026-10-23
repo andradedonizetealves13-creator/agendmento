@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgendaPro - Painel de Controle</title>
+    <title>Primstav - Painel de Controle</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -545,6 +545,7 @@
                 </div>`;
             if(window.lucide) lucide.createIcons();
             attachDragHandlers();
+            fitPreviews();
         };
 
         window.copiarLinkCliente = function() { 
@@ -771,46 +772,130 @@
             return `<div class="flex flex-wrap gap-2 mb-4">${chip('all', 'Todos', '')}${people.map(p => chip(p.id, p.name, p.color)).join('')}</div>`;
         }
 
-        // ---------- PRÉ-VISUALIZAÇÃO DA TELA DO CLIENTE (fundo ajustável) ----------
+        // ---------- PRÉ-VISUALIZAÇÃO DA TELA DO CLIENTE (réplica da tela de agendamento) ----------
+        // IMPORTANTE: a imagem (data URL) é colocada entre ASPAS SIMPLES porque este CSS vai dentro de style="...".
+        // Com aspas duplas o atributo quebrava e a imagem nunca aparecia.
         function bgLayerCss(o) {
-            return `background-image:${o.url ? `url("${o.url}")` : 'none'}; background-size:cover; background-position:${o.x}% ${o.y}%; opacity:${o.op}; filter:blur(${o.blur}px); transform:scale(${o.zoom / 100}); transform-origin:${o.x}% ${o.y}%;`;
+            return `background-image:${o.url ? `url('${o.url}')` : 'none'}; background-repeat:no-repeat; background-size:cover; background-position:${o.x}% ${o.y}%; opacity:${o.op}; filter:blur(${o.blur}px); transform:scale(${o.zoom / 100}); transform-origin:${o.x}% ${o.y}%;`;
+        }
+
+        // Tamanho "real" da tela do cliente que a pré-visualização simula
+        const PV = { desktop: { w: 1280, h: 720 }, mobile: { w: 390, h: 844 } };
+
+        // guarda o tamanho original da imagem (necessário para o arraste acompanhar o dedo/mouse)
+        let _dim = { url: null, w: 0, h: 0 };
+        function ensureImgDims(url) {
+            if (!url || _dim.url === url) return;
+            const im = new Image();
+            im.onload = () => { _dim = { url, w: im.naturalWidth, h: im.naturalHeight }; };
+            im.src = url;
+        }
+
+        function previewCalendar(mobile) {
+            const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+            const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            const first = new Date(y, m, 1).getDay(), total = new Date(y, m + 1, 0).getDate();
+            const cellH = mobile ? 40 : 44;
+            let cells = '';
+            for (let i = 0; i < first; i++) cells += '<div></div>';
+            for (let d = 1; d <= total; d++) {
+                const on = d >= now.getDate();
+                cells += `<div style="height:${cellH}px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:${mobile ? 13 : 14}px; font-weight:${on ? 700 : 500}; ${on ? 'background:#fff; border:1px solid #e2e8f0; color:#1e293b;' : 'background:#eef2f9; color:#cbd5e1;'}">${d}</div>`;
+            }
+            const wk = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'].map(s => `<div style="text-align:center; font-size:${mobile ? 10 : 11}px; font-weight:800; color:#94a3b8;">${s}</div>`).join('');
+            return `
+                <p style="text-align:center; font-size:${mobile ? 20 : 24}px; font-weight:800; color:#1e293b; margin:0 0 ${mobile ? 14 : 22}px;">Escolha o Dia</p>
+                <div style="display:flex; align-items:center; justify-content:space-between; height:${mobile ? 44 : 52}px; padding:0 20px; border:1px solid #e2e8f0; border-radius:16px; background:#f8fafc; margin-bottom:${mobile ? 14 : 20}px;">
+                    <i data-lucide="chevron-left" class="w-4 h-4" style="color:#cbd5e1"></i>
+                    <b style="font-size:${mobile ? 14 : 15}px; color:#1e293b;">${nomes[m]} ${y}</b>
+                    <i data-lucide="chevron-right" class="w-4 h-4" style="color:#1e293b"></i>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:8px;">${wk}</div>
+                <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px;">${cells}</div>`;
         }
 
         function clientPreviewHtml(isMobile, o) {
-            const procs = (t.procedures || []).slice(0, isMobile ? 3 : 3);
+            ensureImgDims(o.url);
+            const { w: W, h: H } = PV[isMobile ? 'mobile' : 'desktop'];
             const logoSrc = draft.logo || t.logo;
-            const logo = logoSrc
-                ? `<img src="${logoSrc}" class="w-5 h-5 rounded object-cover shrink-0">`
-                : `<div class="w-5 h-5 rounded btn-theme-primary flex items-center justify-center text-[9px] font-bold shrink-0">${esc((t.name || 'O').charAt(0))}</div>`;
-            const cards = procs.length ? procs.map(p => `
-                <div class="bg-white/90 rounded-lg border p-2 flex items-center justify-between gap-2">
-                    <div class="min-w-0">
-                        <p class="text-[10px] font-bold text-slate-800 truncate">${esc(p.name)}</p>
-                        <p class="text-[8px] text-slate-500">${p.duration} min</p>
-                    </div>
-                    <span class="text-[9px] font-bold text-emerald-600 shrink-0">R$ ${Number(p.price).toFixed(2)}</span>
-                </div>`).join('') : `<div class="bg-white/90 rounded-lg border p-2 text-[9px] text-slate-400 text-center">Nenhum serviço cadastrado</div>`;
+            const photoSize = isMobile ? 62 : 80;
+            const photo = logoSrc
+                ? `<img src="${logoSrc}" style="width:${photoSize}px; height:${photoSize}px; border-radius:16px; object-fit:cover; border:3px solid #fff; box-shadow:0 6px 16px rgba(0,0,0,.18);">`
+                : `<div class="btn-theme-primary" style="width:${photoSize}px; height:${photoSize}px; border-radius:16px; border:3px solid #fff; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:800;">${esc((t.name || 'O').charAt(0))}</div>`;
 
-            const frame = isMobile
-                ? 'w-[230px] h-[400px] mx-auto rounded-[28px] border-4 border-slate-800 shadow-xl'
-                : 'w-full aspect-[16/10] rounded-xl border-2 border-slate-300 shadow-sm';
+            const header = `
+                ${photo}
+                <h1 style="margin:${isMobile ? 10 : 14}px 0 0; font-size:${isMobile ? 20 : 30}px; font-weight:800; color:#0f172a; text-align:center; line-height:1.15;">${esc(t.name || 'Sua empresa')}</h1>
+                <span style="margin-top:${isMobile ? 6 : 8}px; font-size:11px; font-weight:800; letter-spacing:.08em; color:var(--theme-primary); ${isMobile ? '' : 'background:rgba(255,255,255,.92); border-radius:999px; padding:4px 16px;'}">ÁREA DE AGENDAMENTO</span>
+                <span style="margin-top:${isMobile ? 8 : 10}px; font-size:11px; color:#475569; background:rgba(255,255,255,.92); border-radius:999px; padding:5px 16px;">Conectado como: <b>Cliente</b></span>
+                <div style="width:${isMobile ? 'calc(100% - 32px)' : '510px'}; margin-top:${isMobile ? 16 : 24}px; background:rgba(255,255,255,.92); border-radius:${isMobile ? 24 : 32}px; padding:${isMobile ? 20 : 32}px; box-shadow:0 20px 40px rgba(15,23,42,.08); box-sizing:border-box;">
+                    ${previewCalendar(isMobile)}
+                </div>`;
+
+            const desktopScreen = `
+                <div style="position:absolute; inset:0; display:flex; pointer-events:none; font-family:Inter,sans-serif;">
+                    <div style="width:80px; background:rgba(255,255,255,.95); border-right:1px solid #e2e8f0; display:flex; flex-direction:column; align-items:center; padding:20px 0; gap:16px; box-sizing:border-box;">
+                        <div class="btn-theme-primary" style="width:40px; height:40px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-weight:800;">C</div>
+                        <div style="width:48px; height:48px; border-radius:14px; background:var(--theme-secondary); color:var(--theme-primary); display:flex; align-items:center; justify-content:center;"><i data-lucide="calendar-plus" class="w-6 h-6"></i></div>
+                        <div style="width:48px; height:40px; color:#94a3b8; display:flex; align-items:center; justify-content:center;"><i data-lucide="list" class="w-5 h-5"></i></div>
+                        <div style="flex:1"></div>
+                        <div style="color:#94a3b8;"><i data-lucide="log-out" class="w-6 h-6"></i></div>
+                    </div>
+                    <div style="flex:1; display:flex; flex-direction:column; align-items:center; padding-top:32px; overflow:hidden;">${header}</div>
+                </div>`;
+
+            const navItem = (icon, label, active) => `
+                <div style="display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; font-weight:700; color:${active ? 'var(--theme-primary)' : '#94a3b8'}; ${active ? 'background:var(--theme-secondary); border-radius:14px; padding:8px 14px;' : 'padding:8px 6px;'}">
+                    <i data-lucide="${icon}" class="w-5 h-5"></i><span>${label}</span>
+                </div>`;
+            const mobileScreen = `
+                <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; padding-top:56px; pointer-events:none; font-family:Inter,sans-serif; overflow:hidden;">
+                    ${header}
+                    <div style="position:absolute; left:0; right:0; bottom:0; height:78px; background:rgba(255,255,255,.96); border-top:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-around; padding:0 8px; box-sizing:border-box;">
+                        <div style="display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; font-weight:700; color:#94a3b8;"><div class="btn-theme-primary" style="width:30px; height:30px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:12px;">C</div><span>Perfil</span></div>
+                        ${navItem('calendar-plus', 'Agendar', true)}
+                        ${navItem('list', 'Meus horários', false)}
+                        ${navItem('log-out', 'Sair', false)}
+                    </div>
+                </div>`;
+
+            const outerStyle = isMobile
+                ? 'width:260px; margin:0 auto; border-radius:34px; border:5px solid #1e293b;'
+                : 'width:100%; border-radius:12px; border:2px solid #cbd5e1;';
 
             return `
-                <div id="preview-frame" class="${frame} relative overflow-hidden select-none ${o.url ? 'cursor-grab active:cursor-grabbing' : ''}" style="background:var(--theme-bg); touch-action:none;" onpointerdown="startBgDrag(event)">
-                    <div id="preview-bg-box" class="absolute inset-0" style="${bgLayerCss(o)}"></div>
-                    <div class="relative z-10 h-full flex flex-col pointer-events-none">
-                        <div class="bg-white/90 border-b px-3 py-2 flex items-center gap-2 shrink-0">
-                            ${logo}
-                            <span class="text-[10px] font-bold text-slate-800 truncate">${esc(t.name || 'Sua empresa')}</span>
-                        </div>
-                        <div class="flex-1 p-3 flex flex-col ${isMobile ? '' : 'items-center'} gap-2 overflow-hidden">
-                            <p class="text-[11px] font-extrabold text-slate-800 ${isMobile ? '' : 'text-center'}">Escolha seu serviço</p>
-                            <div class="${isMobile ? 'space-y-2 w-full' : 'grid grid-cols-3 gap-2 w-full'}">${cards}</div>
-                            <div class="btn-theme-primary rounded-lg text-[10px] font-bold text-center py-2 w-full ${isMobile ? 'mt-auto' : 'max-w-[160px] mt-1'}">Continuar</div>
+                <div style="${outerStyle} overflow:hidden; box-shadow:0 12px 30px rgba(15,23,42,.18); background:#fff;">
+                    <div id="preview-frame" data-w="${W}" data-h="${H}" class="relative overflow-hidden select-none ${o.url ? 'cursor-grab active:cursor-grabbing' : ''}"
+                         style="width:100%; aspect-ratio:${W} / ${H}; background:var(--theme-bg); touch-action:none;"
+                         onpointerdown="startBgDrag(event)" onwheel="wheelBgZoom(event)">
+                        <div id="preview-screen" style="position:absolute; left:0; top:0; width:${W}px; height:${H}px; transform-origin:0 0;">
+                            <div id="preview-bg-box" style="position:absolute; inset:0; ${bgLayerCss(o)}"></div>
+                            ${isMobile ? mobileScreen : desktopScreen}
                         </div>
                     </div>
-                    ${!o.url ? `<p class="absolute inset-x-0 bottom-2 text-center text-[9px] font-bold text-slate-500 z-10">Sem imagem de fundo</p>` : ''}
-                </div>`;
+                </div>
+                ${o.url ? `
+                <div class="flex items-center justify-center gap-2 mt-3">
+                    <button type="button" onclick="nudgeBgZoom(-10)" class="w-9 h-9 rounded-xl bg-white border font-black text-slate-700 hover:bg-slate-100">−</button>
+                    <span class="text-[11px] text-slate-500 font-medium">Arraste a tela • role o mouse ou use − / + para o zoom</span>
+                    <button type="button" onclick="nudgeBgZoom(10)" class="w-9 h-9 rounded-xl bg-white border font-black text-slate-700 hover:bg-slate-100">+</button>
+                </div>` : `<p class="text-center text-[11px] font-bold text-slate-400 mt-3">Sem imagem de fundo — envie uma imagem para ajustar.</p>`}`;
+        }
+
+        // reduz a tela "real" para caber no painel, e refaz o cálculo se o tamanho mudar
+        let _pvObserver = null;
+        function fitPreviews() {
+            const frame = document.getElementById('preview-frame');
+            if (!frame) return;
+            const apply = () => {
+                const screen = document.getElementById('preview-screen');
+                if (!screen) return;
+                const s = frame.clientWidth / parseFloat(frame.dataset.w);
+                screen.style.transform = `scale(${s})`;
+            };
+            apply();
+            if (_pvObserver) _pvObserver.disconnect();
+            if (window.ResizeObserver) { _pvObserver = new ResizeObserver(apply); _pvObserver.observe(frame); }
         }
 
         // atualiza a pré-visualização e os sliders sem refazer a tela (para o arraste ficar fluido)
@@ -829,23 +914,59 @@
         }
 
         // arrastar a imagem diretamente na pré-visualização (mouse ou toque)
+        // A imagem acompanha exatamente o mouse/dedo, mesmo com zoom.
         let bgDrag = null;
+
+        function bgOverflow() {
+            const mobile = activeBgMode === 'mobile';
+            const { w: W, h: H } = PV[mobile ? 'mobile' : 'desktop'];
+            const url = bgGet(bgK('Image'));
+            const z = (bgGet(bgK('Zoom')) ?? 100) / 100;
+            let ovx = 0, ovy = 0;
+            if (_dim.url === url && _dim.w) {
+                const s = Math.max(W / _dim.w, H / _dim.h);
+                ovx = _dim.w * s - W; ovy = _dim.h * s - H;
+            }
+            return { W, ex: W * (z - 1) + z * ovx, ey: H * (z - 1) + z * ovy };
+        }
+
         window.startBgDrag = function(e) {
             if (!bgGet(bgK('Image'))) return;
-            const r = e.currentTarget.getBoundingClientRect();
-            bgDrag = { sx: e.clientX, sy: e.clientY, w: r.width, h: r.height, px: bgGet(bgK('PosX')) ?? 50, py: bgGet(bgK('PosY')) ?? 50 };
-            try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+            const frame = e.currentTarget;
+            const r = frame.getBoundingClientRect();
+            const ov = bgOverflow();
+            bgDrag = {
+                sx: e.clientX, sy: e.clientY,
+                k: r.width / ov.W,                 // pixels da tela por pixel "real"
+                ex: ov.ex, ey: ov.ey,
+                px: bgGet(bgK('PosX')) ?? 50, py: bgGet(bgK('PosY')) ?? 50
+            };
+            try { frame.setPointerCapture(e.pointerId); } catch (_) {}
             e.preventDefault();
         };
         window.addEventListener('pointermove', (e) => {
             if (!bgDrag) return;
             const clamp = (v) => Math.max(0, Math.min(100, v));
-            draft[bgK('PosX')] = clamp(bgDrag.px - (e.clientX - bgDrag.sx) / bgDrag.w * 100);
-            draft[bgK('PosY')] = clamp(bgDrag.py - (e.clientY - bgDrag.sy) / bgDrag.h * 100);
+            const dx = (e.clientX - bgDrag.sx) / bgDrag.k;
+            const dy = (e.clientY - bgDrag.sy) / bgDrag.k;
+            if (bgDrag.ex > 1) draft[bgK('PosX')] = clamp(bgDrag.px - dx / bgDrag.ex * 100);
+            if (bgDrag.ey > 1) draft[bgK('PosY')] = clamp(bgDrag.py - dy / bgDrag.ey * 100);
             refreshPreviewDom();
         });
         window.addEventListener('pointerup', () => { bgDrag = null; });
         window.addEventListener('pointercancel', () => { bgDrag = null; });
+
+        // zoom direto na pré-visualização (roda do mouse e botões − / +)
+        window.nudgeBgZoom = function(d) {
+            const z = Math.max(100, Math.min(300, (bgGet(bgK('Zoom')) ?? 100) + d));
+            draft[bgK('Zoom')] = z;
+            refreshPreviewDom();
+        };
+        window.wheelBgZoom = function(e) {
+            if (!bgGet(bgK('Image'))) return;
+            e.preventDefault();
+            nudgeBgZoom(e.deltaY < 0 ? 5 : -5);
+        };
 
         function renderDashboardContent(role, user) {
             if(activeTab === 'agenda') {
@@ -1062,7 +1183,7 @@
                         </div>
 
                         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                            <div class="lg:col-span-5 space-y-4">
+                            <div class="lg:col-span-4 space-y-4">
                                 <label class="block text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-3.5 rounded-xl cursor-pointer text-center hover:bg-indigo-100 transition-colors shadow-xs">
                                     <i data-lucide="upload" class="w-4 h-4 inline mr-2"></i> Upload Imagem (${isMobileMode ? 'Mobile' : 'Computador'})
                                     <input type="file" class="hidden" accept="image/*" onchange="handleBgUpload(event)">
@@ -1126,7 +1247,7 @@
                                 <button onclick="salvarFundo()" class="w-full btn-theme-primary text-xs font-bold py-2.5 rounded-xl">Salvar Fundo</button>
                             </div>
 
-                            <div class="lg:col-span-7">
+                            <div class="lg:col-span-8">
                                 <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 text-center">Pré-visualização da tela do cliente (${isMobileMode ? 'Mobile' : 'Computador'})</p>
                                 ${clientPreviewHtml(isMobileMode, { url: imgUrl, op: imgOpacity, blur: imgBlur, x: imgPosX, y: imgPosY, zoom: imgZoom })}
                             </div>
@@ -1285,7 +1406,7 @@
             const reader = new FileReader();
             reader.onload = (ev) => {
                 draft[bgK('Image')] = ev.target.result;
-                if (bgGet(bgK('Opacity')) === undefined || bgGet(bgK('Opacity')) === null) draft[bgK('Opacity')] = 0.15;
+                if (bgGet(bgK('Opacity')) === undefined || bgGet(bgK('Opacity')) === null) draft[bgK('Opacity')] = 0.35;
                 if (bgGet(bgK('Blur')) === undefined || bgGet(bgK('Blur')) === null) draft[bgK('Blur')] = 0;
                 // imagem nova começa centralizada e sem zoom
                 draft[bgK('PosX')] = 50; draft[bgK('PosY')] = 50; draft[bgK('Zoom')] = 100;
