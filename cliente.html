@@ -76,6 +76,14 @@
             border-color: var(--theme-primary) !important;
         }
 
+        /* Faz as cores "índigo" fixas acompanharem o tema escolhido */
+        .text-indigo-600, .text-indigo-700 { color: var(--theme-primary) !important; }
+        .bg-indigo-600 { background-color: var(--theme-primary) !important; }
+        .hover\:bg-indigo-700:hover { background-color: var(--theme-primary-hover) !important; }
+        .bg-indigo-50, .bg-indigo-100 { background-color: var(--theme-secondary) !important; }
+        .border-indigo-600, .hover\:border-indigo-600:hover, .focus\:border-indigo-500:focus { border-color: var(--theme-primary) !important; }
+        .border-t-transparent { border-top-color: transparent !important; }
+
         /* ESTILOS DO CROPPER (CORTADOR DE FOTO) */
         #cropper-img {
             max-width: none;
@@ -156,12 +164,25 @@
             EmailAuthProvider 
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+        // 15 temas (os mesmos IDs e cores do painel)
         const THEME_PALETTES = [
             { id: 'indigo_classic', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b' },
-            { id: 'wine_velvet', bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515' },
+            { id: 'wine_velvet',    bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515' },
             { id: 'emerald_nature', bg: '#e6f4ea', primary: '#059669', primaryHover: '#047857', secondary: '#a7f3d0', dark: '#064e3b' },
-            { id: 'amber_gold', bg: '#fef3c7', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f' },
-            { id: 'slate_dark', bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a' }
+            { id: 'amber_gold',     bg: '#fef3c7', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f' },
+            { id: 'slate_dark',     bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a' },
+
+            // temas novos
+            { id: 'ocean_blue',    bg: '#eff6ff', primary: '#0369a1', primaryHover: '#075985', secondary: '#bae6fd', dark: '#0c4a6e' },
+            { id: 'rose_blush',    bg: '#fff1f2', primary: '#e11d48', primaryHover: '#be123c', secondary: '#fecdd3', dark: '#881337' },
+            { id: 'violet_dream',  bg: '#f5f3ff', primary: '#7c3aed', primaryHover: '#6d28d9', secondary: '#ddd6fe', dark: '#4c1d95' },
+            { id: 'teal_fresh',    bg: '#f0fdfa', primary: '#0d9488', primaryHover: '#0f766e', secondary: '#99f6e4', dark: '#134e4a' },
+            { id: 'sunset',        bg: '#fff7ed', primary: '#ea580c', primaryHover: '#c2410c', secondary: '#fed7aa', dark: '#7c2d12' },
+            { id: 'fuchsia_pop',   bg: '#fdf4ff', primary: '#c026d3', primaryHover: '#a21caf', secondary: '#f5d0fe', dark: '#701a75' },
+            { id: 'lime_garden',   bg: '#f7fee7', primary: '#4d7c0f', primaryHover: '#3f6212', secondary: '#d9f99d', dark: '#1a2e05' },
+            { id: 'coffee_mocha',  bg: '#f5ebe0', primary: '#6f4e37', primaryHover: '#5a3e2b', secondary: '#d6ccc2', dark: '#3b2a1e' },
+            { id: 'midnight_navy', bg: '#e2e8f0', primary: '#1e3a8a', primaryHover: '#172554', secondary: '#bfdbfe', dark: '#0b1437' },
+            { id: 'cherry_red',    bg: '#fef2f2', primary: '#dc2626', primaryHover: '#b91c1c', secondary: '#fecaca', dark: '#7f1d1d' }
         ];
 
         // ---------- utilitários ----------
