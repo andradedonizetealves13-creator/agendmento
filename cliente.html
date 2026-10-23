@@ -15,13 +15,12 @@
             --theme-secondary: #e0e7ff;
             --theme-text-primary: #1e1b4b;
             
-            /* DESKTOP DEFAULTS */
+            /* BACKGROUND DEFAULTS */
             --bg-image: none;
             --bg-opacity: 0.15;
             --bg-blur: 0px;
-            --bg-scale: 100%;
-            --bg-pos-x: 50%;
-            --bg-pos-y: 50%;
+            --bg-pos: 50% 50%;
+            --bg-zoom: 1;
         }
         html, body { 
             margin: 0; 
@@ -38,19 +37,14 @@
             inset: 0;
             background-image: var(--bg-image);
             background-repeat: no-repeat;
-            background-size: var(--bg-scale);
-            background-position: var(--bg-pos-x) var(--bg-pos-y);
+            background-size: cover;
+            background-position: var(--bg-pos);
+            transform: scale(var(--bg-zoom));
+            transform-origin: var(--bg-pos);
             opacity: var(--bg-opacity);
             filter: blur(var(--bg-blur));
             pointer-events: none;
             z-index: 0;
-        }
-        
-        @media (max-width: 768px) {
-            #custom-bg-layer {
-                background-size: cover !important;
-                background-position: center top !important;
-            }
         }
 
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -87,7 +81,7 @@
         /* ESTILOS DO CROPPER (CORTADOR DE FOTO) */
         #cropper-img {
             max-width: none;
-            touch-action: none; /* Previne scroll ao arrastar no mobile */
+            touch-action: none;
         }
         .cropper-mask {
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
@@ -118,11 +112,8 @@
     <div id="cropper-modal" class="hidden fixed inset-0 z-[150] flex flex-col items-center justify-center bg-slate-900 fade-in touch-none">
         <h3 class="text-white font-bold mb-6 text-lg tracking-wide">Mova e Ajuste</h3>
         
-        <div class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center rounded-full cropper-mask z-20 pointer-events-none border-2 border-white/50">
-            <!-- Máscara vazada redonda -->
-        </div>
+        <div class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center rounded-full cropper-mask z-20 pointer-events-none border-2 border-white/50"></div>
 
-        <!-- Container real da imagem (Fica por baixo da máscara) -->
         <div id="cropper-container" class="absolute inset-0 flex items-center justify-center z-10 cursor-move overflow-hidden">
             <img id="cropper-img" src="" class="absolute transform-gpu">
         </div>
@@ -164,15 +155,12 @@
             EmailAuthProvider 
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // 15 temas (os mesmos IDs e cores do painel)
         const THEME_PALETTES = [
             { id: 'indigo_classic', bg: '#f8fafc', primary: '#4f46e5', primaryHover: '#4338ca', secondary: '#e0e7ff', dark: '#1e1b4b' },
             { id: 'wine_velvet',    bg: '#E8C5D0', primary: '#4A0E2E', primaryHover: '#2D081B', secondary: '#B56B82', dark: '#2A0515' },
             { id: 'emerald_nature', bg: '#e6f4ea', primary: '#059669', primaryHover: '#047857', secondary: '#a7f3d0', dark: '#064e3b' },
             { id: 'amber_gold',     bg: '#fef3c7', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f' },
             { id: 'slate_dark',     bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a' },
-
-            // temas novos
             { id: 'ocean_blue',    bg: '#eff6ff', primary: '#0369a1', primaryHover: '#075985', secondary: '#bae6fd', dark: '#0c4a6e' },
             { id: 'rose_blush',    bg: '#fff1f2', primary: '#e11d48', primaryHover: '#be123c', secondary: '#fecdd3', dark: '#881337' },
             { id: 'violet_dream',  bg: '#f5f3ff', primary: '#7c3aed', primaryHover: '#6d28d9', secondary: '#ddd6fe', dark: '#4c1d95' },
@@ -185,7 +173,18 @@
             { id: 'cherry_red',    bg: '#fef2f2', primary: '#dc2626', primaryHover: '#b91c1c', secondary: '#fecaca', dark: '#7f1d1d' }
         ];
 
-        // ---------- utilitários ----------
+        function getDefWH() {
+            return {
+                0: { active: false, start: '09:00', end: '13:00' }, 
+                1: { active: true,  start: '09:00', end: '18:00' },
+                2: { active: true,  start: '09:00', end: '18:00' }, 
+                3: { active: true,  start: '09:00', end: '18:00' },
+                4: { active: true,  start: '09:00', end: '18:00' }, 
+                5: { active: true,  start: '09:00', end: '18:00' }, 
+                6: { active: true,  start: '09:00', end: '14:00' }
+            };
+        }
+
         window.esc = function(v) {
             return String(v === undefined || v === null ? '' : v)
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -222,7 +221,6 @@
 
             window.currentClient = null;
 
-            // Monitor de Autenticação Oficial do Firebase
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     saveClientId(user.uid);
@@ -245,7 +243,6 @@
                 }
             });
 
-            // ---------- render seguro: não apaga o que a pessoa está digitando ----------
             let pendingRender = false;
             function isUserTyping() {
                 const el = document.activeElement;
@@ -269,10 +266,17 @@
                     return;
                 }
                 window.t = data;
+                if (!t.admin) t.admin = { id: 'admin', name: 'Administrador' };
+                if (!t.admin.workingHours) t.admin.workingHours = getDefWH();
+                if (!t.admin.exceptions) t.admin.exceptions = {};
                 t.clients = toList(t.clients);
                 t.appointments = toList(t.appointments);
                 t.procedures = toList(t.procedures);
                 t.employees = toList(t.employees);
+                t.employees.forEach(e => {
+                    if (!e.workingHours) e.workingHours = t.admin.workingHours || getDefWH();
+                    if (!e.exceptions) e.exceptions = {};
+                });
                 
                 applyThemeCSS(t.themePalette || 'indigo_classic');
                 applyBgImageSettings();
@@ -304,28 +308,27 @@
             }
 
             function applyBgImageSettings() {
-                const isMobile = window.innerWidth < 768;
-                
-                const img = isMobile ? (t.bgMobileImage || t.bgCustomImage) : (t.bgCustomImage || t.bgMobileImage);
-                const scale = isMobile ? (t.bgMobileScale !== undefined ? t.bgMobileScale : t.bgCustomScale) : t.bgCustomScale;
-                const opacity = isMobile ? (t.bgMobileOpacity !== undefined ? t.bgMobileOpacity : t.bgCustomOpacity) : t.bgCustomOpacity;
-                const blur = isMobile ? (t.bgMobileBlur !== undefined ? t.bgMobileBlur : t.bgCustomBlur) : t.bgCustomBlur;
-                const posX = isMobile ? (t.bgMobilePosX !== undefined ? t.bgMobilePosX : t.bgCustomPosX) : t.bgCustomPosX;
-                const posY = isMobile ? (t.bgMobilePosY !== undefined ? t.bgMobilePosY : t.bgCustomPosY) : t.bgCustomPosY;
+                const isMobile = window.innerWidth <= 768;
+                const useMobile = isMobile && !!t.bgMobileImage;
+                const pre = useMobile ? 'bgMobile' : 'bgCustom';
+                const img = useMobile ? t.bgMobileImage : (t.bgCustomImage || t.bgMobileImage);
+                const op = t[pre + 'Opacity'] !== undefined && t[pre + 'Opacity'] !== null ? t[pre + 'Opacity'] : 0.15;
+                const blur = t[pre + 'Blur'] || 0;
+                const px = t[pre + 'PosX'] !== undefined && t[pre + 'PosX'] !== null ? t[pre + 'PosX'] : 50;
+                const py = t[pre + 'PosY'] !== undefined && t[pre + 'PosY'] !== null ? t[pre + 'PosY'] : 50;
+                const zoom = t[pre + 'Zoom'] || 100;
 
                 if (img) {
                     document.documentElement.style.setProperty('--bg-image', `url("${img}")`);
-                    document.documentElement.style.setProperty('--bg-opacity', opacity !== undefined ? opacity : 0.15);
-                    document.documentElement.style.setProperty('--bg-blur', (blur || 0) + 'px');
-                    document.documentElement.style.setProperty('--bg-scale', (scale || 100) + '%');
-                    document.documentElement.style.setProperty('--bg-pos-x', (posX !== undefined ? posX : 50) + '%');
-                    document.documentElement.style.setProperty('--bg-pos-y', (posY !== undefined ? posY : 50) + '%');
+                    document.documentElement.style.setProperty('--bg-opacity', op);
+                    document.documentElement.style.setProperty('--bg-blur', blur + 'px');
+                    document.documentElement.style.setProperty('--bg-pos', `${px}% ${py}%`);
+                    document.documentElement.style.setProperty('--bg-zoom', zoom / 100);
                 } else {
                     document.documentElement.style.setProperty('--bg-image', 'none');
                 }
             }
 
-            // ---------- gravações pontuais (não sobrescrevem a empresa inteira) ----------
             window.createAppointment = function(newApp) {
                 let conflict = false;
                 return runTransaction(ref(rtdb, basePath + '/appointments'), (cur) => {
@@ -399,16 +402,18 @@
             };
 
             window.doesEmployeeWorkOnDate = function(emp, dateStr) {
+                if (!emp) return false;
                 if (emp.exceptions && emp.exceptions[dateStr]) {
                     if (emp.exceptions[dateStr].type === 'folga') return false;
                     if (emp.exceptions[dateStr].type === 'plantao') return true;
                 }
-                if (t.admin.exceptions && t.admin.exceptions[dateStr]) {
+                if (t.admin && t.admin.exceptions && t.admin.exceptions[dateStr]) {
                     if (t.admin.exceptions[dateStr].type === 'folga') return false;
                     if (t.admin.exceptions[dateStr].type === 'plantao') return true;
                 }
-                const [y, m, d] = dateStr.split('-'); const dayOfWeek = new Date(y, m - 1, d).getDay(); 
-                const whSource = emp.workingHours || t.admin.workingHours;
+                const [y, m, d] = dateStr.split('-'); 
+                const dayOfWeek = new Date(y, m - 1, d).getDay(); 
+                const whSource = emp.workingHours || (t.admin ? t.admin.workingHours : null) || getDefWH();
                 return whSource?.[dayOfWeek]?.active !== false;
             };
 
@@ -446,9 +451,8 @@
                 return doesEmployeeWorkOnDate(t.admin, dateStr);
             };
 
-            // O dia tem expediente, mas ainda sobrou algum horário livre?
             window.hasAnyFreeSlot = function(dateStr) {
-                const ids = (t.employees && t.employees.length > 0) ? t.employees.map(e => e.id) : [t.admin.id];
+                const ids = (t.employees && t.employees.length > 0) ? t.employees.map(e => e.id) : (t.admin?.id ? [t.admin.id] : ['admin']);
                 return ids.some(id => getAvailableTimeSlots(id, dateStr, 30).length > 0);
             };
 
@@ -467,27 +471,29 @@
             };
 
             window.getAvailableTimeSlots = function(empId, dateStr, durationMins) {
-                const emp = empId === t.admin.id ? t.admin : (t.employees || []).find(e => e.id === empId);
+                const emp = (t.admin && empId === t.admin.id) ? t.admin : ((t.employees || []).find(e => e.id === empId) || t.admin);
                 if(!emp || !doesEmployeeWorkOnDate(emp, dateStr)) return [];
                 
                 let start = '09:00', end = '18:00';
                 const excEmp = emp.exceptions?.[dateStr];
-                const excAdmin = t.admin.exceptions?.[dateStr];
+                const excAdmin = t.admin?.exceptions?.[dateStr];
 
                 if (excEmp && excEmp.type === 'plantao') { start = excEmp.start; end = excEmp.end; }
                 else if (excAdmin && excAdmin.type === 'plantao') { start = excAdmin.start; end = excAdmin.end; }
                 else {
-                    const [y, m, d] = dateStr.split('-'); const dayOfWeek = new Date(y, m - 1, d).getDay();
-                    const wh = emp.workingHours?.[dayOfWeek] || t.admin.workingHours?.[dayOfWeek];
+                    const [y, m, d] = dateStr.split('-'); 
+                    const dayOfWeek = new Date(y, m - 1, d).getDay();
+                    const def = getDefWH();
+                    const wh = emp.workingHours?.[dayOfWeek] || (t.admin ? t.admin.workingHours?.[dayOfWeek] : null) || def[dayOfWeek];
                     if(wh && wh.active) { start = wh.start; end = wh.end; } else return [];
                 }
 
-                const startMins = timeToMins(start); const endMins = timeToMins(end);
+                const startMins = timeToMins(start); 
+                const endMins = timeToMins(end);
                 const reschedId = clientBooking.resched ? clientBooking.resched.id : null;
                 const empApps = (t.appointments || []).filter(a => a.employeeId === empId && a.date === dateStr && isBusyStatus(a) && a.id !== reschedId);
                 const slots = [];
 
-                // Hoje: não oferece horários que já passaram
                 const now = new Date();
                 const isToday = dateStr === localDateStr(now);
                 const nowMins = now.getHours() * 60 + now.getMinutes();
@@ -499,7 +505,8 @@
                     const slotEnd = m + durationMins;
                     
                     for(let a of empApps) {
-                        const aStart = timeToMins(a.time); const aEnd = aStart + a.totalDuration;
+                        const aStart = timeToMins(a.time); 
+                        const aEnd = aStart + a.totalDuration;
                         if(m < aEnd && slotEnd > aStart) { overlap = true; break; }
                     }
 
@@ -514,16 +521,14 @@
             };
 
             window.getEmployeeById = function(id) {
-                return id === t.admin.id ? t.admin : (t.employees || []).find(e => e.id === id);
+                return (t.admin && id === t.admin.id) ? t.admin : (t.employees || []).find(e => e.id === id);
             };
 
-            // Profissionais que fazem TODOS os serviços escolhidos e trabalham no dia
             function capableEmployees(dateStr, procIds) {
                 return (t.employees || []).filter(e =>
                     procIds.every(pid => e.procedures && e.procedures.includes(pid)) && doesEmployeeWorkOnDate(e, dateStr));
             }
 
-            // Horários livres de um profissional ou de "qualquer profissional"
             window.getBookingSlots = function(empId, dateStr, durationMins, procIds) {
                 if (empId !== 'any') return getAvailableTimeSlots(empId, dateStr, durationMins);
                 const map = new Map();
@@ -539,7 +544,6 @@
                 return found ? found.id : null;
             };
 
-            // Prazo de reagendamento (opcional): cancelMinHours na empresa. 0 = sem limite. Cancelar é sempre liberado.
             window.getCancelMinHours = function() { return Number(t.cancelMinHours) || 0; };
             window.canModifyApp = function(a) {
                 const min = getCancelMinHours();
@@ -579,7 +583,6 @@
                 render();
             };
 
-            // Move o agendamento (mesmo id) de forma atômica, checando conflito
             window.rescheduleAppointment = function(id, newDate, newTime) {
                 let reason = 'ok';
                 return runTransaction(ref(rtdb, basePath + '/appointments'), (cur) => {
@@ -1017,7 +1020,6 @@
                     })
                     .catch(() => showModal('Erro', 'Não foi possível salvar a foto. Tente novamente.', 'error'));
             };
-            // ==========================================
 
             window.handleSaveClientProfile = async function(e) {
                 e.preventDefault();
@@ -1029,7 +1031,6 @@
                 if (!newName || newName.length < 3) return showModal('Aviso', 'Informe seu nome completo.', 'error');
                 if (digitsPhone.length !== 11) return showModal('Telefone Inválido', 'Informe um telefone/WhatsApp válido com DDD e 9 dígitos.', 'error');
 
-                // Verificação e atualização de senha para usuários normais (e-mail e senha)
                 const oldPassEl = document.getElementById('c-prof-old-pass');
                 const newPassEl = document.getElementById('c-prof-new-pass');
                 const confirmPassEl = document.getElementById('c-prof-confirm-pass');
@@ -1264,7 +1265,6 @@
                     const empLabel = isAny ? 'Qualquer profissional' : (emp ? emp.name : 'Profissional');
                     const serviceNames = resched ? resched.proceduresNames : selectedProcs.map(p => p.name);
                     
-                    // se o horário escolhido deixou de existir, limpa a seleção
                     if (clientBooking.time && !slots.some(s => s.time === clientBooking.time)) clientBooking.time = null;
 
                     const selectedSlotObj = slots.find(s => s.time === clientBooking.time);
@@ -1313,7 +1313,6 @@
                 const checks = Array.from(document.querySelectorAll('.c-proc-check:checked')).map(c => c.value);
                 if (checks.length === 0) return showModal('Aviso', 'Selecione pelo menos um serviço.', 'info');
 
-                // Evita o beco sem saída: precisa existir ao menos um profissional que faça TODOS os serviços marcados
                 if (t.employees && t.employees.length > 0) {
                     const someoneDoesAll = t.employees.some(emp =>
                         checks.every(pid => emp.procedures && emp.procedures.includes(pid)) &&
@@ -1341,7 +1340,6 @@
                 const totalPrice = resched ? resched.totalPrice : selectedProcs.reduce((s, p) => s + p.price, 0);
                 const serviceNames = resched ? resched.proceduresNames : selectedProcs.map(p => p.name);
 
-                // confere de novo se o horário continua livre (outra pessoa pode ter agendado)
                 const slot = getBookingSlots(clientBooking.employeeId, clientBooking.date, totalDuration, clientBooking.procedures).find(s => s.time === clientBooking.time);
                 if (!slot || (resched && slot.hasClientCollision)) {
                     clientBooking.time = null;
@@ -1351,7 +1349,6 @@
 
                 const bookedDate = clientBooking.date, bookedTime = clientBooking.time;
 
-                // ---------- REAGENDAR ----------
                 if (resched) {
                     const reschedEmp = getEmployeeById(resched.employeeId);
                     rescheduleAppointment(resched.id, bookedDate, bookedTime).then(res => {
@@ -1371,7 +1368,6 @@
                     return;
                 }
 
-                // ---------- NOVO AGENDAMENTO ----------
                 let finalBeneficiary = currentClient.name;
                 if (slot.hasClientCollision || clientBooking.isForOther) {
                     const inpVal = document.getElementById('beneficiary-name-inp')?.value.trim();
