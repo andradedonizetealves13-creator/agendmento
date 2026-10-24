@@ -45,6 +45,7 @@
                 <input type="password" id="inp-confirm" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
                 <p class="text-[11px] text-slate-400 mt-1">Mínimo de 6 caracteres.</p>
             </div>
+            <div id="box-forgot" class="text-right -mt-2"><button type="button" id="btn-forgot" class="text-xs font-bold text-amber-600 hover:text-amber-700 underline">Esqueci minha senha</button></div>
             <button type="submit" id="btn-submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md mt-2 transition-all">Acessar Painel</button>
         </form>
 
@@ -67,6 +68,9 @@
             window.history.replaceState(null, '', window.location.pathname.replace(/\.html$/, '') + window.location.search);
         }
 
+        import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
         import { 
             auth, 
             googleProvider, 
@@ -93,7 +97,7 @@
         const ON = 'flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all';
         const OFF = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all';
 
-        function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.remove('hidden'); }
+        function showError(msg) { errorMsg.className = 'mb-4 p-3 bg-rose-50 text-rose-600 text-sm rounded-lg border border-rose-100 text-center font-medium'; errorMsg.textContent = msg; errorMsg.classList.remove('hidden'); }
 
         function setMode(m) {
             mode = m;
@@ -105,10 +109,33 @@
             document.getElementById('inp-empresa').required = reg;
             document.getElementById('inp-confirm').required = reg;
             btnSubmit.textContent = reg ? 'Criar Conta' : 'Acessar Painel';
+            document.getElementById('box-forgot').classList.toggle('hidden', reg);
             errorMsg.classList.add('hidden');
         }
         tabLogin.onclick = () => setMode('login');
         tabReg.onclick = () => setMode('register');
+
+        // Recuperar senha (administrador e profissionais usam este mesmo acesso)
+        document.getElementById('btn-forgot').onclick = async () => {
+            errorMsg.classList.add('hidden');
+            const email = document.getElementById('inp-email').value.trim();
+            if (!email) return showError('Digite seu e-mail no campo acima e clique em "Esqueci minha senha".');
+            try {
+                await sendPasswordResetEmail(auth, email);
+            } catch (err) {
+                if (err && err.code === 'auth/too-many-requests') return showError('Muitas tentativas. Aguarde alguns minutos e tente de novo.');
+                if (err && err.code === 'auth/invalid-email') return showError('E-mail inválido.');
+            }
+            errorMsg.className = 'mb-4 p-3 bg-emerald-50 text-emerald-700 text-sm rounded-lg border border-emerald-100 text-center font-medium';
+            errorMsg.textContent = 'Se existir uma conta com este e-mail, enviamos um link para criar uma nova senha. Olhe também o spam.';
+        };
+
+        // Pede à Cloud Function para conferir o cadastro no servidor e gravar o papel no login (custom claims).
+        async function syncRole(slug) {
+            const r = await httpsCallable(getFunctions(getApp()), 'syncRole')(slug ? { slug } : {});
+            await auth.currentUser.getIdToken(true);
+            return r.data;
+        }
 
         function generateSlug(text) {
             return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
@@ -133,6 +160,7 @@
                     });
                 }
 
+                try { await syncRole(slug); } catch (e) { console.warn('syncRole:', e && e.message); }
                 localStorage.setItem('agendaProSession', JSON.stringify({ slug, id: user.uid, role: 'admin' }));
                 window.location.href = 'painel_do_profissional.html';
             } catch (err) {
@@ -169,15 +197,23 @@
                         admin: { id: user.uid, name: 'Administrador', email: email }
                     });
 
+                    try { await syncRole(slug); } catch (e) { console.warn('syncRole:', e && e.message); }
                     localStorage.setItem('agendaProSession', JSON.stringify({ slug, id: user.uid, role: 'admin' }));
                     window.location.href = 'painel_do_profissional.html';
                 } else {
                     const userCred = await signInWithEmailAndPassword(auth, email, pass);
                     const user = userCred.user;
 
-                    const snapshot = await get(ref(rtdb, TENANTS));
-                    const tenants = snapshot.val() || {};
                     let found = null;
+                    // 1) caminho seguro: o servidor descobre a organização e grava o papel no login
+                    try {
+                        const r = await syncRole();
+                        if (r && r.slug && (r.role === 'admin' || r.role === 'employee')) found = { slug: r.slug, id: r.id, role: r.role };
+                    } catch (e) { console.warn('syncRole indisponível, usando busca antiga:', e && e.message); }
+
+                    // 2) alternativa (enquanto a Cloud Function não estiver publicada): busca no banco como antes
+                    let tenants = {};
+                    if (!found) { try { tenants = (await get(ref(rtdb, TENANTS))).val() || {}; } catch (e) { tenants = {}; } }
 
                     for (const slug in tenants) {
                         const t = tenants[slug];
