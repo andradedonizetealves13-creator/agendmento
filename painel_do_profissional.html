@@ -175,7 +175,7 @@
     <script type="module">
         import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as signOutSecondary } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as signOutSecondary, reauthenticateWithCredential, reauthenticateWithPopup, EmailAuthProvider, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { auth, rtdb, signOut, onAuthStateChanged, ref, update, onValue, runTransaction, get, child, set } from './firebase-config.js';
 
         async function hashSenha(p) { return 'PROTECTED_BY_FIREBASE_AUTH'; }
@@ -256,6 +256,11 @@
 
         const basePath = 'agendapro_saas/tenants/' + (session.slug || 'demo');
         const tenantRef = ref(rtdb, basePath);
+        window.providerInfo = null;
+        onValue(ref(rtdb, 'agendapro_saas/providers/' + (session.slug || 'demo')), (snap) => {
+            window.providerInfo = snap.val();
+            if (window.t && typeof window.render === 'function') window.render();
+        }, () => {});
 
         const COLOR_PALETTE = ['#dc2626', '#4f46e5', '#0284c7', '#059669', '#d97706', '#7c3aed', '#c026d3', '#db2777', '#0891b2', '#4b5563'];
 
@@ -1140,9 +1145,51 @@
                 </div>`;
         }
 
+        const WA_SVG = '<svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>';
+
+        function providerCardHtml() {
+            const pv = window.providerInfo, on = !!(pv && pv.active), isAdm = session.role === 'admin';
+            const u = auth.currentUser;
+            const isPwd = !!(u && u.providerData.some(x => x.providerId === 'password'));
+            const when = pv && pv.connectedAt ? new Date(pv.connectedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+            return `
+                <div class="rounded-2xl border-2 ${on ? 'border-emerald-300 bg-emerald-50/60' : 'border-dashed border-slate-300 bg-white'} p-4 space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-3">
+                            <div class="bg-theme-secondary text-theme-primary p-2 rounded-xl shrink-0"><i data-lucide="zap" class="w-4 h-4"></i></div>
+                            <div>
+                                <p class="text-sm font-black text-slate-900">Pagamento automático do sinal</p>
+                                <p class="text-[11px] text-slate-500">Mercado Pago • o Pix confirma o agendamento sozinho, sem você conferir nada.</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 ${on ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}">${on ? 'Conectado' : 'Não conectado'}</span>
+                    </div>
+                    ${on ? `<p class="text-xs text-slate-700">Conta: <b>${esc(pv.label || 'Mercado Pago')}</b> • token terminado em <b class="font-mono">${esc(pv.last4 || '••••')}</b>${when ? ` • conectado em ${when}` : ''}</p>` : `<p class="text-xs text-slate-600">Sem conexão, vale o modo manual: o cliente paga pela sua chave Pix e você confirma o pagamento.</p>`}
+                    ${!isAdm ? `<p class="text-xs font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-xl p-3">Só o administrador pode conectar ou alterar o pagamento automático.</p>` : `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">${on ? 'Novo Access Token de produção (para trocar)' : 'Access Token de produção do Mercado Pago'}</label>
+                            <input type="password" id="mp-token" autocomplete="new-password" placeholder="APP_USR-..." class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500 font-mono">
+                            <p class="text-[11px] text-slate-400 mt-1">Mercado Pago &gt; Seu negócio &gt; Configurações &gt; Credenciais &gt; Credenciais de produção. O token fica guardado só no servidor e nunca aparece de novo aqui.</p>
+                        </div>
+                        ${isPwd ? `
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Senha do seu login (obrigatória para conectar, trocar ou desconectar)</label>
+                            <input type="password" id="mp-pass" autocomplete="current-password" placeholder="Digite a senha do seu login" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500">
+                        </div>` : `<p class="text-[11px] text-slate-500">Seu login é pelo Google: ao clicar, vamos pedir para você entrar com o Google de novo para confirmar que é você.</p>`}
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <button type="button" onclick="mpConnectClick()" class="flex-1 btn-theme-primary text-xs font-bold py-3 rounded-xl">${on ? 'Trocar token' : 'Conectar Mercado Pago'}</button>
+                            ${on ? `<button type="button" onclick="mpDisconnectClick()" class="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold py-3 rounded-xl">Desconectar</button>` : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-400">A conexão é gravada na hora (não precisa clicar em "Salvar Regras"). Teste com um sinal de R$ 1,00 antes de usar com clientes.</p>
+                    </div>`}
+                </div>`;
+        }
+
         function depositBodyHtml(d) {
             const procs = t.procedures || [];
             const dep = d.deposit;
+            const provOn = !!(window.providerInfo && window.providerInfo.active);
             const type = PIX_TYPES.find(p => p[0] === dep.pixKeyType) || PIX_TYPES[0];
             const allOn = dep.all || (procs.length > 0 && procs.every(p => dep.procedureIds.includes(String(p.id))));
             const sampleProc = procs.find(p => dep.all || dep.procedureIds.includes(String(p.id)));
@@ -1170,34 +1217,41 @@
                         <div class="relative"><input type="number" min="1" max="100" step="1" value="${dep.percent}" oninput="setDepField('percent', this.value)" class="w-full px-4 py-3 pr-10 border rounded-xl text-sm outline-none focus:border-indigo-500"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">%</span></div>
                     </div>
                     <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Prazo para pagar o sinal (em horas)</label>
+                        <div class="relative"><input type="number" min="0" max="720" step="0.5" value="${dep.expiryHours}" oninput="setDepField('expiryHours', this.value)" class="w-full px-4 py-3 pr-14 border rounded-xl text-sm outline-none focus:border-indigo-500"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">horas</span></div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-400 -mt-2">Se o sinal não for confirmado dentro do prazo, o horário é liberado automaticamente para outros clientes. ${provOn ? 'Com o pagamento automático, 0 vira 24 horas (o Pix gerado precisa de validade).' : 'Use 0 para não ter prazo.'}</p>
+                ${providerCardHtml()}
+                ${provOn ? '' : `
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Tipo da chave Pix</label>
                         <select onchange="setDepField('pixKeyType', this.value, true)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white">
                             ${PIX_TYPES.map(p => `<option value="${p[0]}" ${p[0] === dep.pixKeyType ? 'selected' : ''}>${p[1]}</option>`).join('')}
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Chave Pix que recebe o sinal</label>
+                        <input type="text" id="dep-pix-input" value="${esc(dep.pixKey)}" placeholder="${esc(type[2])}" oninput="setDepField('pixKey', this.value)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500 font-mono">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Chave Pix que aparece para o cliente</label>
-                    <input type="text" id="dep-pix-input" value="${esc(dep.pixKey)}" placeholder="${esc(type[2])}" oninput="setDepField('pixKey', this.value)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500 font-mono">
-                </div>
+                <p class="text-[11px] text-slate-400 -mt-2">A chave não aparece para o cliente: ela só gera o QR Code e o Pix copia e cola já com o valor preenchido.</p>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Link do WhatsApp para receber o comprovante</label>
                     <input type="text" value="${esc(dep.whatsappLink)}" placeholder="Cole aqui o link, ex: https://wa.me/5519999999999" oninput="setDepField('whatsappLink', this.value)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500">
-                    <p class="text-[11px] text-slate-400 mt-1">Opcional. Se preencher, o cliente verá um botão "Clique aqui para enviar o comprovante para o WhatsApp". Também aceita só o número com DDD.</p>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Prazo para pagar o sinal (em horas)</label>
-                    <div class="relative"><input type="number" min="0" max="720" step="0.5" value="${dep.expiryHours}" oninput="setDepField('expiryHours', this.value)" class="w-full px-4 py-3 pr-14 border rounded-xl text-sm outline-none focus:border-indigo-500"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">horas</span></div>
-                    <p class="text-[11px] text-slate-400 mt-1">Se o sinal não for confirmado dentro deste prazo, o horário é liberado automaticamente para outros clientes. Use 0 para não ter prazo.</p>
-                </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Opcional. Se preencher, o cliente verá o botão verde "Enviar comprovante pelo WhatsApp". Também aceita só o número com DDD.</p>
+                </div>`}
                 <div class="rounded-2xl border border-dashed p-4 bg-slate-50">
                     <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Como o cliente vê depois de agendar</p>
                     <div class="bg-white border rounded-xl p-4 space-y-1.5">
                         <p class="text-sm font-black text-slate-900 flex items-center"><i data-lucide="qr-code" class="w-4 h-4 mr-2 text-theme-primary"></i>Pague o sinal para garantir seu horário</p>
                         <p class="text-xs text-slate-600">Valor do sinal: <b id="dep-sample" class="text-emerald-700">${brl(depAmount(samplePrice, dep.percent))}</b></p>
-                        <p class="text-xs text-slate-600">Chave Pix (<span id="dep-type-label">${esc(type[1])}</span>): <b id="dep-key-label" class="font-mono break-all">${esc(dep.pixKey) || '—'}</b></p>
-                        <p class="text-[11px] font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-lg px-2.5 py-1.5">⏳ O agendamento fica pendente até você confirmar o pagamento${Number(dep.expiryHours) > 0 ? ` e o horário é liberado se não for confirmado em ${dep.expiryHours}h` : ''}.</p>
-                        <div id="dep-wa-preview" class="${dep.whatsappLink.trim() ? '' : 'hidden'} text-center text-xs font-bold bg-emerald-600 text-white rounded-xl px-3 py-2.5">Clique aqui para enviar o comprovante para o WhatsApp</div>
+                        <p class="text-xs text-slate-600">QR Code + Pix copia e cola</p>
+                        ${provOn
+                            ? `<p class="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-dashed border-emerald-300 rounded-lg px-2.5 py-1.5">✅ Confirmado automaticamente assim que o Pix for pago. Sem comprovante.</p>`
+                            : `<p class="text-[11px] font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-lg px-2.5 py-1.5">⏳ O agendamento fica pendente até você confirmar o pagamento${Number(dep.expiryHours) > 0 ? ` e o horário é liberado se não for confirmado em ${dep.expiryHours}h` : ''}.</p>
+                               <div id="dep-wa-preview" class="${String(dep.whatsappLink || '').trim() ? '' : 'hidden'} flex items-center justify-center gap-2 text-xs font-bold bg-[#25D366] text-white rounded-xl px-3 py-2.5">${WA_SVG}<span>Enviar comprovante pelo WhatsApp</span></div>`}
                     </div>
                 </div>`;
         }
@@ -1272,7 +1326,34 @@
         function pendingList(role, user) {
             return agendaScope(role, user).filter(a => getEffectiveAppStatus(a) === 'pendente').sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
         }
-        function pendingBannerHtml(role, user) {
+        function payAlertText(a) {
+            const v = brl(a.paidAmount != null ? a.paidAmount : a.depositAmount);
+            if (a.paymentAlert === 'late_conflict') return `Pix de ${v} recebido depois do prazo, e o horário já foi ocupado por outra pessoa. Devolva o valor ao cliente.`;
+            if (a.paymentAlert === 'late_past') return `Pix de ${v} recebido depois do horário do agendamento. Devolva o valor ao cliente.`;
+            return `Pix de ${v} recebido em um agendamento cancelado. Devolva o valor ao cliente.`;
+        }
+        window.resolvePayAlert = function(id) {
+            const a = (t.appointments || []).find(x => x.id === id); if (!a) return;
+            setAppStatusDB(id, a.status, { paymentAlertResolved: true, paymentAlertResolvedAt: new Date().toISOString() })
+                .then(() => closeModal())
+                .catch(() => showModal('Erro de conexão', 'Não foi possível atualizar. Tente novamente.', 'error'));
+        };
+        function payAlertBannerHtml(role, user) {
+            const list = agendaScope(role, user).filter(a => a.paymentAlert && !a.paymentAlertResolved);
+            if (!list.length) return '';
+            return `
+                <div class="mb-4 rounded-2xl border-2 border-rose-400 bg-rose-50/95 p-4 fade-in">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="bg-rose-100 text-rose-700 p-2 rounded-xl"><i data-lucide="alert-octagon" class="w-5 h-5"></i></div>
+                        <div><p class="text-sm font-black text-rose-900">${list.length} ${list.length === 1 ? 'pagamento precisa' : 'pagamentos precisam'} de atenção</p><p class="text-[11px] text-rose-800">Pix pago que não pôde confirmar o horário. Devolva o valor e marque como resolvido.</p></div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        ${list.map(a => `<button onclick="showAppDetails('${a.id}')" class="text-[11px] font-bold bg-white border border-rose-300 text-rose-900 rounded-full px-3 py-1.5 hover:bg-rose-100">🚨 ${formatDateBR(a.date)} ${a.time} · ${esc(a.clientName)} · ${brl(a.paidAmount != null ? a.paidAmount : a.depositAmount)}</button>`).join('')}
+                    </div>
+                </div>`;
+        }
+        function pendingBannerHtml(role, user) { return payAlertBannerHtml(role, user) + pendingOnlyBannerHtml(role, user); }
+        function pendingOnlyBannerHtml(role, user) {
             const list = pendingList(role, user);
             if (!list.length) return '';
             return `
@@ -2318,18 +2399,20 @@
             const dlTxt = app.depositDeadline ? new Date(app.depositDeadline).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
             const expiredInfo = effSt === 'expirado' ? `<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-100 p-3 text-xs text-slate-700 font-bold">⌛ Prazo do sinal vencido${dlTxt ? ' em ' + dlTxt : ''}. O horário foi liberado. Se o cliente já pagou, cancele este e faça um novo agendamento.</div>` : '';
             const depPaid = app.depositRequired && app.status !== 'pendente' && app.status !== 'cancelado';
-            const depSummary = depPaid ? `<div class="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs"><span class="font-bold text-emerald-800">Sinal pago ${brl(depVal)}</span><span class="font-bold text-slate-700">Restante ${brl(Math.max(0, (Number(app.totalPrice) || 0) - depVal))}</span></div>` : '';
+            const depSummary = depPaid ? `<div class="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs"><span class="font-bold text-emerald-800">Sinal pago${app.depositPaidVia === 'mercadopago' ? ' (Pix automático)' : ''} ${brl(depVal)}</span><span class="font-bold text-slate-700">Restante ${brl(Math.max(0, (Number(app.totalPrice) || 0) - depVal))}</span></div>` : '';
             const pendingInfo = effSt === 'pendente' ? `
                     <div class="rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50 p-4 space-y-3">
                         <div class="flex items-center space-x-3"><div class="bg-amber-100 p-2 rounded-lg text-amber-700"><i data-lucide="hourglass" class="w-5 h-5"></i></div><div><p class="text-sm font-black text-amber-900">Aguardando confirmação do sinal</p><p class="text-[11px] text-amber-800">Este horário está reservado, mas só vira agendamento firme depois que você confirmar.</p></div></div>
                         <div class="bg-white/80 border border-amber-200 rounded-xl p-3 text-xs text-slate-700 space-y-1">
                             <p>Sinal combinado: <b class="text-emerald-700">${brl(depVal)}</b>${dlTxt ? ` • pagar até <b>${dlTxt}</b>` : ''}</p>
-                            ${depPixKey ? `<p>Chave Pix (${esc(depPixType)}) enviada ao cliente: <b class="font-mono break-all">${esc(depPixKey)}</b></p>` : ''}
+                            ${app.pixProvider === 'mercadopago' ? `<p class="text-emerald-800 font-bold">⚡ Pix automático: este agendamento confirma sozinho quando o cliente pagar.</p>` : (depPixKey ? `<p>Chave Pix (${esc(depPixType)}) enviada ao cliente: <b class="font-mono break-all">${esc(depPixKey)}</b></p>` : '')}
                         </div>
-                        <button onclick="confirmPendingApp('${app.id}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center"><i data-lucide="check-circle" class="w-4 h-4 mr-2"></i>Confirmar agendamento (sinal recebido)</button>
+                        <button onclick="confirmPendingApp('${app.id}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center"><i data-lucide="check-circle" class="w-4 h-4 mr-2"></i>${app.pixProvider === 'mercadopago' ? 'Confirmar manualmente (já conferi o pagamento)' : 'Confirmar agendamento (sinal recebido)'}</button>
                     </div>` : '';
+            const payAlertInfo = (app.paymentAlert && !app.paymentAlertResolved) ? `<div class="rounded-2xl border-2 border-rose-400 bg-rose-50 p-4 space-y-2"><p class="text-sm font-black text-rose-900">🚨 ${payAlertText(app)}</p><button onclick="resolvePayAlert('${app.id}')" class="w-full bg-white border border-rose-300 text-rose-800 font-bold py-2.5 rounded-xl text-xs">Já devolvi / resolvi</button></div>` : '';
             const msg = `
                 <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
+                    ${payAlertInfo}
                     ${pendingInfo}
                     ${expiredInfo}
                     ${reschedInfo}
@@ -2434,7 +2517,7 @@
             if (dep.enabled) {
                 if (!dep.all && dep.procedureIds.length === 0) return fail('Selecione ao menos um procedimento para cobrar sinal (ou use "Selecionar tudo").');
                 if (!(percent > 0 && percent <= 100)) return fail('A porcentagem do sinal deve ficar entre 1 e 100.');
-                const err = pixError(dep.pixKeyType, dep.pixKey); if (err) return fail(err);
+                if (!(window.providerInfo && window.providerInfo.active)) { const err = pixError(dep.pixKeyType, dep.pixKey); if (err) return fail(err); }
             }
             const expiryHours = Number(dep.expiryHours === '' || dep.expiryHours == null ? 2 : dep.expiryHours);
             if (dep.enabled && (isNaN(expiryHours) || expiryHours < 0 || expiryHours > 720)) return fail('O prazo para pagar o sinal deve ficar entre 0 e 720 horas (0 = sem prazo).');
@@ -2464,6 +2547,54 @@
             window.rulesDraft = null;
             saveDB(['rules', 'cancelMinHours']);
             showModal('Sucesso', 'Regras atualizadas!', 'success');
+        };
+
+        // ---------- PAGAMENTO AUTOMÁTICO (Mercado Pago): conectar / trocar / desconectar ----------
+        async function mpConfirmLogin() {
+            const u = auth.currentUser;
+            if (!u) throw new Error('Sessão expirada. Entre novamente.');
+            if (u.providerData.some(x => x.providerId === 'password')) {
+                const pass = ((document.getElementById('mp-pass') || {}).value) || '';
+                if (!pass) throw new Error('Digite a senha do seu login para continuar.');
+                try { await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, pass)); }
+                catch (_) { throw new Error('Senha incorreta.'); }
+            } else {
+                try { await reauthenticateWithPopup(u, new GoogleAuthProvider()); }
+                catch (_) { throw new Error('Não foi possível confirmar o login com o Google. Tente de novo.'); }
+            }
+            await u.getIdToken(true);   // o servidor confere que a senha foi digitada agora há pouco
+        }
+        function mpCall(name, data) { return httpsCallable(getFunctions(getApp()), name)(Object.assign({ slug: session.slug }, data || {})); }
+        window.mpConnectClick = async function() {
+            if (window.mpBusy) return;
+            if (session.role !== 'admin') return showModal('Atenção', 'Só o administrador pode alterar o pagamento automático.', 'error');
+            const token = (((document.getElementById('mp-token') || {}).value) || '').trim();
+            if (!/^APP_USR-/.test(token)) return showModal('Atenção', 'Cole o Access Token de PRODUÇÃO do Mercado Pago (começa com APP_USR-).', 'error');
+            window.mpBusy = true;
+            try {
+                await mpConfirmLogin();
+                const r = await mpCall('mpConnect', { accessToken: token });
+                const el = document.getElementById('mp-token'); if (el) el.value = '';
+                showModal('Conectado!', 'Mercado Pago conectado' + (r.data && r.data.label ? ' (conta ' + esc(r.data.label) + ')' : '') + '. Faça um teste com sinal de R$ 1,00 antes de usar com clientes.', 'success');
+            } catch (e) {
+                showModal('Não foi possível conectar', esc((e && e.message) || 'Tente novamente.'), 'error');
+            } finally { window.mpBusy = false; }
+        };
+        window.mpDisconnectClick = function() {
+            if (session.role !== 'admin') return showModal('Atenção', 'Só o administrador pode alterar o pagamento automático.', 'error');
+            const needPass = !!(auth.currentUser && auth.currentUser.providerData.some(x => x.providerId === 'password'));
+            if (needPass && !(((document.getElementById('mp-pass') || {}).value) || '')) return showModal('Atenção', 'Digite a senha do seu login no campo "Senha do seu login" e clique em Desconectar de novo.', 'error');
+            showModal('Desconectar Mercado Pago', 'Os próximos agendamentos voltam ao modo manual (chave Pix e confirmação por você). Pix já gerados e ainda não pagos deixam de confirmar sozinhos.', 'error', async () => {
+                if (window.mpBusy) return;
+                window.mpBusy = true;
+                try {
+                    await mpConfirmLogin();
+                    await mpCall('mpDisconnect');
+                    showModal('Desconectado', 'O pagamento automático foi desligado.', 'success');
+                } catch (e) {
+                    showModal('Não foi possível desconectar', esc((e && e.message) || 'Tente novamente.'), 'error');
+                } finally { window.mpBusy = false; }
+            });
         };
 
         // ---------- AGENDAMENTO PENDENTE: confirmar sinal ----------
