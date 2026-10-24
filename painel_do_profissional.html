@@ -197,12 +197,12 @@
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'acessar_organizacao.html';
+                window.location.href = 'index.html';
             }
         });
 
         const sessionStr = localStorage.getItem('agendaProSession');
-        if (!sessionStr) { window.location.href = 'acessar_organizacao.html'; }
+        if (!sessionStr) { window.location.href = 'index.html'; }
         const session = JSON.parse(sessionStr || '{}');
 
         const basePath = 'agendapro_saas/tenants/' + (session.slug || 'demo');
@@ -285,7 +285,7 @@
             const data = snapshot.val();
             if (!data) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'acessar_organizacao.html';
+                window.location.href = 'index.html';
                 return;
             }
             window.t = data;
@@ -486,7 +486,7 @@
             document.querySelectorAll('.custom-dropdown-menu').forEach(m => m.classList.add('hidden'));
         });
         
-        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'acessar_organizacao.html'; };
+        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'index.html'; };
 
         window.render = function() {
             if(!window.t) return;
