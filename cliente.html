@@ -87,6 +87,7 @@
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body class="text-slate-800 antialiased h-full w-full flex m-0 p-0 overflow-hidden">
 
@@ -152,7 +153,8 @@
         import { 
             updatePassword, 
             reauthenticateWithCredential, 
-            EmailAuthProvider 
+            EmailAuthProvider,
+            sendPasswordResetEmail
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const THEME_PALETTES = [
@@ -194,7 +196,8 @@
         window.localDateStr = function(d = new Date()) {
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         };
-        const isBusyStatus = (a) => a.status !== 'cancelado' && a.status !== 'nao_compareceu';
+        const isDepositExpired = (a) => !!a && a.status === 'pendente' && !!a.depositDeadline && new Date(a.depositDeadline) < new Date();
+        const isBusyStatus = (a) => a.status !== 'cancelado' && a.status !== 'nao_compareceu' && !isDepositExpired(a);
 
         const urlParams = new URLSearchParams(window.location.search);
         const orgSlug = urlParams.get('org');
@@ -393,7 +396,7 @@
                 if (appItem.status === 'cancelado') return 'cancelado';
                 if (appItem.status === 'nao_compareceu') return 'nao_compareceu';
                 if (appItem.status === 'realizado') return 'realizado';
-                if (appItem.status === 'pendente') return new Date(appItem.date + 'T' + appItem.time) < new Date() ? 'expirado' : 'pendente';
+                if (appItem.status === 'pendente') return (isDepositExpired(appItem) || new Date(appItem.date + 'T' + appItem.time) < new Date()) ? 'expirado' : 'pendente';
                 const appDateTime = new Date(appItem.date + 'T' + appItem.time);
                 if (appDateTime < new Date()) return 'realizado';
                 return 'agendado';
@@ -561,7 +564,8 @@
                         procedureIds: toList(dep.procedureIds).map(String),
                         percent: Number(dep.percent) > 0 ? Number(dep.percent) : 30,
                         pixKeyType: dep.pixKeyType || 'cpf', pixKey: String(dep.pixKey || '').trim(),
-                        whatsappLink: safeWaLink(dep.whatsappLink)
+                        whatsappLink: safeWaLink(dep.whatsappLink),
+                        expiryHours: (dep.expiryHours === undefined || dep.expiryHours === null || dep.expiryHours === '' || isNaN(Number(dep.expiryHours))) ? 2 : Math.max(0, Number(dep.expiryHours))
                     },
                     openingWindow: {
                         enabled: win.enabled === true,
@@ -673,33 +677,89 @@
                 const base = req.reduce((s, p) => s + (Number(p.price) || 0), 0);
                 const amount = Math.round(base * dep.percent) / 100;
                 if (!(amount > 0)) return null;
-                return { amount, percent: dep.percent, base, pixKeyType: dep.pixKeyType, pixKey: dep.pixKey, whatsappLink: dep.whatsappLink };
+                return { amount, percent: dep.percent, base, pixKeyType: dep.pixKeyType, pixKey: dep.pixKey, whatsappLink: dep.whatsappLink, expiryHours: dep.expiryHours };
             };
-            window.pixHtml = function(date, time, amount, type, key, wa) {
+            // ---- Pix "copia e cola" (BR Code estático, padrão do Banco Central) ----
+            function crc16(str) {
+                let crc = 0xFFFF;
+                for (let i = 0; i < str.length; i++) {
+                    crc ^= str.charCodeAt(i) << 8;
+                    for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+                }
+                return crc.toString(16).toUpperCase().padStart(4, '0');
+            }
+            function emv(id, value) { value = String(value); return id + String(value.length).padStart(2, '0') + value; }
+            function pixClean(txt, max) {
+                return String(txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+            }
+            function pixKeyNormalize(type, key) {
+                key = String(key || '').trim();
+                if (type === 'cpf' || type === 'cnpj') return key.replace(/\D/g, '');
+                if (type === 'telefone') {
+                    const d = key.replace(/\D/g, '');
+                    if (key.startsWith('+')) return '+' + d;
+                    return (d.length >= 12 && d.startsWith('55')) ? '+' + d : '+55' + d;
+                }
+                if (type === 'email') return key.toLowerCase();
+                return key;
+            }
+            window.buildPixPayload = function(type, key, amount, merchantName) {
+                const k = pixKeyNormalize(type, key);
+                if (!k) return '';
+                const value = Number(amount);
+                const acc = emv('00', 'br.gov.bcb.pix') + emv('01', k);
+                let p = emv('00', '01') + emv('26', acc) + emv('52', '0000') + emv('53', '986');
+                if (value > 0) p += emv('54', value.toFixed(2));
+                p += emv('58', 'BR') + emv('59', pixClean(merchantName, 25) || 'RECEBEDOR') + emv('60', 'BRASIL') + emv('62', emv('05', '***'));
+                p += '6304';
+                return p + crc16(p);
+            };
+            window.fmtDeadline = function(iso) {
+                if (!iso) return '';
+                return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            };
+            window.pixHtml = function(date, time, amount, type, key, wa, deadline) {
                 wa = safeWaLink(wa);
+                const payload = buildPixPayload(type, key, amount, t.name);
+                const dl = fmtDeadline(deadline);
                 return `<div class="text-left space-y-3">
                     <p class="text-sm text-slate-600">Seu horário em <b>${formatDateBR(date)} às ${esc(time)}</b> está reservado, mas ainda <b>pendente</b>. Pague o sinal por Pix para o profissional confirmar.</p>
+                    ${dl ? `<p class="text-xs font-bold text-rose-700 bg-rose-50 border border-dashed border-rose-300 rounded-xl p-3">⏰ Pague até <b>${dl}</b>. Depois desse prazo o horário é liberado para outras pessoas.</p>` : ''}
                     <div class="bg-slate-50 border rounded-2xl p-4">
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor do sinal</p>
                         <p class="text-2xl font-black text-emerald-600">R$ ${Number(amount).toFixed(2)}</p>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-3">Chave Pix (${esc(PIX_LABELS[type] || 'Pix')})</p>
+                        ${payload ? `
+                        <div class="mt-3 flex justify-center"><div class="pix-qr bg-white p-2 rounded-xl border" data-payload="${esc(payload)}"></div></div>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-3">Pix copia e cola (valor já preenchido)</p>
+                        <p class="font-mono text-[11px] break-all text-slate-700 bg-white border rounded-lg p-2 max-h-20 overflow-y-auto">${esc(payload)}</p>
+                        <button type="button" data-key="${esc(payload)}" data-done="Código copiado!" onclick="copyPixKey(this)" class="mt-3 w-full text-xs font-bold btn-theme-primary py-2.5 rounded-xl">Copiar código Pix</button>` : ''}
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-4">Ou pague pela chave Pix (${esc(PIX_LABELS[type] || 'Pix')})</p>
                         <p class="font-mono font-bold text-sm break-all text-slate-800">${esc(key)}</p>
-                        <button type="button" data-key="${esc(key)}" onclick="copyPixKey(this)" class="mt-3 w-full text-xs font-bold btn-theme-primary py-2.5 rounded-xl">Copiar chave Pix</button>
+                        <button type="button" data-key="${esc(key)}" onclick="copyPixKey(this)" class="mt-2 w-full text-xs font-bold bg-white border text-slate-700 py-2 rounded-xl">Copiar chave Pix</button>
                     </div>
                     ${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 w-full text-sm font-black bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl shadow"><i data-lucide="message-circle" class="w-5 h-5"></i>Clique aqui para enviar o comprovante para o WhatsApp</a>` : ''}
                     <p class="text-xs font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-xl p-3">⏳ Depois de pagar, aguarde: o agendamento aparece como pendente até o profissional confirmar o pagamento.</p>
                 </div>`;
             };
+            window.drawPixQr = function() {
+                if (typeof QRCode === 'undefined') return;
+                document.querySelectorAll('.pix-qr').forEach(el => {
+                    if (el.dataset.drawn) return;
+                    el.dataset.drawn = '1';
+                    try { new QRCode(el, { text: el.dataset.payload, width: 176, height: 176, correctLevel: QRCode.CorrectLevel.M }); } catch (_) {}
+                });
+            };
             window.copyPixKey = function(btn) {
                 const key = btn.dataset.key || '';
-                const done = () => { btn.textContent = 'Chave copiada!'; };
+                const done = () => { btn.textContent = btn.dataset.done || 'Chave copiada!'; };
                 if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(key).then(done).catch(() => {});
                 else { const ta = document.createElement('textarea'); ta.value = key; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (_) {} ta.remove(); }
             };
             window.showPixInfo = function(id) {
                 const a = (t.appointments || []).find(x => x.id === id);
                 if (!a || !a.pixKey) return showModal('Pix', 'Não há dados de pagamento para este agendamento.', 'info');
-                showModal('Pague o sinal', pixHtml(a.date, a.time, a.depositAmount, a.pixKeyType, a.pixKey, a.whatsappLink || getRules().deposit.whatsappLink), 'info');
+                if (getEffectiveAppStatus(a) === 'expirado') return showModal('Prazo vencido', 'O prazo para pagar o sinal terminou e o horário foi liberado. Faça um novo agendamento.', 'info');
+                showModal('Pague o sinal', pixHtml(a.date, a.time, a.depositAmount, a.pixKeyType, a.pixKey, a.whatsappLink || getRules().deposit.whatsappLink, a.depositDeadline), 'info');
             };
 
             window.getCancelMinHours = function() { return Number(t.cancelMinHours) || 0; };
@@ -809,6 +869,7 @@
                             ` : ''}
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">E-mail *</label><input type="email" id="c-auth-email" required placeholder="seu@email.com" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium"></div>
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">Senha *</label><input type="password" id="c-auth-pass" required placeholder="••••••••" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium"></div>
+                            ${clientAuthMode==='login' ? `<div class="text-right -mt-2"><button type="button" onclick="clientForgotPassword()" class="text-xs font-bold text-theme-primary underline">Esqueci minha senha</button></div>` : ''}
                             <button type="submit" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-4">${clientAuthMode==='login'?'Entrar na Conta':'Criar Minha Conta'}</button>
                         </form>
                         
@@ -851,6 +912,14 @@
                     window.clientBusy = false;
                     safeRender();
                 }
+            };
+
+            window.clientForgotPassword = async function() {
+                const el = document.getElementById('c-auth-email');
+                const email = el ? el.value.trim().toLowerCase() : '';
+                if (!email || !email.includes('@')) return showModal('Informe seu e-mail', 'Digite seu e-mail no campo acima e toque em "Esqueci minha senha" de novo.', 'info');
+                try { await sendPasswordResetEmail(auth, email); } catch (err) { if (err && err.code === 'auth/too-many-requests') return showModal('Muitas tentativas', 'Aguarde alguns minutos e tente de novo.', 'error'); }
+                showModal('Verifique seu e-mail', 'Se existir uma conta com este e-mail, enviamos um link para criar uma nova senha. Olhe também a caixa de spam.', 'success');
             };
 
             window.handleClientAuthSubmit = async function(e) {
@@ -1295,7 +1364,7 @@
                                                     <span class="bg-theme-secondary text-theme-primary text-xs font-bold px-2.5 py-1 rounded-lg">${formatDateBR(a.date)} às ${esc(a.time)}</span>
                                                     <span class="text-xs text-slate-500 font-medium">${a.totalDuration} min</span>
                                                 </div>
-                                                <p class="font-bold text-slate-800 text-base sm:text-lg leading-tight mt-1">${esc(a.proceduresNames.join(', '))}</p>${a.status === 'pendente' ? `<span class="inline-block mt-1.5 bg-amber-100 text-amber-800 border border-dashed border-amber-400 text-[10px] font-bold px-2.5 py-1 rounded-full">⏳ Aguardando confirmação do sinal${a.depositAmount ? ' • R$ ' + Number(a.depositAmount).toFixed(2) : ''}</span>` : ''}
+                                                <p class="font-bold text-slate-800 text-base sm:text-lg leading-tight mt-1">${esc(a.proceduresNames.join(', '))}</p>${a.status === 'pendente' ? `<span class="inline-block mt-1.5 bg-amber-100 text-amber-800 border border-dashed border-amber-400 text-[10px] font-bold px-2.5 py-1 rounded-full">⏳ Aguardando confirmação do sinal${a.depositAmount ? ' • R$ ' + Number(a.depositAmount).toFixed(2) : ''}${a.depositDeadline ? ' • pague até ' + fmtDeadline(a.depositDeadline) : ''}</span>` : ''}${(a.depositRequired && a.status === 'agendado' && a.depositAmount) ? `<span class="inline-block mt-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold px-2.5 py-1 rounded-full">Sinal pago R$ ${Number(a.depositPaid != null ? a.depositPaid : a.depositAmount).toFixed(2)} • restante R$ ${Math.max(0, (Number(a.totalPrice) || 0) - Number(a.depositPaid != null ? a.depositPaid : a.depositAmount)).toFixed(2)}</span>` : ''}
                                                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Com <b>${esc(emp ? emp.name : 'Profissional')}</b> ${isDependent ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${esc(a.beneficiaryName)}</span>` : ''}</p>
                                             </div>
                                             <div class="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto border-t md:border-0 pt-3 md:pt-0">
@@ -1517,7 +1586,7 @@
                     const depHtml = dep ? `
                                 <div class="p-4 bg-amber-50 border-2 border-dashed border-amber-300 rounded-2xl mb-4 text-xs text-left fade-in">
                                     <p class="font-black text-amber-900 flex items-center mb-1"><i data-lucide="wallet" class="w-4 h-4 mr-1.5"></i> Este agendamento exige sinal</p>
-                                    <p class="text-amber-800">Sinal de <b>R$ ${dep.amount.toFixed(2)}</b> (${dep.percent}%). Ao confirmar, você verá a chave Pix. O horário fica reservado como <b>pendente</b> até o profissional confirmar o pagamento.</p>
+                                    <p class="text-amber-800">Sinal de <b>R$ ${dep.amount.toFixed(2)}</b> (${dep.percent}%). Ao confirmar, você verá a chave Pix. O horário fica reservado como <b>pendente</b> até o profissional confirmar o pagamento.${dep.expiryHours > 0 ? ` Pague em até <b>${dep.expiryHours}h</b> ou o horário é liberado.` : ''}</p>
                                 </div>` : '';
 
                     const confirmHtml = !clientBooking.time ? '' : `
@@ -1642,7 +1711,7 @@
                     totalDuration, 
                     totalPrice, 
                     createdAt: new Date().toISOString(),
-                    ...(depInfo ? { status: 'pendente', depositRequired: true, depositAmount: depInfo.amount, depositPercent: depInfo.percent, pixKeyType: depInfo.pixKeyType, pixKey: depInfo.pixKey, whatsappLink: depInfo.whatsappLink || '' } : {})
+                    ...(depInfo ? { status: 'pendente', depositRequired: true, depositAmount: depInfo.amount, depositPercent: depInfo.percent, pixKeyType: depInfo.pixKeyType, pixKey: depInfo.pixKey, whatsappLink: depInfo.whatsappLink || '', ...(depInfo.expiryHours > 0 ? { depositDeadline: new Date(Date.now() + depInfo.expiryHours * 3600000).toISOString() } : {}) } : {})
                 };
                 const forOther = finalBeneficiary !== currentClient.name;
 
@@ -1652,7 +1721,7 @@
                         return showModal('Horário indisponível', 'Esse horário acabou de ser ocupado por outra pessoa. Escolha outro horário.', 'error');
                     }
                     const link = calendarLinkHtml(serviceNames.join(', ') + ' - ' + t.name, bookedDate, bookedTime, totalDuration, 'Profissional: ' + (finalEmp ? finalEmp.name : ''));
-                    if (depInfo) return showModal('Quase lá! Falta o sinal', pixHtml(bookedDate, bookedTime, depInfo.amount, depInfo.pixKeyType, depInfo.pixKey, depInfo.whatsappLink) + link, 'success', () => { resetBooking(); clientActiveTab = 'appointments'; render(); });
+                    if (depInfo) return showModal('Quase lá! Falta o sinal', pixHtml(bookedDate, bookedTime, depInfo.amount, depInfo.pixKeyType, depInfo.pixKey, depInfo.whatsappLink, newApp.depositDeadline) + link, 'success', () => { resetBooking(); clientActiveTab = 'appointments'; render(); });
                     showModal('Sucesso!', `Agendamento confirmado para ${formatDateBR(bookedDate)} às ${esc(bookedTime)}${forOther ? ` (Para: ${esc(finalBeneficiary)})` : ''}!<br>${link}`, 'success', () => {
                         resetBooking();
                         clientActiveTab = 'appointments'; 
@@ -1660,6 +1729,9 @@
                     });
                 }).catch(() => showModal('Erro de conexão', 'Não foi possível confirmar o agendamento. Verifique sua internet e tente de novo.', 'error'));
             };
+            // desenha o QR Code do Pix sempre que um modal for aberto
+            const _showModalBase = window.showModal;
+            window.showModal = function() { _showModalBase.apply(this, arguments); setTimeout(window.drawPixQr, 0); };
         }
     </script>
 </body>
