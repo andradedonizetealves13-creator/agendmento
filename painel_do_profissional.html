@@ -417,8 +417,13 @@
             const list = keys || Object.keys(window.t).filter(k => !LIVE_KEYS.includes(k));
             const payload = {};
             list.forEach(k => { payload[k] = window.t[k] === undefined ? null : window.t[k]; });
-            return update(tenantRef, payload).catch(() => {
-                showModal('Erro ao salvar', 'Não foi possível salvar as alterações. Verifique sua conexão e tente novamente.', 'error');
+            return update(tenantRef, payload).then(() => true).catch((err) => {
+                console.error('Erro ao salvar no Firebase:', err && err.code, err && err.message, 'campos:', list);
+                const denied = err && /permission[_-]?denied/i.test(String(err.code || err.message));
+                showModal('Erro ao salvar', denied
+                    ? 'O banco de dados recusou a gravação (permissão negada). Isso é uma regra do Firebase, não problema de conexão.'
+                    : 'Não foi possível salvar as alterações. Verifique sua conexão e tente novamente.', 'error');
+                return false;
             });
         };
 
@@ -2508,7 +2513,7 @@
             return null;
         }
 
-        window.salvarRegras = function() {
+        window.salvarRegras = async function() {
             const d = rd();
             const fail = (msg) => showModal('Atenção', msg, 'error');
             const hours = parseInt(d.hours);
@@ -2545,8 +2550,8 @@
             };
             t.cancelMinHours = (isNaN(hours) || hours < 0) ? 0 : hours;
             window.rulesDraft = null;
-            saveDB(['rules', 'cancelMinHours']);
-            showModal('Sucesso', 'Regras atualizadas!', 'success');
+            const ok = await saveDB(['rules', 'cancelMinHours']);
+            if (ok) showModal('Sucesso', 'Regras atualizadas!', 'success');
         };
 
         // ---------- PAGAMENTO AUTOMÁTICO (Mercado Pago): conectar / trocar / desconectar ----------
