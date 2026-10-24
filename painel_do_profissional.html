@@ -419,6 +419,7 @@
             list.forEach(k => { payload[k] = window.t[k] === undefined ? null : window.t[k]; });
             const isDenied = (err) => err && /permission[_-]?denied/i.test(String(err.code || err.message));
             return update(tenantRef, payload).then(() => true).catch(async (err) => {
+                let syncInfo = '';
                 if (isDenied(err)) {
                     // login sem o papel (claim "staff"): pede ao servidor para gravar e tenta de novo uma vez
                     try {
@@ -427,6 +428,7 @@
                         await update(tenantRef, payload);
                         return true;
                     } catch (err2) {
+                        syncInfo = ' [diagnóstico: ' + (err2 && err2.code || 'erro') + ' - ' + (err2 && err2.message || '') + ' | empresa: ' + session.slug + ']';
                         console.error('Nova tentativa falhou:', err2 && err2.code, err2 && err2.message);
                         err = err2 && err2.code && /functions\//.test(err2.code) ? err : (err2 || err);
                     }
@@ -435,7 +437,7 @@
                 try { claims = (await auth.currentUser.getIdTokenResult()).claims; } catch (_) {}
                 console.error('Erro ao salvar no Firebase:', err && err.code, err && err.message, 'campos:', list, 'slug:', session.slug, 'claims:', claims);
                 showModal('Erro ao salvar', isDenied(err)
-                    ? 'Seu login não tem permissão de administrador nesta empresa. Saia, entre de novo e tente outra vez. Se continuar, a função syncRole precisa ser verificada.'
+                    ? 'Seu login não tem permissão de administrador nesta empresa. Saia, entre de novo e tente outra vez. Se continuar, a função syncRole precisa ser verificada.' + syncInfo
                     : 'Não foi possível salvar as alterações. Verifique sua conexão e tente novamente.', 'error');
                 return false;
             });
