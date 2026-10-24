@@ -174,7 +174,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as signOutSecondary } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { auth, rtdb, signOut, onAuthStateChanged, ref, update, onValue, runTransaction, get, child, set } from './firebase-config.js';
 
         async function hashSenha(p) { return 'PROTECTED_BY_FIREBASE_AUTH'; }
@@ -193,6 +193,40 @@
         };
         const secondaryApp = initializeApp(firebaseConfig, "Secondary");
         const secondaryAuth = getAuth(secondaryApp);
+
+        // ---------- TELEFONE (obrigatório no cadastro de profissional e de cliente) ----------
+        window.formatPhoneInput = function(input) {
+            let v = input.value.replace(/\D/g, '').slice(0, 11);
+            if (v.length > 10) v = v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+            else if (v.length > 6) v = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+            else if (v.length > 2) v = v.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+            else if (v.length > 0) v = v.replace(/^(\d*)$/, '($1');
+            input.value = v;
+        };
+        window.cleanPhone = (p) => String(p || '').replace(/\D/g, '');
+
+        // Cria o login no Firebase Authentication (app secundário, para não derrubar a sessão do admin).
+        // Se o e-mail já tem conta e a senha informada confere, só vincula o cadastro a essa conta.
+        async function createAuthUser(email, pass) {
+            try {
+                const c = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
+                const uid = c.user.uid;
+                await signOutSecondary(secondaryAuth).catch(() => {});
+                return { uid };
+            } catch (err) {
+                if (err.code === 'auth/email-already-in-use') {
+                    try {
+                        const c = await signInWithEmailAndPassword(secondaryAuth, email, pass);
+                        const uid = c.user.uid;
+                        await signOutSecondary(secondaryAuth).catch(() => {});
+                        return { uid, existing: true };
+                    } catch (_) {
+                        return { error: 'Este e-mail já tem conta no Firebase com outra senha. Use a senha da conta existente ou outro e-mail.' };
+                    }
+                }
+                return { error: 'Não foi possível criar a conta no Firebase: ' + err.message };
+            }
+        }
 
         onAuthStateChanged(auth, (user) => {
             if (!user) {
@@ -1575,7 +1609,7 @@
                         </div>
                     </div>` : '';
                 return `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Repita a Senha</label><input type="password" id="e-pass2" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div>${whGrid}<div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}</p><p class="text-xs text-slate-500">${esc(e.email)}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button></div>`).join('')}</div></div></div>`;
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Telefone / WhatsApp * (DDD + 9 dígitos)</label><input type="tel" id="e-phone" value="${esc(empToEdit?(empToEdit.phone||''):'')}" required placeholder="(00) 00000-0000" oninput="formatPhoneInput(this)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Repita a Senha</label><input type="password" id="e-pass2" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div>${whGrid}<div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}</p><p class="text-xs text-slate-500">${esc(e.email)}${e.phone ? ' • ' + esc(e.phone) : ' • <span class="text-rose-600 font-bold">sem telefone</span>'}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button></div>`).join('')}</div></div></div>`;
             }
 
             if(role === 'admin' && activeTab === 'procedures') {
@@ -1637,7 +1671,7 @@
                     <form id="client-form" onsubmit="saveClient(event)" class="hidden bg-white/90 backdrop-blur-md p-5 rounded-2xl border shadow-sm grid grid-cols-1 md:grid-cols-2 gap-3">
                         <input type="text" id="c-name" required placeholder="Nome" class="px-4 py-3 border rounded-xl text-sm outline-none">
                         <input type="email" id="c-email" required placeholder="E-mail" class="px-4 py-3 border rounded-xl text-sm outline-none">
-                        <input type="tel" id="c-phone" placeholder="Telefone" class="px-4 py-3 border rounded-xl text-sm outline-none">
+                        <input type="tel" id="c-phone" required placeholder="Telefone (DDD + 9 dígitos)" oninput="formatPhoneInput(this)" class="px-4 py-3 border rounded-xl text-sm outline-none">
                         <span class="hidden md:block"></span>
                         <input type="password" id="c-pass" required placeholder="Senha" class="px-4 py-3 border rounded-xl text-sm outline-none">
                         <input type="password" id="c-pass2" required placeholder="Repita a Senha" class="px-4 py-3 border rounded-xl text-sm outline-none">
@@ -2439,22 +2473,24 @@
             const pass = document.getElementById('e-pass').value;
             const pass2 = document.getElementById('e-pass2').value;
             const checks = Array.from(document.querySelectorAll('.proc-check:checked')).map(cb => cb.value);
+            const phoneRaw = document.getElementById('e-phone').value.trim();
+            if (cleanPhone(phoneRaw).length !== 11) return showModal('Telefone obrigatório', 'Informe um telefone/WhatsApp válido do profissional, com DDD e 9 dígitos. Exemplo: (11) 98765-4321', 'error');
+            if (!editEmployeeId && (t.employees || []).some(x => (x.email || '').toLowerCase() === email.trim().toLowerCase())) return showModal('Aviso', 'Já existe um profissional com este e-mail.', 'error');
+            let empUid = null;
             let senhaHash = null;
             if (!editEmployeeId || pass || pass2) {
                 const err = validarNovaSenha(pass, pass2);
                 if (err) return showModal('Erro', err, 'error');
                 senhaHash = await hashSenha(pass);
                 if (!editEmployeeId) {
-                    try {
-                        await createUserWithEmailAndPassword(secondaryAuth, email, pass);
-                    } catch(errAuth) {
-                        return showModal('Erro', 'Não foi possível criar a conta no Firebase: ' + errAuth.message, 'error');
-                    }
+                    const created = await createAuthUser(email.trim(), pass);
+                    if (created.error) return showModal('Erro', created.error, 'error');
+                    empUid = created.uid;
                 }
             }
             if (editEmployeeId) {
                 const emp = t.employees.find(x => x.id === editEmployeeId);
-                emp.name = name; emp.email = email; emp.procedures = checks;
+                emp.name = name; emp.email = email; emp.phone = phoneRaw; emp.procedures = checks;
                 if (senhaHash) emp.password = senhaHash;
                 // horário de trabalho do profissional
                 if (document.getElementById('ewh-cb-0')) {
@@ -2470,7 +2506,7 @@
                 }
             } else {
                 const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length];
-                t.employees.push({ id: 'emp-' + Date.now(), name, email, password: senhaHash, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} });
+                t.employees.push({ id: 'emp-' + Date.now(), uid: empUid, name, email: email.trim(), phone: phoneRaw, password: senhaHash, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} });
             }
             editEmployeeId = null;
             saveDB(['employees']);
@@ -2493,13 +2529,11 @@
             e.preventDefault();
             const err = validarNovaSenha(document.getElementById('c-pass').value, document.getElementById('c-pass2').value);
             if (err) return showModal('Erro', err, 'error');
-            try {
-                await createUserWithEmailAndPassword(secondaryAuth, document.getElementById('c-email').value.trim(), document.getElementById('c-pass').value);
-            } catch(errAuth) {
-                return showModal('Erro', 'Erro ao criar conta no Firebase Auth: ' + errAuth.message, 'error');
-            }
+            if (cleanPhone(document.getElementById('c-phone').value).length !== 11) return showModal('Telefone obrigatório', 'Informe um telefone/WhatsApp válido do cliente, com DDD e 9 dígitos. Exemplo: (11) 98765-4321', 'error');
+            const created = await createAuthUser(document.getElementById('c-email').value.trim(), document.getElementById('c-pass').value);
+            if (created.error) return showModal('Erro', created.error, 'error');
             const novo = {
-                id: 'cli-' + Date.now(),
+                id: created.uid,
                 name: document.getElementById('c-name').value.trim(),
                 email: document.getElementById('c-email').value.trim(),
                 phone: document.getElementById('c-phone').value.trim(),
