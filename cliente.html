@@ -211,7 +211,7 @@
             window.tenantRef = tenantRef;
             window.clientAuthMode = 'login';
             window.clientActiveTab = 'book';
-            window.clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null, isForOther: false, beneficiaryName: '' };
+            window.clientBooking = { step: null, date: null, procedures: [], employeeId: null, time: null, isForOther: false, beneficiaryName: '' };
             window.clientCalYear = new Date().getFullYear();
             window.clientCalMonth = new Date().getMonth();
             window.showHistoryApps = false;
@@ -396,6 +396,7 @@
                 if (appItem.status === 'cancelado') return 'cancelado';
                 if (appItem.status === 'nao_compareceu') return 'nao_compareceu';
                 if (appItem.status === 'realizado') return 'realizado';
+                if (appItem.status === 'pendente') return new Date(appItem.date + 'T' + appItem.time) < new Date() ? 'expirado' : 'pendente';
                 const appDateTime = new Date(appItem.date + 'T' + appItem.time);
                 if (appDateTime < new Date()) return 'realizado';
                 return 'agendado';
@@ -417,7 +418,7 @@
                 return whSource?.[dayOfWeek]?.active !== false;
             };
 
-            window.isDateAllowedByMonthlyRule = function(cellDate) {
+            window.legacyDateAllowed = function(cellDate) {
                 const today = new Date();
                 today.setHours(0,0,0,0);
                 if (cellDate < today) return false;
@@ -544,6 +545,156 @@
                 return found ? found.id : null;
             };
 
+            // ================= REGRAS DA ORGANIZAÇÃO (configuradas no painel: t.rules) =================
+            const LEGACY_FLOW = ['date', 'procedure', 'professional', 'time'];
+            const PIX_LABELS = { cpf: 'CPF', cnpj: 'CNPJ', email: 'E-mail', telefone: 'Telefone', aleatoria: 'Chave aleatória' };
+
+            window.getRules = function() {
+                const r = t.rules || {}, dep = r.deposit || {}, win = r.openingWindow || {}, flow = r.bookingFlow || {};
+                return {
+                    deposit: {
+                        enabled: dep.enabled === true, all: dep.all === true,
+                        procedureIds: toList(dep.procedureIds).map(String),
+                        percent: Number(dep.percent) > 0 ? Number(dep.percent) : 30,
+                        pixKeyType: dep.pixKeyType || 'cpf', pixKey: String(dep.pixKey || '').trim()
+                    },
+                    openingWindow: {
+                        enabled: win.enabled === true,
+                        mode: ['weekly', 'monthly', 'yearly', 'always'].includes(win.mode) ? win.mode : 'weekly',
+                        amount: Number(win.amount) > 0 ? Math.floor(Number(win.amount)) : 2
+                    },
+                    bookingFlow: { enabled: flow.enabled === true, steps: toList(flow.steps) }
+                };
+            };
+
+            // ---- janela de abertura da agenda ----
+            window.winEndDate = function(w) {
+                const d = new Date(); d.setHours(0, 0, 0, 0);
+                if (w.mode === 'weekly') d.setDate(d.getDate() + 7 * w.amount);
+                else if (w.mode === 'monthly') d.setMonth(d.getMonth() + w.amount);
+                else if (w.mode === 'yearly') d.setFullYear(d.getFullYear() + w.amount);
+                return d;
+            };
+            window.isDateAllowedByMonthlyRule = function(cellDate) {
+                const w = getRules().openingWindow;
+                if (!w.enabled) return legacyDateAllowed(cellDate);   // sem regra: comportamento antigo (mês atual + mês seguinte na última semana)
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                if (cellDate < today) return false;
+                if (w.mode === 'always') return true;
+                return cellDate <= winEndDate(w);
+            };
+            window.getCalLimit = function() {   // último mês navegável no calendário
+                const w = getRules().openingWindow, now = new Date();
+                if (!w.enabled) { const n = new Date(now.getFullYear(), now.getMonth() + 1, 1); return { y: n.getFullYear(), m: n.getMonth() }; }
+                if (w.mode === 'always') { const n = new Date(now.getFullYear(), now.getMonth() + 60, 1); return { y: n.getFullYear(), m: n.getMonth() }; }
+                const e = winEndDate(w); return { y: e.getFullYear(), m: e.getMonth() };
+            };
+            window.calendarHint = function() {
+                const w = getRules().openingWindow;
+                const base = 'Dias em cinza estão fechados, sem horários livres ou ainda não liberados.';
+                if (!w.enabled) return base + ' O mês seguinte abre para agendamento na última semana do mês atual.';
+                if (w.mode === 'always') return base;
+                const unit = { weekly: 'semana(s)', monthly: 'mês(es)', yearly: 'ano(s)' }[w.mode];
+                return `${base} A agenda está aberta para os próximos ${w.amount} ${unit} (até ${formatDateBR(localDateStr(winEndDate(w)))}).`;
+            };
+
+            // ---- ordem das etapas ----
+            window.bookingOrder = function() {
+                if (clientBooking.resched) return ['date', 'time'];
+                const rules = getRules();
+                let steps = (rules.bookingFlow.enabled ? rules.bookingFlow.steps : LEGACY_FLOW).filter(s => LEGACY_FLOW.includes(s));
+                steps = steps.filter((s, i) => steps.indexOf(s) === i);
+                LEGACY_FLOW.forEach(s => { if (!steps.includes(s)) steps.push(s); });
+                if (!(t.employees && t.employees.length)) steps = steps.filter(s => s !== 'professional');
+                const di = steps.indexOf('date'), ti = steps.indexOf('time');
+                if (ti < di) { steps.splice(ti, 1); steps.splice(steps.indexOf('date') + 1, 0, 'time'); }   // o horário depende do dia
+                return steps;
+            };
+            window.clientNext = function() {
+                const o = bookingOrder(), i = o.indexOf(clientBooking.step);
+                clientBooking.step = (i >= 0 && i < o.length - 1) ? o[i + 1] : 'confirm';
+                render();
+            };
+            window.clientBack = function() {
+                const o = bookingOrder();
+                if (clientBooking.step === 'confirm') clientBooking.step = o[o.length - 1];
+                else { const i = o.indexOf(clientBooking.step); if (i > 0) clientBooking.step = o[i - 1]; }
+                render();
+            };
+            window.backToTime = function() { clientBooking.time = null; clientBooking.step = 'time'; render(); };
+
+            // ---- contexto do agendamento em andamento (as etapas podem vir em qualquer ordem) ----
+            function bkProcs() { return (t.procedures || []).filter(p => clientBooking.procedures.includes(p.id)); }
+            function bkEmp() { return (t.employees && t.employees.length) ? clientBooking.employeeId : t.admin.id; }
+            function bkDuration() {
+                if (clientBooking.resched) return clientBooking.resched.totalDuration;
+                const sel = bkProcs();
+                return sel.length ? sel.reduce((s, p) => s + p.duration, 0) : 30;   // sem serviço escolhido ainda: menor bloco (30 min)
+            }
+            function bkSlots() {
+                let slots = getBookingSlots(bkEmp() || 'any', clientBooking.date, bkDuration(), clientBooking.procedures);
+                if (clientBooking.resched) slots = slots.filter(s => !s.hasClientCollision);
+                return slots;
+            }
+            function bkDayOpen(dateStr) {
+                const resched = clientBooking.resched;
+                const d = new Date(dateStr + 'T00:00:00');
+                if (resched) { const e = getEmployeeById(resched.employeeId); return !!e && isDateAllowedByMonthlyRule(d) && doesEmployeeWorkOnDate(e, dateStr); }
+                if (!isDateAllowedByMonthlyRule(d)) return false;
+                if (!(t.employees && t.employees.length)) return doesEmployeeWorkOnDate(t.admin, dateStr);
+                const chosen = clientBooking.employeeId;
+                if (chosen && chosen !== 'any') {
+                    const e = getEmployeeById(chosen);
+                    return !!e && doesEmployeeWorkOnDate(e, dateStr) && clientBooking.procedures.every(pid => e.procedures && e.procedures.includes(pid));
+                }
+                return capableEmployees(dateStr, clientBooking.procedures).length > 0;
+            }
+            function bkDayFull(dateStr) {
+                const resched = clientBooking.resched, dur = bkDuration();
+                let ids;
+                if (resched) ids = [resched.employeeId];
+                else if (!(t.employees && t.employees.length)) ids = [t.admin.id];
+                else if (clientBooking.employeeId && clientBooking.employeeId !== 'any') ids = [clientBooking.employeeId];
+                else ids = capableEmployees(dateStr, clientBooking.procedures).map(e => e.id);
+                return !ids.some(id => getAvailableTimeSlots(id, dateStr, dur).filter(sl => !resched || !sl.hasClientCollision).length > 0);
+            }
+
+            // ---- sinal ----
+            window.getDepositInfo = function(procs) {
+                const dep = getRules().deposit;
+                if (!dep.enabled || !dep.pixKey) return null;
+                const req = procs.filter(p => dep.all || dep.procedureIds.includes(String(p.id)));
+                if (!req.length) return null;
+                const base = req.reduce((s, p) => s + (Number(p.price) || 0), 0);
+                const amount = Math.round(base * dep.percent) / 100;
+                if (!(amount > 0)) return null;
+                return { amount, percent: dep.percent, base, pixKeyType: dep.pixKeyType, pixKey: dep.pixKey };
+            };
+            window.pixHtml = function(date, time, amount, type, key) {
+                return `<div class="text-left space-y-3">
+                    <p class="text-sm text-slate-600">Seu horário em <b>${formatDateBR(date)} às ${esc(time)}</b> está reservado, mas ainda <b>pendente</b>. Pague o sinal por Pix para o profissional confirmar.</p>
+                    <div class="bg-slate-50 border rounded-2xl p-4">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor do sinal</p>
+                        <p class="text-2xl font-black text-emerald-600">R$ ${Number(amount).toFixed(2)}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-3">Chave Pix (${esc(PIX_LABELS[type] || 'Pix')})</p>
+                        <p class="font-mono font-bold text-sm break-all text-slate-800">${esc(key)}</p>
+                        <button type="button" data-key="${esc(key)}" onclick="copyPixKey(this)" class="mt-3 w-full text-xs font-bold btn-theme-primary py-2.5 rounded-xl">Copiar chave Pix</button>
+                    </div>
+                    <p class="text-xs font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-xl p-3">⏳ Depois de pagar, aguarde: o agendamento aparece como pendente até o profissional confirmar o pagamento.</p>
+                </div>`;
+            };
+            window.copyPixKey = function(btn) {
+                const key = btn.dataset.key || '';
+                const done = () => { btn.textContent = 'Chave copiada!'; };
+                if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(key).then(done).catch(() => {});
+                else { const ta = document.createElement('textarea'); ta.value = key; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (_) {} ta.remove(); }
+            };
+            window.showPixInfo = function(id) {
+                const a = (t.appointments || []).find(x => x.id === id);
+                if (!a || !a.pixKey) return showModal('Pix', 'Não há dados de pagamento para este agendamento.', 'info');
+                showModal('Pague o sinal', pixHtml(a.date, a.time, a.depositAmount, a.pixKeyType, a.pixKey), 'info');
+            };
+
             window.getCancelMinHours = function() { return Number(t.cancelMinHours) || 0; };
             window.canModifyApp = function(a) {
                 const min = getCancelMinHours();
@@ -560,7 +711,7 @@
             };
 
             window.resetBooking = function() {
-                clientBooking = { step: 1, date: null, procedures: [], employeeId: null, time: null, isForOther: false, beneficiaryName: '' };
+                clientBooking = { step: null, date: null, procedures: [], employeeId: null, time: null, isForOther: false, beneficiaryName: '' };
             };
             window.openBookTab = function() {
                 if (clientBooking.resched) resetBooking();
@@ -574,7 +725,7 @@
                 if (!canModifyApp(a)) return showModal('Fora do prazo', `Só é possível reagendar com pelo menos ${getCancelMinHours()}h de antecedência. Entre em contato com a empresa.`, 'info');
                 if (!getEmployeeById(a.employeeId)) return showModal('Erro', 'O profissional deste agendamento não está mais disponível. Cancele e faça um novo agendamento.', 'error');
                 clientBooking = {
-                    step: 1, date: null, procedures: [], employeeId: a.employeeId, time: null, isForOther: false, beneficiaryName: '',
+                    step: 'date', date: null, procedures: [], employeeId: a.employeeId, time: null, isForOther: false, beneficiaryName: '',
                     resched: { id: a.id, date: a.date, time: a.time, totalDuration: a.totalDuration, totalPrice: a.totalPrice, proceduresNames: a.proceduresNames, employeeId: a.employeeId, beneficiaryName: a.beneficiaryName }
                 };
                 clientCalYear = new Date().getFullYear();
@@ -1068,8 +1219,8 @@
                     .filter(a => a.clientId === currentClient.id)
                     .sort((a,b) => new Date(b.date+'T'+b.time) - new Date(a.date+'T'+a.time));
 
-                const activeApps = allApps.filter(a => getEffectiveAppStatus(a) === 'agendado');
-                const historyApps = allApps.filter(a => getEffectiveAppStatus(a) !== 'agendado');
+                const activeApps = allApps.filter(a => ['agendado', 'pendente'].includes(getEffectiveAppStatus(a)));
+                const historyApps = allApps.filter(a => !['agendado', 'pendente'].includes(getEffectiveAppStatus(a)));
 
                 return `
                     <div class="max-w-2xl mx-auto fade-in space-y-6">
@@ -1092,13 +1243,13 @@
                                                     <span class="bg-theme-secondary text-theme-primary text-xs font-bold px-2.5 py-1 rounded-lg">${formatDateBR(a.date)} às ${esc(a.time)}</span>
                                                     <span class="text-xs text-slate-500 font-medium">${a.totalDuration} min</span>
                                                 </div>
-                                                <p class="font-bold text-slate-800 text-base sm:text-lg leading-tight mt-1">${esc(a.proceduresNames.join(', '))}</p>
+                                                <p class="font-bold text-slate-800 text-base sm:text-lg leading-tight mt-1">${esc(a.proceduresNames.join(', '))}</p>${a.status === 'pendente' ? `<span class="inline-block mt-1.5 bg-amber-100 text-amber-800 border border-dashed border-amber-400 text-[10px] font-bold px-2.5 py-1 rounded-full">⏳ Aguardando confirmação do sinal${a.depositAmount ? ' • R$ ' + Number(a.depositAmount).toFixed(2) : ''}</span>` : ''}
                                                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Com <b>${esc(emp ? emp.name : 'Profissional')}</b> ${isDependent ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${esc(a.beneficiaryName)}</span>` : ''}</p>
                                             </div>
                                             <div class="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto border-t md:border-0 pt-3 md:pt-0">
                                                 <span class="font-black text-emerald-600 text-base sm:text-lg mb-0 md:mb-2">R$ ${a.totalPrice.toFixed(2)}</span>
                                                 <div class="flex items-center gap-2">
-                                                    <button onclick="startReschedule('${a.id}')" class="text-xs bg-theme-secondary text-theme-primary font-bold px-4 py-2 rounded-xl border transition-colors">Reagendar</button>
+                                                    ${a.status === 'pendente' && a.pixKey ? `<button onclick="showPixInfo('${a.id}')" class="text-xs bg-amber-50 text-amber-800 font-bold px-4 py-2 rounded-xl border border-amber-300 transition-colors">Ver Pix</button>` : ''}<button onclick="startReschedule('${a.id}')" class="text-xs bg-theme-secondary text-theme-primary font-bold px-4 py-2 rounded-xl border transition-colors">Reagendar</button>
                                                     <button onclick="cancelClientApp('${a.id}')" class="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold px-4 py-2 rounded-xl border border-rose-200 transition-colors">Cancelar</button>
                                                 </div>
                                             </div>
@@ -1130,6 +1281,7 @@
                                         
                                         let statusTag = `<span class="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Concluído</span>`;
                                         if (st === 'cancelado') statusTag = `<span class="bg-rose-50 text-rose-700 border-rose-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Cancelado</span>`;
+                                        else if (st === 'expirado') statusTag = `<span class="bg-slate-100 text-slate-600 border-slate-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Não confirmado</span>`;
                                         else if (st === 'nao_compareceu') statusTag = `<span class="bg-amber-50 text-amber-700 border-amber-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Não Compareceu</span>`;
 
                                         return `
@@ -1164,18 +1316,26 @@
             };
 
             function renderClientBookingWizard() {
-                if (clientBooking.step === 1) {
+                const resched = clientBooking.resched;
+                const order = bookingOrder();
+                if (clientBooking.step !== 'confirm' && !order.includes(clientBooking.step)) clientBooking.step = order[0];
+                if (!resched && !(t.employees && t.employees.length)) clientBooking.employeeId = t.admin.id;
+                const step = clientBooking.step;
+                const backBtn = (step === 'confirm' || order.indexOf(step) > 0)
+                    ? `<button onclick="clientBack()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>` : '';
+
+                if (step === 'date') {
                     const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
                     const weekShortDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
                     const today = new Date(); today.setHours(0,0,0,0);
-                    const resched = clientBooking.resched;
-                    
                     const currentYear = today.getFullYear();
                     const currentMonth = today.getMonth();
+                    const lim = getCalLimit();
 
                     const canGoPrev = clientCalYear > currentYear || (clientCalYear === currentYear && clientCalMonth > currentMonth);
-                    const nextMonthCalc = new Date(currentYear, currentMonth + 1, 1);
-                    const canGoNext = clientCalYear < nextMonthCalc.getFullYear() || (clientCalYear === nextMonthCalc.getFullYear() && clientCalMonth < nextMonthCalc.getMonth());
+                    const canGoNext = (clientCalYear * 12 + clientCalMonth) < (lim.y * 12 + lim.m);
+
+                    if (clientBooking.date && !bkDayOpen(clientBooking.date)) { clientBooking.date = null; clientBooking.time = null; }
 
                     const firstDay = new Date(clientCalYear, clientCalMonth, 1).getDay();
                     const daysInMonth = new Date(clientCalYear, clientCalMonth + 1, 0).getDate();
@@ -1183,14 +1343,12 @@
                     for (let i = 0; i < firstDay; i++) cells.push({ empty: true });
                     for (let d = 1; d <= daysInMonth; d++) {
                         const dateStr = `${clientCalYear}-${String(clientCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                        
-                        const reschedEmp = resched ? getEmployeeById(resched.employeeId) : null;
-                        const isOpen = resched ? (!!reschedEmp && isDateAllowedByMonthlyRule(new Date(dateStr + 'T00:00:00')) && doesEmployeeWorkOnDate(reschedEmp, dateStr)) : isCompanyOpenOnDate(dateStr);
-                        const isFull = isOpen && (resched ? getAvailableTimeSlots(resched.employeeId, dateStr, resched.totalDuration).filter(sl => !sl.hasClientCollision).length === 0 : !hasAnyFreeSlot(dateStr));
+                        const isOpen = bkDayOpen(dateStr);
+                        const isFull = isOpen && bkDayFull(dateStr);
                         cells.push({ empty: false, day: d, dateStr, isBlocked: !isOpen || isFull, isFull, isSelected: clientBooking.date === dateStr });
                     }
                     return `
-                        <div class="max-w-lg mx-auto bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-[2rem] shadow-xl border fade-in"><h2 class="text-xl sm:text-2xl font-black text-center mb-6">${resched ? 'Escolha o Novo Dia' : 'Escolha o Dia'}</h2>
+                        <div class="max-w-lg mx-auto bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-[2rem] shadow-xl border fade-in">${backBtn}<h2 class="text-xl sm:text-2xl font-black text-center mb-6">${resched ? 'Escolha o Novo Dia' : 'Escolha o Dia'}</h2>
                             ${resched ? `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 text-xs text-left"><p class="font-bold text-amber-900">Reagendando: ${esc(resched.proceduresNames.join(', '))}</p><p class="text-amber-800 mt-0.5">Horário atual: ${formatDateBR(resched.date)} às ${esc(resched.time)}</p><button onclick="resetBooking(); clientActiveTab='appointments'; render()" class="mt-2 font-bold text-amber-900 underline">Cancelar reagendamento</button></div>` : ''}
                             <div class="flex justify-between items-center mb-6 bg-slate-50 p-2.5 rounded-2xl border">
                                 <button onclick="if(${canGoPrev}) { clientCalMonth--; if(clientCalMonth<0){clientCalMonth=11; clientCalYear--;} render(); }" class="${canGoPrev ? 'text-slate-700 hover:bg-slate-200' : 'text-slate-300 cursor-not-allowed'} p-1.5 rounded-xl"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
@@ -1198,52 +1356,59 @@
                                 <button onclick="if(${canGoNext}) { clientCalMonth++; if(clientCalMonth>11){clientCalMonth=0; clientCalYear++;} render(); }" class="${canGoNext ? 'text-slate-700 hover:bg-slate-200' : 'text-slate-300 cursor-not-allowed'} p-1.5 rounded-xl"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                             </div>
                             <div class="grid grid-cols-7 gap-1 text-center mb-2">${weekShortDays.map(w => `<span class="text-[11px] font-bold text-slate-400 uppercase">${w}</span>`).join('')}</div>
-                            <div class="grid grid-cols-7 gap-1.5">${cells.map(c => c.empty ? `<div></div>` : c.isBlocked ? `<div class="h-10 sm:h-11 flex items-center justify-center rounded-xl bg-slate-100 text-slate-300 text-xs select-none" title="${c.isFull ? 'Sem horários livres' : 'Indisponível'}">${c.day}</div>` : `<button onclick="clientBooking.date='${c.dateStr}'; clientBooking.time=null; ${resched ? '' : 'clientBooking.employeeId=null;'} render()" class="h-10 sm:h-11 flex items-center justify-center rounded-xl text-xs font-bold ${c.isSelected?'btn-theme-primary':'bg-white border text-slate-700 hover:bg-slate-50'}">${c.day}</button>`).join('')}</div>
-                            <p class="text-[11px] text-slate-400 text-center mt-4">Dias em cinza estão fechados, sem horários livres ou ainda não liberados. O mês seguinte abre para agendamento na última semana do mês atual.</p>
-                            ${clientBooking.date ? `<button onclick="clientBooking.step=${resched ? 4 : 2}; render()" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-lg mt-6">Continuar</button>` : ''}
+                            <div class="grid grid-cols-7 gap-1.5">${cells.map(c => c.empty ? `<div></div>` : c.isBlocked ? `<div class="h-10 sm:h-11 flex items-center justify-center rounded-xl bg-slate-100 text-slate-300 text-xs select-none" title="${c.isFull ? 'Sem horários livres' : 'Indisponível'}">${c.day}</div>` : `<button onclick="clientBooking.date='${c.dateStr}'; clientBooking.time=null; render()" class="h-10 sm:h-11 flex items-center justify-center rounded-xl text-xs font-bold ${c.isSelected?'btn-theme-primary':'bg-white border text-slate-700 hover:bg-slate-50'}">${c.day}</button>`).join('')}</div>
+                            <p class="text-[11px] text-slate-400 text-center mt-4">${calendarHint()}</p>
+                            ${clientBooking.date ? `<button onclick="clientNext()" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-lg mt-6">Continuar</button>` : ''}
                         </div>`;
                 }
-                else if (clientBooking.step === 2) {
+                else if (step === 'procedure') {
+                    const date = clientBooking.date, empId = clientBooking.employeeId;
+                    const emps = t.employees || [];
                     const availableProcedures = t.procedures.filter(p => {
-                        if (t.employees.length === 0) return doesEmployeeWorkOnDate(t.admin, clientBooking.date);
-                        return t.employees.some(emp => emp.procedures && emp.procedures.includes(p.id) && doesEmployeeWorkOnDate(emp, clientBooking.date));
+                        if (emps.length === 0) return date ? doesEmployeeWorkOnDate(t.admin, date) : true;
+                        const pool = (empId && empId !== 'any') ? emps.filter(e => e.id === empId) : emps;
+                        return pool.some(e => e.procedures && e.procedures.includes(p.id) && (!date || doesEmployeeWorkOnDate(e, date)));
                     });
 
                     return `
                         <div class="max-w-md mx-auto bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-[2rem] shadow-xl border fade-in">
-                            <button onclick="clientBooking.step=1;render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
+                            ${backBtn}
                             <h2 class="text-xl sm:text-2xl font-black text-center mb-2">Escolha os Serviços</h2>
-                            <p class="text-xs text-slate-400 text-center mb-6">Disponíveis para ${formatDateBR(clientBooking.date)}</p>
+                            <p class="text-xs text-slate-400 text-center mb-6">${date ? `Disponíveis para ${formatDateBR(date)}` : 'Escolha o que você quer fazer'}</p>
                             ${availableProcedures.length === 0 ? `
                                 <div class="text-center py-8 bg-amber-50 rounded-2xl border border-amber-200 p-4">
-                                    <p class="text-sm text-amber-800 font-bold">Nenhum serviço disponível para esta data.</p>
+                                    <p class="text-sm text-amber-800 font-bold">Nenhum serviço disponível ${date ? 'para esta data' : 'com esta escolha'}.</p>
                                 </div>
                             ` : `
-                                <div class="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">${availableProcedures.map(p => `
-                                    <label class="flex justify-between items-center p-4 border rounded-2xl cursor-pointer hover:bg-slate-50"><div class="flex items-center space-x-3"><input type="checkbox" value="${p.id}" ${clientBooking.procedures.includes(p.id)?'checked':''} class="c-proc-check w-5 h-5 text-indigo-600 rounded"><div><p class="font-bold text-sm text-left">${esc(p.name)}</p><p class="text-xs text-slate-500 text-left">${p.duration} min</p></div></div><span class="font-bold text-emerald-600 text-sm">R$ ${p.price.toFixed(2)}</span></label>
-                                `).join('')}</div>
-                                <button onclick="clientGoStep3()" class="w-full btn-theme-primary font-bold py-4 rounded-2xl shadow-lg mt-6">Continuar</button>
+                                <div class="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">${availableProcedures.map(p => {
+                                    const dep = getDepositInfo([p]);
+                                    return `
+                                    <label class="flex justify-between items-center p-4 border rounded-2xl cursor-pointer hover:bg-slate-50"><div class="flex items-center space-x-3"><input type="checkbox" value="${p.id}" ${clientBooking.procedures.includes(p.id)?'checked':''} class="c-proc-check w-5 h-5 text-indigo-600 rounded"><div><p class="font-bold text-sm text-left">${esc(p.name)}</p><p class="text-xs text-slate-500 text-left">${p.duration} min${dep ? ` • <span class="text-amber-700 font-bold">sinal R$ ${dep.amount.toFixed(2)}</span>` : ''}</p></div></div><span class="font-bold text-emerald-600 text-sm">R$ ${p.price.toFixed(2)}</span></label>
+                                `; }).join('')}</div>
+                                <button onclick="clientGoProcedures()" class="w-full btn-theme-primary font-bold py-4 rounded-2xl shadow-lg mt-6">Continuar</button>
                             `}
                         </div>`;
                 }
-                else if (clientBooking.step === 3) {
-                    const empsAvailable = t.employees.filter(emp => 
-                        clientBooking.procedures.every(pid => emp.procedures && emp.procedures.includes(pid)) && 
-                        doesEmployeeWorkOnDate(emp, clientBooking.date)
+                else if (step === 'professional') {
+                    const date = clientBooking.date, time = clientBooking.time, dur = bkDuration();
+                    let empsAvailable = t.employees.filter(emp =>
+                        clientBooking.procedures.every(pid => emp.procedures && emp.procedures.includes(pid)) &&
+                        (!date || doesEmployeeWorkOnDate(emp, date))
                     );
+                    if (date && time) empsAvailable = empsAvailable.filter(e => getAvailableTimeSlots(e.id, date, dur).some(s => s.time === time));
 
                     return `
                         <div class="max-w-xl mx-auto bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-[2rem] shadow-xl border fade-in">
-                            <button onclick="clientBooking.step=2;render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
+                            ${backBtn}
                             <h2 class="text-xl sm:text-2xl font-black text-center mb-6">Quem vai te atender?</h2>
                             ${empsAvailable.length === 0 ? `
                                 <div class="text-center py-8 bg-rose-50 rounded-2xl border border-rose-100 p-4">
-                                    <p class="text-sm text-rose-800 font-bold">Nenhum profissional disponível na data escolhida.</p>
-                                    <p class="text-xs text-rose-700 mt-1">Volte e escolha outros serviços ou outro dia.</p>
+                                    <p class="text-sm text-rose-800 font-bold">Nenhum profissional disponível com as escolhas feitas.</p>
+                                    <p class="text-xs text-rose-700 mt-1">Volte e escolha outros serviços, outro dia ou outro horário.</p>
                                 </div>
                             ` : `
-                                <div class="grid grid-cols-2 gap-4">${empsAvailable.length > 1 ? `<div onclick="clientBooking.employeeId='any'; clientBooking.time=null; clientBooking.step=4; render()" class="col-span-2 p-4 border-2 border-dashed rounded-2xl flex items-center justify-center space-x-3 cursor-pointer hover:border-indigo-600 bg-white transition-all"><i data-lucide="users" class="w-6 h-6 text-theme-primary"></i><div class="text-left"><p class="font-bold text-sm">Qualquer profissional</p><p class="text-xs text-slate-500">Mostra todos os horários livres</p></div></div>` : ''}${empsAvailable.map(item => `
-                                    <div onclick="clientBooking.employeeId='${item.id}'; clientBooking.time=null; clientBooking.step=4; render()" class="p-4 border rounded-2xl flex flex-col items-center cursor-pointer hover:border-indigo-600 bg-slate-50 transition-all">
+                                <div class="grid grid-cols-2 gap-4">${empsAvailable.length > 1 ? `<div onclick="clientBooking.employeeId='any'; clientNext()" class="col-span-2 p-4 border-2 border-dashed rounded-2xl flex items-center justify-center space-x-3 cursor-pointer hover:border-indigo-600 bg-white transition-all"><i data-lucide="users" class="w-6 h-6 text-theme-primary"></i><div class="text-left"><p class="font-bold text-sm">Qualquer profissional</p><p class="text-xs text-slate-500">Mostra todos os horários livres</p></div></div>` : ''}${empsAvailable.map(item => `
+                                    <div onclick="clientBooking.employeeId='${item.id}'; clientNext()" class="p-4 border rounded-2xl flex flex-col items-center cursor-pointer hover:border-indigo-600 bg-slate-50 transition-all">
                                         <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl mb-2 overflow-hidden shrink-0 border border-slate-200">
                                             ${item.avatar ? `<img src="${esc(item.avatar)}" class="w-full h-full object-cover">` : `<span>${esc(item.name.charAt(0))}</span>`}
                                         </div>
@@ -1253,35 +1418,41 @@
                             `}
                         </div>`;
                 }
-                else if (clientBooking.step === 4) {
-                    const resched = clientBooking.resched;
-                    const selectedProcs = t.procedures.filter(p=>clientBooking.procedures.includes(p.id));
-                    const totalDuration = resched ? resched.totalDuration : selectedProcs.reduce((s, p)=>s+p.duration, 0);
-                    const totalPrice = resched ? resched.totalPrice : selectedProcs.reduce((s, p)=>s+p.price, 0);
-                    let slots = getBookingSlots(clientBooking.employeeId, clientBooking.date, totalDuration, clientBooking.procedures);
-                    if (resched) slots = slots.filter(s => !s.hasClientCollision);
-                    const isAny = clientBooking.employeeId === 'any';
-                    const emp = isAny ? null : getEmployeeById(clientBooking.employeeId);
-                    const empLabel = isAny ? 'Qualquer profissional' : (emp ? emp.name : 'Profissional');
+                else if (step === 'time' || step === 'confirm') {
+                    const isLast = order[order.length - 1] === step || step === 'confirm';
+                    const showSlots = step === 'time';
+                    const selectedProcs = bkProcs();
+                    const hasProcs = !!resched || selectedProcs.length > 0;
+                    const totalDuration = resched ? resched.totalDuration : selectedProcs.reduce((s, p) => s + p.duration, 0);
+                    const totalPrice = resched ? resched.totalPrice : selectedProcs.reduce((s, p) => s + p.price, 0);
+                    const slots = bkSlots();
+                    const empRaw = bkEmp();
+                    const emp = (empRaw && empRaw !== 'any') ? getEmployeeById(empRaw) : null;
+                    const empLabel = empRaw === 'any' ? 'Qualquer profissional' : (emp ? emp.name : null);
                     const serviceNames = resched ? resched.proceduresNames : selectedProcs.map(p => p.name);
-                    
-                    if (clientBooking.time && !slots.some(s => s.time === clientBooking.time)) clientBooking.time = null;
+
+                    if (clientBooking.time && !slots.some(s => s.time === clientBooking.time)) {
+                        clientBooking.time = null;
+                        if (step === 'confirm') {
+                            clientBooking.step = 'time';
+                            setTimeout(() => showModal('Horário não comporta', 'Com as escolhas feitas esse horário não está mais livre. Escolha outro horário.', 'info'), 0);
+                            return renderClientBookingWizard();
+                        }
+                    }
 
                     const selectedSlotObj = slots.find(s => s.time === clientBooking.time);
                     const isColliding = selectedSlotObj && selectedSlotObj.hasClientCollision;
+                    const dep = resched ? null : getDepositInfo(selectedProcs);
 
-                    return `
-                        <div class="max-w-md mx-auto bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-[2rem] shadow-xl border fade-in">
-                            <button onclick="clientBooking.step=${resched ? 1 : (t.employees.length>0?3:2)};render()" class="text-slate-400 mb-4"><i data-lucide="arrow-left" class="w-6 h-6"></i></button>
-                            <h2 class="text-xl sm:text-2xl font-black text-center mb-6">${resched ? 'Confirmar Novo Horário' : 'Confirmar Horário'}</h2>
-                            <div class="bg-slate-50 p-4 rounded-2xl border mb-6 text-xs sm:text-sm text-left"><p><b>Data:</b> ${formatDateBR(clientBooking.date)}</p><p><b>Profissional:</b> ${esc(empLabel)}</p><p><b>Serviços:</b> ${esc(serviceNames.join(', '))}</p>${resched ? `<p><b>Horário atual:</b> ${formatDateBR(resched.date)} às ${esc(resched.time)}</p>` : ''}<p class="mt-2 text-emerald-600 font-bold text-sm sm:text-base">Total: R$ ${totalPrice.toFixed(2)} (${totalDuration} min)</p></div>
-                            
-                            <p class="text-xs font-bold text-slate-500 uppercase mb-2 text-left">Horários Livres do Profissional:</p>
+                    const summary = `<div class="bg-slate-50 p-4 rounded-2xl border mb-6 text-xs sm:text-sm text-left"><p><b>Data:</b> ${formatDateBR(clientBooking.date)}</p>${clientBooking.time && !showSlots ? `<p><b>Horário:</b> ${esc(clientBooking.time)}</p>` : ''}${empLabel ? `<p><b>Profissional:</b> ${esc(empLabel)}</p>` : ''}${serviceNames.length ? `<p><b>Serviços:</b> ${esc(serviceNames.join(', '))}</p>` : ''}${resched ? `<p><b>Horário atual:</b> ${formatDateBR(resched.date)} às ${esc(resched.time)}</p>` : ''}${hasProcs ? `<p class="mt-2 text-emerald-600 font-bold text-sm sm:text-base">Total: R$ ${totalPrice.toFixed(2)} (${totalDuration} min)</p>` : ''}</div>`;
+
+                    const slotsHtml = !showSlots ? '' : `
+                            <p class="text-xs font-bold text-slate-500 uppercase mb-2 text-left">Horários Livres:</p>
                             ${slots.length === 0 ? `
                                 <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl mb-4 text-center">
-                                    <p class="text-sm font-bold text-amber-900">Não há horários livres neste dia para esse profissional.</p>
+                                    <p class="text-sm font-bold text-amber-900">Não há horários livres neste dia com as escolhas feitas.</p>
                                     <p class="text-xs text-amber-800 mt-1 mb-3">Tente outro dia ou outro profissional.</p>
-                                    <button onclick="clientBooking.step=1; clientBooking.time=null; render()" class="btn-theme-primary font-bold px-5 py-2.5 rounded-xl text-xs">Escolher outro dia</button>
+                                    <button onclick="clientBooking.step='date'; clientBooking.time=null; render()" class="btn-theme-primary font-bold px-5 py-2.5 rounded-xl text-xs">Escolher outro dia</button>
                                 </div>
                             ` : `
                                 <div class="grid grid-cols-3 gap-2 mb-6 max-h-40 overflow-y-auto custom-scrollbar pr-1">${slots.map(s => `
@@ -1289,50 +1460,68 @@
                                         ${s.time}${s.hasClientCollision ? `<span class="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" title="Você já tem agendamento neste horário"></span>` : ''}
                                     </button>
                                 `).join('')}</div>
-                            `}
+                            `}`;
 
-                            ${clientBooking.time ? `
+                    const depHtml = dep ? `
+                                <div class="p-4 bg-amber-50 border-2 border-dashed border-amber-300 rounded-2xl mb-4 text-xs text-left fade-in">
+                                    <p class="font-black text-amber-900 flex items-center mb-1"><i data-lucide="wallet" class="w-4 h-4 mr-1.5"></i> Este agendamento exige sinal</p>
+                                    <p class="text-amber-800">Sinal de <b>R$ ${dep.amount.toFixed(2)}</b> (${dep.percent}%). Ao confirmar, você verá a chave Pix. O horário fica reservado como <b>pendente</b> até o profissional confirmar o pagamento.</p>
+                                </div>` : '';
+
+                    const confirmHtml = !clientBooking.time ? '' : `
                                 ${(!resched && !isColliding) ? `<label class="flex items-center space-x-2 mb-3 text-xs font-bold text-slate-700 cursor-pointer text-left"><input type="checkbox" ${clientBooking.isForOther ? 'checked' : ''} onchange="clientBooking.isForOther=this.checked; render()" class="w-4 h-4 rounded"><span>Este agendamento é para outra pessoa</span></label>${clientBooking.isForOther ? `<div class="mb-4 text-left fade-in"><label class="block text-xs font-bold text-slate-700 mb-1">Nome Completo do Atendido *</label><input type="text" id="beneficiary-name-inp" value="${esc(clientBooking.beneficiaryName)}" oninput="clientBooking.beneficiaryName = this.value" placeholder="Ex: João da Silva" class="w-full px-3 py-2 bg-white border rounded-xl outline-none focus:border-indigo-500 text-slate-800 font-semibold text-sm"></div>` : ''}` : ''}
                                 ${(!resched && isColliding) ? `
                                     <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl mb-4 text-xs fade-in text-left">
                                         <p class="font-bold text-amber-900 mb-1 flex items-center"><i data-lucide="alert-circle" class="w-4 h-4 mr-1 text-amber-600"></i> Você já possui um agendamento neste horário/faixa de tempo!</p>
                                         <p class="text-amber-800 mb-3">Para prosseguir, confirme se este agendamento é para outra pessoa (filho, acompanhante, etc.):</p>
-                                        
                                         <label class="block font-bold text-slate-700 mb-1">Nome Completo do Atendido *</label>
                                         <input type="text" id="beneficiary-name-inp" value="${esc(clientBooking.beneficiaryName)}" oninput="clientBooking.beneficiaryName = this.value" placeholder="Ex: João da Silva" class="w-full px-3 py-2 bg-white border rounded-xl outline-none focus:border-indigo-500 text-slate-800 font-semibold">
                                     </div>
                                 ` : ''}
+                                ${depHtml}
+                                ${isLast
+                                    ? `<button onclick="clientFinalize()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-lg transition-all">${resched ? 'Confirmar Reagendamento' : (dep ? 'Confirmar e ver chave Pix' : 'Confirmar Agendamento')}</button>`
+                                    : `<button onclick="clientNext()" class="w-full btn-theme-primary font-bold py-4 rounded-2xl shadow-lg">Continuar</button>`}`;
 
-                                <button onclick="clientFinalize()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-lg transition-all">${resched ? 'Confirmar Reagendamento' : 'Confirmar Agendamento'}</button>
-                            ` : ''}
+                    return `
+                        <div class="max-w-md mx-auto bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-[2rem] shadow-xl border fade-in">
+                            ${backBtn}
+                            <h2 class="text-xl sm:text-2xl font-black text-center mb-6">${step === 'time' ? (isLast ? (resched ? 'Confirmar Novo Horário' : 'Confirmar Horário') : 'Escolha o Horário') : 'Confirmar Agendamento'}</h2>
+                            ${summary}
+                            ${slotsHtml}
+                            ${confirmHtml}
                         </div>`;
                 }
             }
 
-            window.clientGoStep3 = function() {
+            window.clientGoProcedures = function() {
                 const checks = Array.from(document.querySelectorAll('.c-proc-check:checked')).map(c => c.value);
                 if (checks.length === 0) return showModal('Aviso', 'Selecione pelo menos um serviço.', 'info');
 
                 if (t.employees && t.employees.length > 0) {
-                    const someoneDoesAll = t.employees.some(emp =>
+                    const date = clientBooking.date, empId = clientBooking.employeeId;
+                    const pool = (empId && empId !== 'any') ? t.employees.filter(e => e.id === empId) : t.employees;
+                    const someoneDoesAll = pool.some(emp =>
                         checks.every(pid => emp.procedures && emp.procedures.includes(pid)) &&
-                        doesEmployeeWorkOnDate(emp, clientBooking.date)
+                        (!date || doesEmployeeWorkOnDate(emp, date))
                     );
                     if (!someoneDoesAll) {
                         return showModal('Combinação indisponível',
-                            'Nenhum profissional faz todos esses serviços juntos neste dia. Tente marcar menos serviços ou escolher outro dia.', 'info');
+                            'Nenhum profissional faz todos esses serviços juntos' + (date ? ' neste dia' : '') + '. Tente marcar menos serviços' + (date ? ' ou escolher outro dia' : '') + '.', 'info');
                     }
                 }
 
                 clientBooking.procedures = checks;
-                clientBooking.time = null;
-                if (!t.employees || t.employees.length === 0) { clientBooking.employeeId = t.admin.id; clientBooking.step = 4; } 
-                else { clientBooking.step = 3; }
-                render();
+                clientNext();
             };
 
             window.clientFinalize = function() {
                 if (!clientBooking.time) return showModal('Aviso', 'Selecione um horário.', 'info');
+                if (!clientBooking.resched && !(t.employees && t.employees.length)) clientBooking.employeeId = t.admin.id;
+                if (!clientBooking.resched && !isDateAllowedByMonthlyRule(new Date(clientBooking.date + 'T00:00:00'))) {
+                    clientBooking.date = null; clientBooking.time = null; clientBooking.step = 'date'; render();
+                    return showModal('Data indisponível', 'Essa data não está mais aberta para agendamento. Escolha outro dia.', 'error');
+                }
 
                 const resched = clientBooking.resched;
                 const selectedProcs = resched ? [] : t.procedures.filter(p => clientBooking.procedures.includes(p.id));
@@ -1342,8 +1531,7 @@
 
                 const slot = getBookingSlots(clientBooking.employeeId, clientBooking.date, totalDuration, clientBooking.procedures).find(s => s.time === clientBooking.time);
                 if (!slot || (resched && slot.hasClientCollision)) {
-                    clientBooking.time = null;
-                    render();
+                    backToTime();
                     return showModal('Horário indisponível', 'Esse horário acabou de ser ocupado ou já passou. Escolha outro horário.', 'error');
                 }
 
@@ -1353,8 +1541,7 @@
                     const reschedEmp = getEmployeeById(resched.employeeId);
                     rescheduleAppointment(resched.id, bookedDate, bookedTime).then(res => {
                         if (!res.ok) {
-                            clientBooking.time = null;
-                            render();
+                            backToTime();
                             if (res.reason === 'missing') return showModal('Não foi possível reagendar', 'Este agendamento não está mais ativo. Confira a aba Meus horários.', 'error');
                             return showModal('Horário indisponível', 'Esse horário acabou de ser ocupado por outra pessoa. Escolha outro horário.', 'error');
                         }
@@ -1380,11 +1567,15 @@
                 let finalEmpId = clientBooking.employeeId;
                 if (finalEmpId === 'any') finalEmpId = resolveEmployeeForTime(clientBooking.date, totalDuration, clientBooking.procedures, clientBooking.time);
                 if (!finalEmpId) {
-                    clientBooking.time = null;
-                    render();
+                    backToTime();
                     return showModal('Horário indisponível', 'Esse horário acabou de ser ocupado. Escolha outro horário.', 'error');
                 }
                 const finalEmp = getEmployeeById(finalEmpId);
+                if (finalEmp && t.employees && t.employees.length && !clientBooking.procedures.every(pid => finalEmp.procedures && finalEmp.procedures.includes(pid))) {
+                    clientBooking.step = 'professional'; render();
+                    return showModal('Profissional indisponível', 'Esse profissional não faz todos os serviços escolhidos. Escolha outro profissional.', 'error');
+                }
+                const depInfo = getDepositInfo(selectedProcs);
 
                 const newApp = { 
                     id: 'app-' + Date.now(), 
@@ -1398,17 +1589,18 @@
                     proceduresNames: serviceNames, 
                     totalDuration, 
                     totalPrice, 
-                    createdAt: new Date().toISOString() 
+                    createdAt: new Date().toISOString(),
+                    ...(depInfo ? { status: 'pendente', depositRequired: true, depositAmount: depInfo.amount, depositPercent: depInfo.percent, pixKeyType: depInfo.pixKeyType, pixKey: depInfo.pixKey } : {})
                 };
                 const forOther = finalBeneficiary !== currentClient.name;
 
                 createAppointment(newApp).then(result => {
                     if (!result.ok) {
-                        clientBooking.time = null;
-                        render();
+                        backToTime();
                         return showModal('Horário indisponível', 'Esse horário acabou de ser ocupado por outra pessoa. Escolha outro horário.', 'error');
                     }
                     const link = calendarLinkHtml(serviceNames.join(', ') + ' - ' + t.name, bookedDate, bookedTime, totalDuration, 'Profissional: ' + (finalEmp ? finalEmp.name : ''));
+                    if (depInfo) return showModal('Quase lá! Falta o sinal', pixHtml(bookedDate, bookedTime, depInfo.amount, depInfo.pixKeyType, depInfo.pixKey) + link, 'success', () => { resetBooking(); clientActiveTab = 'appointments'; render(); });
                     showModal('Sucesso!', `Agendamento confirmado para ${formatDateBR(bookedDate)} às ${esc(bookedTime)}${forOther ? ` (Para: ${esc(finalBeneficiary)})` : ''}!<br>${link}`, 'success', () => {
                         resetBooking();
                         clientActiveTab = 'appointments'; 
