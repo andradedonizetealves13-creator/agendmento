@@ -173,7 +173,8 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { initializeApp, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as signOutSecondary } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { auth, rtdb, signOut, onAuthStateChanged, ref, update, onValue, runTransaction, get, child, set } from './firebase-config.js';
 
@@ -232,8 +233,22 @@
             if (!user) {
                 localStorage.removeItem('agendaProSession');
                 window.location.href = 'index.html';
+            } else {
+                ensureStaffClaims(user);
             }
         });
+
+        // Marca o papel (admin/profissional) no próprio login (custom claims). As regras do banco usam isso.
+        // A Cloud Function syncRole confere o cadastro no servidor; aqui só pedimos a atualização.
+        async function ensureStaffClaims(user) {
+            try {
+                if (!session.slug) return;
+                const tok = await user.getIdTokenResult();
+                if (tok.claims.staff && tok.claims.staff[session.slug]) return;
+                await httpsCallable(getFunctions(getApp()), 'syncRole')({ slug: session.slug });
+                await user.getIdToken(true);
+            } catch (e) { console.warn('Não foi possível atualizar o papel do login (syncRole):', e && e.message); }
+        }
 
         const sessionStr = localStorage.getItem('agendaProSession');
         if (!sessionStr) { window.location.href = 'index.html'; }
@@ -409,7 +424,7 @@
                 const list = toList(cur);
                 const s = timeToMins(newApp.time), e = s + newApp.totalDuration;
                 clash = list.some(a => a.employeeId === newApp.employeeId && a.date === newApp.date
-                    && a.status !== 'cancelado' && a.status !== 'nao_compareceu'
+                    && isBusyApp(a)
                     && s < timeToMins(a.time) + a.totalDuration && e > timeToMins(a.time));
                 if (clash) return;
                 list.push(newApp);
@@ -417,13 +432,14 @@
             }).then(res => ({ ok: res.committed, clash }));
         };
 
-        window.setAppStatusDB = function(id, status) {
+        window.setAppStatusDB = function(id, status, extra) {
             return runTransaction(ref(rtdb, basePath + '/appointments'), (cur) => {
                 if (!cur) return;
                 const list = toList(cur);
                 const item = list.find(a => a.id === id);
                 if (!item) return;
                 item.status = status;
+                if (extra) Object.assign(item, extra);
                 return list;
             });
         };
@@ -458,10 +474,19 @@
             if (appItem.status === 'cancelado') return 'cancelado';
             if (appItem.status === 'nao_compareceu') return 'nao_compareceu';
             if (appItem.status === 'realizado') return 'realizado';
-            if (appItem.status === 'pendente') return 'pendente';
+            if (appItem.status === 'pendente') return isDepositExpired(appItem) ? 'expirado' : 'pendente';
             const appDateTime = new Date(appItem.date + 'T' + appItem.time);
             if (appDateTime < new Date()) return 'realizado';
             return 'agendado';
+        };
+        // prazo do sinal vencido: o horário volta a ficar livre
+        window.isDepositExpired = function(a) {
+            if (!a || a.status !== 'pendente') return false;
+            if (a.depositDeadline && new Date(a.depositDeadline) < new Date()) return true;
+            return new Date(a.date + 'T' + a.time) < new Date();
+        };
+        window.isBusyApp = function(a) {
+            return a.status !== 'cancelado' && a.status !== 'nao_compareceu' && !isDepositExpired(a);
         };
 
         window.doesEmployeeWorkOnDate = function(emp, dateStr) {
@@ -534,7 +559,7 @@
             const sidebarClasses = isSidebarOpenMobile ? "fixed inset-y-0 left-0 z-[110] w-72 bg-white/90 backdrop-blur-md shadow-2xl translate-x-0 flex flex-col h-full" : "fixed inset-y-0 left-0 z-[110] w-72 bg-white/90 backdrop-blur-md shadow-2xl -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:w-20 hover:md:w-64 transition-all duration-300 group flex flex-col shrink-0 overflow-hidden";
             const overlayMobile = isSidebarOpenMobile ? `<div class="fixed inset-0 bg-slate-900/50 z-[105] md:hidden fade-in" onclick="toggleMobileMenu()"></div>` : '';
 
-            const navBtn = (tab, icon, label, pre = '') => `<button title="${label}" onclick="activeTab='${tab}'; ${pre} isSidebarOpenMobile=false; render()" class="w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab===tab?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="${icon}" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">${label}</span></button>`;
+            const navBtn = (tab, icon, label, pre = '', badge = 0) => `<button title="${label}" onclick="activeTab='${tab}'; ${pre} isSidebarOpenMobile=false; render()" class="relative w-full flex items-center px-4 py-3 md:px-3 md:py-2.5 rounded-xl text-sm font-medium ${activeTab===tab?'bg-theme-secondary text-theme-primary font-bold':'text-slate-600 hover:bg-slate-50'}"><i data-lucide="${icon}" class="w-6 h-6 md:w-5 md:h-5 shrink-0"></i><span class="ml-4 md:opacity-0 md:hidden md:group-hover:block md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">${label}</span>${badge > 0 ? `<span class="absolute top-1.5 right-2 md:top-0.5 md:right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center shadow">${badge > 99 ? '99+' : badge}</span>` : ''}</button>`;
 
             document.getElementById('app').innerHTML = `
                 <div class="flex h-screen w-screen fade-in relative overflow-hidden">
@@ -551,7 +576,7 @@
                         </div>
 
                         <nav class="flex-1 p-4 md:p-3 space-y-2 overflow-y-auto custom-scrollbar w-full overflow-x-hidden">
-                            ${navBtn('agenda', 'calendar', 'Agenda')}
+                            ${navBtn('agenda', 'calendar', 'Agenda', '', pendingList(role, userProfile).length)}
                             ${navBtn('dashboard', 'bar-chart-2', 'Dashboard')}
                             ${navBtn('horarios', 'clock', 'Horários & Folgas')}
                             ${role === 'admin' ? `
@@ -757,7 +782,7 @@
 
             const conflict = (t.appointments || []).find(a => {
                 if (a.employeeId !== employeeId || a.date !== date) return false;
-                if (a.status === 'cancelado' || a.status === 'nao_compareceu') return false;
+                if (!isBusyApp(a)) return false;
                 const aStart = timeToMins(a.time);
                 const aEnd = aStart + (a.totalDuration || 0);
                 return startMins < aEnd && endMins > aStart;
@@ -802,7 +827,7 @@
 
         // ---------- AGENDA: escopo, resumo do dia e legenda por profissional ----------
         function agendaScope(role, user) {
-            let apps = (t.appointments || []).filter(a => a.status !== 'cancelado' && a.status !== 'nao_compareceu');
+            let apps = (t.appointments || []).filter(a => isBusyApp(a));
             if (role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
             else if (agendaFilterEmp !== 'all') apps = apps.filter(a => a.employeeId === agendaFilterEmp);
             return apps;
@@ -1050,7 +1075,8 @@
                     percent: Number(dep.percent) > 0 ? Number(dep.percent) : 30,
                     pixKeyType: PIX_TYPES.some(p => p[0] === dep.pixKeyType) ? dep.pixKeyType : 'cpf',
                     pixKey: dep.pixKey || '',
-                    whatsappLink: String(dep.whatsappLink || '')
+                    whatsappLink: String(dep.whatsappLink || ''),
+                    expiryHours: (dep.expiryHours === undefined || dep.expiryHours === null || dep.expiryHours === '' || isNaN(Number(dep.expiryHours))) ? 2 : Math.max(0, Number(dep.expiryHours))
                 },
                 openingWindow: {
                     enabled: win.enabled === true,
@@ -1159,13 +1185,18 @@
                     <input type="text" value="${esc(dep.whatsappLink)}" placeholder="Cole aqui o link, ex: https://wa.me/5519999999999" oninput="setDepField('whatsappLink', this.value)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500">
                     <p class="text-[11px] text-slate-400 mt-1">Opcional. Se preencher, o cliente verá um botão "Clique aqui para enviar o comprovante para o WhatsApp". Também aceita só o número com DDD.</p>
                 </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Prazo para pagar o sinal (em horas)</label>
+                    <div class="relative"><input type="number" min="0" max="720" step="0.5" value="${dep.expiryHours}" oninput="setDepField('expiryHours', this.value)" class="w-full px-4 py-3 pr-14 border rounded-xl text-sm outline-none focus:border-indigo-500"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">horas</span></div>
+                    <p class="text-[11px] text-slate-400 mt-1">Se o sinal não for confirmado dentro deste prazo, o horário é liberado automaticamente para outros clientes. Use 0 para não ter prazo.</p>
+                </div>
                 <div class="rounded-2xl border border-dashed p-4 bg-slate-50">
                     <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Como o cliente vê depois de agendar</p>
                     <div class="bg-white border rounded-xl p-4 space-y-1.5">
                         <p class="text-sm font-black text-slate-900 flex items-center"><i data-lucide="qr-code" class="w-4 h-4 mr-2 text-theme-primary"></i>Pague o sinal para garantir seu horário</p>
                         <p class="text-xs text-slate-600">Valor do sinal: <b id="dep-sample" class="text-emerald-700">${brl(depAmount(samplePrice, dep.percent))}</b></p>
                         <p class="text-xs text-slate-600">Chave Pix (<span id="dep-type-label">${esc(type[1])}</span>): <b id="dep-key-label" class="font-mono break-all">${esc(dep.pixKey) || '—'}</b></p>
-                        <p class="text-[11px] font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-lg px-2.5 py-1.5">⏳ O agendamento fica pendente até você confirmar o pagamento.</p>
+                        <p class="text-[11px] font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-lg px-2.5 py-1.5">⏳ O agendamento fica pendente até você confirmar o pagamento${Number(dep.expiryHours) > 0 ? ` e o horário é liberado se não for confirmado em ${dep.expiryHours}h` : ''}.</p>
                         <div id="dep-wa-preview" class="${dep.whatsappLink.trim() ? '' : 'hidden'} text-center text-xs font-bold bg-emerald-600 text-white rounded-xl px-3 py-2.5">Clique aqui para enviar o comprovante para o WhatsApp</div>
                     </div>
                 </div>`;
@@ -1239,7 +1270,7 @@
 
         // ---- agendamentos pendentes (aviso acima da agenda) ----
         function pendingList(role, user) {
-            return agendaScope(role, user).filter(a => a.status === 'pendente').sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+            return agendaScope(role, user).filter(a => getEffectiveAppStatus(a) === 'pendente').sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
         }
         function pendingBannerHtml(role, user) {
             const list = pendingList(role, user);
@@ -1653,7 +1684,7 @@
             if(role === 'admin' && activeTab === 'clients') {
                 const stats = {};
                 (t.appointments || []).forEach(a => {
-                    if (a.status === 'cancelado' || a.status === 'nao_compareceu') return;
+                    if (!isBusyApp(a)) return;
                     const s = stats[a.clientId] || (stats[a.clientId] = { total: 0, last: '' });
                     s.total++; if (a.date > s.last) s.last = a.date;
                 });
@@ -1773,7 +1804,7 @@
         // ---------- DASHBOARD ----------
         function renderDashboardAnalytics(role, user) {
             const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
-            const isActive = (a) => a.status !== 'cancelado' && a.status !== 'nao_compareceu';
+            const isActive = (a) => isBusyApp(a);
             
             let apps = t.appointments || [];
             if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
@@ -1787,6 +1818,12 @@
             const canceledApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'cancelado');
             const noShowApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'nao_compareceu');
             const upcomingApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'agendado');
+            const depReceivedApps = filteredApps.filter(a => a.depositRequired && ['agendado', 'realizado', 'nao_compareceu'].includes(a.status));
+            const depReceived = depReceivedApps.reduce((sum, a) => sum + (Number(a.depositPaid != null ? a.depositPaid : a.depositAmount) || 0), 0);
+            const depPendingApps = filteredApps.filter(a => getEffectiveAppStatus(a) === 'pendente');
+            const depPendingVal = depPendingApps.reduce((sum, a) => sum + (Number(a.depositAmount) || 0), 0);
+            const depExpiredCount = filteredApps.filter(a => getEffectiveAppStatus(a) === 'expirado').length;
+            const depRestToReceive = filteredApps.filter(a => a.depositRequired && getEffectiveAppStatus(a) === 'agendado').reduce((sum, a) => sum + Math.max(0, (Number(a.totalPrice) || 0) - (Number(a.depositPaid != null ? a.depositPaid : a.depositAmount) || 0)), 0);
 
             const totalRevenue = completedApps.reduce((s, a) => s + (a.totalPrice || 0), 0);
             const avgTicket = completedApps.length ? totalRevenue / completedApps.length : 0;
@@ -1899,6 +1936,12 @@
                         ${card('percent', 'bg-amber-50 text-amber-600', 'Taxa de Faltas', pctOf(noShowApps.length).toFixed(1) + '%')}
                     </div>
 
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        ${card('wallet', 'bg-emerald-50 text-emerald-600', 'Sinal recebido no mês', `<span class="text-emerald-600">${brl(depReceived)}</span>`, `<p class="text-[11px] text-slate-400 mt-1">${depReceivedApps.length} agendamento(s) com sinal</p>`)}
+                        ${card('hourglass', 'bg-amber-50 text-amber-600', 'Sinais pendentes', `<span class="text-amber-600">${depPendingApps.length}</span>`, `<p class="text-[11px] text-slate-400 mt-1">${brl(depPendingVal)} aguardando${depExpiredCount ? ' • ' + depExpiredCount + ' expirado(s)' : ''}</p>`)}
+                        ${card('banknote', 'bg-sky-50 text-sky-600', 'Restante a receber', brl(depRestToReceive), `<p class="text-[11px] text-slate-400 mt-1">dos agendados com sinal pago</p>`)}
+                    </div>
+
                     <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
                         <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="bar-chart-3" class="w-5 h-5 mr-2 text-theme-primary"></i> Faturamento por Dia</h3>
                         <div class="overflow-x-auto custom-scrollbar pb-2">
@@ -1927,6 +1970,7 @@
                                 
                                 let statusBadge = `<span class="bg-theme-secondary text-theme-primary border text-[10px] font-bold px-2.5 py-1 rounded-full">Agendado</span>`;
                                 if (st === 'realizado') statusBadge = `<span class="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Concluído</span>`;
+                                else if (st === 'expirado') statusBadge = `<span class="bg-slate-100 text-slate-600 border-slate-300 border text-[10px] font-bold px-2.5 py-1 rounded-full">Sinal expirado</span>`;
                                 else if (st === 'cancelado') statusBadge = `<span class="bg-rose-50 text-rose-700 border-rose-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Cancelado</span>`;
                                 else if (st === 'pendente') statusBadge = `<span class="bg-amber-100 text-amber-800 border-amber-300 border border-dashed text-[10px] font-bold px-2.5 py-1 rounded-full">⏳ Pendente</span>`;
                                 else if (st === 'nao_compareceu') statusBadge = `<span class="bg-amber-50 text-amber-700 border-amber-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Não Compareceu</span>`;
@@ -2086,7 +2130,7 @@
             if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
             else if(agendaFilterEmp !== 'all') apps = apps.filter(a => a.employeeId === agendaFilterEmp);
             const todayStr = localDateStr();
-            apps = apps.filter(a => a.status !== 'cancelado' && a.status !== 'nao_compareceu' && a.date >= todayStr);
+            apps = apps.filter(a => isBusyApp(a) && a.date >= todayStr);
             if(listFilterMonth) apps = apps.filter(a => a.date.split('-')[1] === listFilterMonth);
             if(listFilterDate) apps = apps.filter(a => a.date === listFilterDate);
             apps.sort((a,b) => new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time));
@@ -2270,11 +2314,16 @@
             const depVal = app.depositAmount != null ? Number(app.depositAmount) : (Number(app.totalPrice) || 0) * depRule.percent / 100;
             const depPixType = (PIX_TYPES.find(p => p[0] === (app.pixKeyType || depRule.pixKeyType)) || PIX_TYPES[0])[1];
             const depPixKey = app.pixKey || depRule.pixKey;
-            const pendingInfo = app.status === 'pendente' ? `
+            const effSt = getEffectiveAppStatus(app);
+            const dlTxt = app.depositDeadline ? new Date(app.depositDeadline).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+            const expiredInfo = effSt === 'expirado' ? `<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-100 p-3 text-xs text-slate-700 font-bold">⌛ Prazo do sinal vencido${dlTxt ? ' em ' + dlTxt : ''}. O horário foi liberado. Se o cliente já pagou, cancele este e faça um novo agendamento.</div>` : '';
+            const depPaid = app.depositRequired && app.status !== 'pendente' && app.status !== 'cancelado';
+            const depSummary = depPaid ? `<div class="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs"><span class="font-bold text-emerald-800">Sinal pago ${brl(depVal)}</span><span class="font-bold text-slate-700">Restante ${brl(Math.max(0, (Number(app.totalPrice) || 0) - depVal))}</span></div>` : '';
+            const pendingInfo = effSt === 'pendente' ? `
                     <div class="rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50 p-4 space-y-3">
                         <div class="flex items-center space-x-3"><div class="bg-amber-100 p-2 rounded-lg text-amber-700"><i data-lucide="hourglass" class="w-5 h-5"></i></div><div><p class="text-sm font-black text-amber-900">Aguardando confirmação do sinal</p><p class="text-[11px] text-amber-800">Este horário está reservado, mas só vira agendamento firme depois que você confirmar.</p></div></div>
                         <div class="bg-white/80 border border-amber-200 rounded-xl p-3 text-xs text-slate-700 space-y-1">
-                            <p>Sinal combinado: <b class="text-emerald-700">${brl(depVal)}</b></p>
+                            <p>Sinal combinado: <b class="text-emerald-700">${brl(depVal)}</b>${dlTxt ? ` • pagar até <b>${dlTxt}</b>` : ''}</p>
                             ${depPixKey ? `<p>Chave Pix (${esc(depPixType)}) enviada ao cliente: <b class="font-mono break-all">${esc(depPixKey)}</b></p>` : ''}
                         </div>
                         <button onclick="confirmPendingApp('${app.id}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center"><i data-lucide="check-circle" class="w-4 h-4 mr-2"></i>Confirmar agendamento (sinal recebido)</button>
@@ -2282,12 +2331,14 @@
             const msg = `
                 <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
                     ${pendingInfo}
+                    ${expiredInfo}
                     ${reschedInfo}
                     <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-theme-secondary p-2 rounded-lg text-theme-primary"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">${esc(app.clientName)}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${esc(app.beneficiaryName)}</span>` : ''}</div></div>
                     <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-theme-secondary p-2 rounded-lg text-theme-primary"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${esc(emp?emp.name:'Profissional')}</span></div></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${esc(app.proceduresNames.join(', '))}</span></div>
                     <div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>
+                    ${depSummary}
                     
                     <div class="pt-4 border-t flex flex-col sm:flex-row gap-2">
                         <button onclick="confirmAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">${app.status === 'pendente' ? 'Recusar / Cancelar' : 'Cancelar Agendamento'}</button>
@@ -2385,6 +2436,8 @@
                 if (!(percent > 0 && percent <= 100)) return fail('A porcentagem do sinal deve ficar entre 1 e 100.');
                 const err = pixError(dep.pixKeyType, dep.pixKey); if (err) return fail(err);
             }
+            const expiryHours = Number(dep.expiryHours === '' || dep.expiryHours == null ? 2 : dep.expiryHours);
+            if (dep.enabled && (isNaN(expiryHours) || expiryHours < 0 || expiryHours > 720)) return fail('O prazo para pagar o sinal deve ficar entre 0 e 720 horas (0 = sem prazo).');
             const waLink = waNormalize(dep.whatsappLink);
             if (waLink === null) return fail('O link do WhatsApp não parece válido. Cole um link como https://wa.me/5519999999999 (ou só o número com DDD).');
             let amount = Math.floor(Number(win.amount));
@@ -2401,7 +2454,8 @@
                     procedureIds: dep.all ? allIds : dep.procedureIds,
                     percent: percent > 0 && percent <= 100 ? percent : 30,
                     pixKeyType: dep.pixKeyType, pixKey: (dep.pixKey || '').trim(),
-                    whatsappLink: waLink || ''
+                    whatsappLink: waLink || '',
+                    expiryHours: (!isNaN(expiryHours) && expiryHours >= 0 && expiryHours <= 720) ? expiryHours : 2
                 },
                 openingWindow: { enabled: win.enabled, mode: win.mode, amount: amount >= 1 ? amount : 2 },
                 bookingFlow: { enabled: flow.enabled, steps: flow.steps.slice() }
@@ -2414,7 +2468,10 @@
 
         // ---------- AGENDAMENTO PENDENTE: confirmar sinal ----------
         window.confirmPendingApp = function(appId) {
-            setAppStatusDB(appId, 'agendado')
+            const _a = (t.appointments || []).find(x => x.id === appId);
+            const _extra = { depositPaidAt: new Date().toISOString() };
+            if (_a && _a.depositAmount != null) _extra.depositPaid = Number(_a.depositAmount);
+            setAppStatusDB(appId, 'agendado', _extra)
                 .then(() => { closeModal(); showModal('Confirmado', 'Agendamento confirmado com sucesso.', 'success'); })
                 .catch(() => showModal('Erro de conexão', 'Não foi possível confirmar o agendamento. Tente novamente.', 'error'));
         };
@@ -2462,7 +2519,7 @@
             user.email = document.getElementById('prof-email').value;
             if (novoHash) user.password = novoHash;
             if (draft.avatar) { user.avatar = draft.avatar; delete draft.avatar; }
-            saveDB(['admin', 'employees']);
+            saveDB(role === 'admin' ? ['admin', 'employees'] : ['employees']);
             showModal('Sucesso', 'Perfil atualizado!', 'success');
         };
 
