@@ -1,0 +1,35 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "agendapro_saas": {
+      "tenants": {
+        "$slug": {
+          // Leitura pública do cadastro da organização (o portal do cliente precisa dela antes do login).
+          // ATENÇÃO: isso inclui clients/appointments. Veja o README (próximo passo: separar dados públicos e privados).
+          ".read": true,
+
+          // Criar a organização: só quem está logado e se declara admin dela, e só se o endereço ainda não existe.
+          ".write": "auth != null && !data.exists() && newData.child('admin/id').val() === auth.uid",
+
+          // Agendamentos e clientes: qualquer pessoa logada (clientes agendam, cancelam e reagendam).
+          "appointments": { ".write": "auth != null" },
+          "clients":      { ".write": "auth != null" },
+
+          // Profissionais e solicitações de folga: administrador ou profissional da PRÓPRIA organização.
+          "employees": {
+            ".write": "auth != null && (root.child('agendapro_saas/tenants/' + $slug + '/admin/id').val() === auth.uid || (auth.token.staff != null && (auth.token.staff[$slug] === 'admin' || auth.token.staff[$slug] === 'employee')))"
+          },
+          "requests": {
+            ".write": "auth != null && (root.child('agendapro_saas/tenants/' + $slug + '/admin/id').val() === auth.uid || (auth.token.staff != null && (auth.token.staff[$slug] === 'admin' || auth.token.staff[$slug] === 'employee')))"
+          },
+
+          // Todo o resto (regras, serviços, tema, logo, dados do admin...): somente o administrador da organização.
+          "$other": {
+            ".write": "auth != null && (root.child('agendapro_saas/tenants/' + $slug + '/admin/id').val() === auth.uid || (auth.token.staff != null && auth.token.staff[$slug] === 'admin'))"
+          }
+        }
+      }
+    }
+  }
+}
