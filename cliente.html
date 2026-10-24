@@ -549,6 +549,13 @@
             const LEGACY_FLOW = ['date', 'procedure', 'professional', 'time'];
             const PIX_LABELS = { cpf: 'CPF', cnpj: 'CNPJ', email: 'E-mail', telefone: 'Telefone', aleatoria: 'Chave aleatória' };
 
+            // só aceita links do WhatsApp (evita qualquer outro tipo de link vindo dos dados)
+            function safeWaLink(v) {
+                try {
+                    const u = new URL(String(v || '').trim());
+                    return (u.protocol === 'https:' && /(^|\.)(wa\.me|whatsapp\.com)$/i.test(u.hostname)) ? u.href : '';
+                } catch (_) { return ''; }
+            }
             window.getRules = function() {
                 const r = t.rules || {}, dep = r.deposit || {}, win = r.openingWindow || {}, flow = r.bookingFlow || {};
                 return {
@@ -556,7 +563,8 @@
                         enabled: dep.enabled === true, all: dep.all === true,
                         procedureIds: toList(dep.procedureIds).map(String),
                         percent: Number(dep.percent) > 0 ? Number(dep.percent) : 30,
-                        pixKeyType: dep.pixKeyType || 'cpf', pixKey: String(dep.pixKey || '').trim()
+                        pixKeyType: dep.pixKeyType || 'cpf', pixKey: String(dep.pixKey || '').trim(),
+                        whatsappLink: safeWaLink(dep.whatsappLink)
                     },
                     openingWindow: {
                         enabled: win.enabled === true,
@@ -668,9 +676,10 @@
                 const base = req.reduce((s, p) => s + (Number(p.price) || 0), 0);
                 const amount = Math.round(base * dep.percent) / 100;
                 if (!(amount > 0)) return null;
-                return { amount, percent: dep.percent, base, pixKeyType: dep.pixKeyType, pixKey: dep.pixKey };
+                return { amount, percent: dep.percent, base, pixKeyType: dep.pixKeyType, pixKey: dep.pixKey, whatsappLink: dep.whatsappLink };
             };
-            window.pixHtml = function(date, time, amount, type, key) {
+            window.pixHtml = function(date, time, amount, type, key, wa) {
+                wa = safeWaLink(wa);
                 return `<div class="text-left space-y-3">
                     <p class="text-sm text-slate-600">Seu horário em <b>${formatDateBR(date)} às ${esc(time)}</b> está reservado, mas ainda <b>pendente</b>. Pague o sinal por Pix para o profissional confirmar.</p>
                     <div class="bg-slate-50 border rounded-2xl p-4">
@@ -680,6 +689,7 @@
                         <p class="font-mono font-bold text-sm break-all text-slate-800">${esc(key)}</p>
                         <button type="button" data-key="${esc(key)}" onclick="copyPixKey(this)" class="mt-3 w-full text-xs font-bold btn-theme-primary py-2.5 rounded-xl">Copiar chave Pix</button>
                     </div>
+                    ${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 w-full text-sm font-black bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl shadow"><i data-lucide="message-circle" class="w-5 h-5"></i>Clique aqui para enviar o comprovante para o WhatsApp</a>` : ''}
                     <p class="text-xs font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-xl p-3">⏳ Depois de pagar, aguarde: o agendamento aparece como pendente até o profissional confirmar o pagamento.</p>
                 </div>`;
             };
@@ -692,7 +702,7 @@
             window.showPixInfo = function(id) {
                 const a = (t.appointments || []).find(x => x.id === id);
                 if (!a || !a.pixKey) return showModal('Pix', 'Não há dados de pagamento para este agendamento.', 'info');
-                showModal('Pague o sinal', pixHtml(a.date, a.time, a.depositAmount, a.pixKeyType, a.pixKey), 'info');
+                showModal('Pague o sinal', pixHtml(a.date, a.time, a.depositAmount, a.pixKeyType, a.pixKey, a.whatsappLink || getRules().deposit.whatsappLink), 'info');
             };
 
             window.getCancelMinHours = function() { return Number(t.cancelMinHours) || 0; };
@@ -1590,7 +1600,7 @@
                     totalDuration, 
                     totalPrice, 
                     createdAt: new Date().toISOString(),
-                    ...(depInfo ? { status: 'pendente', depositRequired: true, depositAmount: depInfo.amount, depositPercent: depInfo.percent, pixKeyType: depInfo.pixKeyType, pixKey: depInfo.pixKey } : {})
+                    ...(depInfo ? { status: 'pendente', depositRequired: true, depositAmount: depInfo.amount, depositPercent: depInfo.percent, pixKeyType: depInfo.pixKeyType, pixKey: depInfo.pixKey, whatsappLink: depInfo.whatsappLink || '' } : {})
                 };
                 const forOther = finalBeneficiary !== currentClient.name;
 
@@ -1600,7 +1610,7 @@
                         return showModal('Horário indisponível', 'Esse horário acabou de ser ocupado por outra pessoa. Escolha outro horário.', 'error');
                     }
                     const link = calendarLinkHtml(serviceNames.join(', ') + ' - ' + t.name, bookedDate, bookedTime, totalDuration, 'Profissional: ' + (finalEmp ? finalEmp.name : ''));
-                    if (depInfo) return showModal('Quase lá! Falta o sinal', pixHtml(bookedDate, bookedTime, depInfo.amount, depInfo.pixKeyType, depInfo.pixKey) + link, 'success', () => { resetBooking(); clientActiveTab = 'appointments'; render(); });
+                    if (depInfo) return showModal('Quase lá! Falta o sinal', pixHtml(bookedDate, bookedTime, depInfo.amount, depInfo.pixKeyType, depInfo.pixKey, depInfo.whatsappLink) + link, 'success', () => { resetBooking(); clientActiveTab = 'appointments'; render(); });
                     showModal('Sucesso!', `Agendamento confirmado para ${formatDateBR(bookedDate)} às ${esc(bookedTime)}${forOther ? ` (Para: ${esc(finalBeneficiary)})` : ''}!<br>${link}`, 'success', () => {
                         resetBooking();
                         clientActiveTab = 'appointments'; 
