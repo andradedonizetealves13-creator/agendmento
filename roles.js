@@ -34,6 +34,16 @@ function matchTenant(tenant, uid, email) {
 }
 
 exports.syncRole = onCall({ region: 'us-central1', cors: true }, async (request) => {
+  try {
+    return await syncRoleImpl(request);
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    console.error('syncRole falhou', e);
+    throw new HttpsError('internal', 'Falha no servidor: ' + String((e && (e.code || e.message)) || e).slice(0, 200));
+  }
+});
+
+async function syncRoleImpl(request) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Entre na sua conta para continuar.');
   const uid = request.auth.uid;
   const email = lower(request.auth.token && request.auth.token.email);
@@ -78,4 +88,4 @@ exports.syncRole = onCall({ region: 'us-central1', cors: true }, async (request)
     await admin.auth().setCustomUserClaims(uid, claims);
   }
   return { slug, role: found.role, id: found.id };
-});
+}
