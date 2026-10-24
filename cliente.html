@@ -216,6 +216,7 @@
             window.clientCalMonth = new Date().getMonth();
             window.showHistoryApps = false;
             window.hasRendered = false;
+            window.clientBusy = false;
 
             function saveClientId(id) { localStorage.setItem(storageKey, JSON.stringify({ id })); }
 
@@ -224,17 +225,11 @@
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     saveClientId(user.uid);
-                    if (window.t && window.t.clients) {
-                        const freshClient = window.t.clients.find(c => c.id === user.uid || (c.email && c.email.toLowerCase() === (user.email || '').toLowerCase()));
-                        if (freshClient) {
-                            freshClient.id = user.uid;
-                            currentClient = freshClient;
-                        } else {
-                            currentClient = { id: user.uid, name: user.displayName || (user.email ? user.email.split('@')[0] : 'Cliente'), email: user.email || '', phone: user.phoneNumber || '', avatar: user.photoURL || '' };
-                        }
-                    } else {
-                        currentClient = { id: user.uid, name: user.displayName || (user.email ? user.email.split('@')[0] : 'Cliente'), email: user.email || '', phone: user.phoneNumber || '', avatar: user.photoURL || '' };
-                    }
+                    // Ter conta no Firebase NÃO basta (ex.: administrador/profissional de outra organização).
+                    // O acesso só vale se existir cadastro de cliente DESTA organização.
+                    const freshClient = (window.t && window.t.clients) ? window.t.clients.find(c => c.id === user.uid || (c.email && c.email.toLowerCase() === (user.email || '').toLowerCase())) : null;
+                    if (freshClient) { freshClient.id = user.uid; currentClient = freshClient; }
+                    else currentClient = null;
                     if (window.hasRendered) safeRender();
                 } else {
                     currentClient = null;
@@ -286,6 +281,8 @@
                     if (freshClient) {
                         freshClient.id = auth.currentUser.uid;
                         currentClient = freshClient;
+                    } else {
+                        currentClient = null;   // logado, mas sem cadastro nesta organização
                     }
                 }
 
@@ -787,7 +784,10 @@
 
             window.render = function() {
                 const appDiv = document.getElementById('app');
-                if (!currentClient) { appDiv.innerHTML = renderClientAuth(); } 
+                if (!currentClient) {
+                    if (window.clientBusy) appDiv.innerHTML = '<div class="m-auto flex flex-col items-center"><div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div><p class="text-sm text-slate-500 font-medium">Carregando...</p></div>';
+                    else appDiv.innerHTML = auth.currentUser ? renderClientComplete() : renderClientAuth();
+                } 
                 else { appDiv.innerHTML = renderClientApp(); }
                 window.hasRendered = true;
                 if(window.lucide) lucide.createIcons();
@@ -826,26 +826,30 @@
                     </div>`;
             }
 
+            // Se já existe cadastro nesta organização (ex.: criado pelo painel) só vincula o login (uid). NUNCA cria cadastro sozinho.
+            async function linkExistingClient(user) {
+                const email = (user.email || '').toLowerCase();
+                await runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
+                    if (!cur) return;
+                    const list = toList(cur);
+                    if (list.some(c => c.id === user.uid)) return;
+                    const byEmail = list.find(c => c.email && c.email.toLowerCase() === email);
+                    if (!byEmail) return;
+                    byEmail.id = user.uid;
+                    return list;
+                });
+            }
+
             window.handleClientGoogleAuth = async function() {
                 try {
+                    window.clientBusy = true;
                     const result = await signInWithPopup(auth, googleProvider);
-                    const user = result.user;
-                    const email = (user.email || '').toLowerCase();
-                    const name = user.displayName || (user.email ? user.email.split('@')[0] : 'Cliente');
-                    const phone = user.phoneNumber || '';
-                    
-                    await runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
-                        const list = toList(cur);
-                        let existing = list.find(c => c.id === user.uid || (c.email && c.email.toLowerCase() === email));
-                        if (!existing) {
-                            list.push({ id: user.uid, name, email, phone, avatar: user.photoURL || '' });
-                        } else if (!existing.id || existing.id !== user.uid) {
-                            existing.id = user.uid;
-                        }
-                        return list;
-                    });
+                    await linkExistingClient(result.user);
                 } catch (err) {
                     showModal('Erro no Google', err.message, 'error');
+                } finally {
+                    window.clientBusy = false;
+                    safeRender();
                 }
             };
 
@@ -864,47 +868,85 @@
                     if (!email || !email.includes('@')) return showModal('Aviso', 'Informe um e-mail válido.', 'error');
                     if (!pass || pass.length < 6) return showModal('Aviso', 'A senha deve ter no mínimo 6 caracteres.', 'error');
 
-                    let user;
+                    window.clientBusy = true;
                     try {
-                        const userCred = await createUserWithEmailAndPassword(auth, email, pass);
-                        user = userCred.user;
-                    } catch(err) {
-                        if(err.code === 'auth/email-already-in-use') {
-                            try {
-                                const userCred = await signInWithEmailAndPassword(auth, email, pass);
-                                user = userCred.user;
-                            } catch(err2) {
-                                return showModal('Acesso Negado', 'Este e-mail já tem conta, mas a senha está incorreta. Se você já agendou antes, use a senha que criou.', 'error');
+                        let user;
+                        try {
+                            const userCred = await createUserWithEmailAndPassword(auth, email, pass);
+                            user = userCred.user;
+                        } catch(err) {
+                            if(err.code === 'auth/email-already-in-use') {
+                                try {
+                                    const userCred = await signInWithEmailAndPassword(auth, email, pass);
+                                    user = userCred.user;
+                                } catch(err2) {
+                                    return showModal('Acesso Negado', 'Este e-mail já tem conta, mas a senha está incorreta. Se você já agendou antes, use a senha que criou.', 'error');
+                                }
+                            } else {
+                                return showModal('Erro no Registo', err.message, 'error');
                             }
-                        } else {
-                            return showModal('Erro no Registo', err.message, 'error');
                         }
+                        await addClientRecord(user, name, phoneRaw);
+                    } finally {
+                        window.clientBusy = false;
+                        safeRender();
                     }
-
-                    const newClient = { id: user.uid, name, email, phone: phoneRaw, avatar: '' };
-                    await runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
-                        const list = toList(cur);
-                        if (!list.some(c => c.id === user.uid)) {
-                            list.push(newClient);
-                        }
-                        return list;
-                    });
                 } else {
+                    window.clientBusy = true;
                     try {
                         const userCred = await signInWithEmailAndPassword(auth, email, pass);
-                        const user = userCred.user;
-                        
-                        await runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
-                            const list = toList(cur);
-                            if (!list.some(c => c.id === user.uid)) {
-                                list.push({ id: user.uid, name: user.displayName || email.split('@')[0], email, phone: '', avatar: '' });
-                            }
-                            return list;
-                        });
+                        await linkExistingClient(userCred.user);
                     } catch (err) {
                         showModal('Acesso Negado', 'E-mail ou senha incorretos.', 'error');
+                    } finally {
+                        window.clientBusy = false;
+                        safeRender();
                     }
                 }
+            };
+
+            // cria o cadastro de cliente desta organização (sempre com telefone)
+            async function addClientRecord(user, name, phoneRaw) {
+                const email = (user.email || '').toLowerCase();
+                const newClient = { id: user.uid, name, email, phone: phoneRaw, avatar: user.photoURL || '' };
+                await runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
+                    const list = toList(cur);
+                    const existing = list.find(c => c.id === user.uid || (c.email && c.email.toLowerCase() === email));
+                    if (existing) { existing.id = user.uid; if (!existing.phone) existing.phone = phoneRaw; if (!existing.name) existing.name = name; }
+                    else list.push(newClient);
+                    return list;
+                });
+            }
+
+            // usuário já logado (ex.: administrador de outra organização) que ainda não tem cadastro aqui
+            function renderClientComplete() {
+                const u = auth.currentUser || {};
+                const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="h-16 w-auto rounded-xl object-contain mx-auto mb-4 border shadow-sm">` : `<div class="w-16 h-16 rounded-xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-2xl">O</div>`;
+                const guessName = u.displayName || '';
+                return `
+                    <div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full m-auto fade-in z-10 my-8">
+                        <div class="text-center mb-6">${logoHtml}<h1 class="text-2xl font-bold text-slate-900">${esc(t.name)}</h1><p class="text-sm text-slate-500 mt-1">Complete seu cadastro</p></div>
+                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 text-xs text-amber-900">Você está conectado como <b>${esc(u.email || '')}</b>, mas ainda não tem cadastro de cliente em <b>${esc(t.name)}</b>. Informe seus dados para continuar.</div>
+                        <form onsubmit="handleClientComplete(event)" class="space-y-3">
+                            <div><label class="block text-xs font-bold text-slate-700 mb-1">Nome Completo *</label><input type="text" id="c-comp-name" required value="${esc(guessName)}" placeholder="Ex: Carlos Alberto" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium"></div>
+                            <div><label class="block text-xs font-bold text-slate-700 mb-1">Telefone / WhatsApp * (DDD + 9 dígitos)</label><input type="text" id="c-comp-phone" required placeholder="(00) 00000-0000" oninput="formatPhoneInput(this)" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-indigo-500 font-medium"></div>
+                            <button type="submit" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-2">Concluir cadastro</button>
+                            <button type="button" onclick="clientLogout()" class="w-full text-xs font-bold text-slate-500 hover:text-slate-800 py-2">Sair e usar outra conta</button>
+                        </form>
+                    </div>`;
+            }
+
+            window.handleClientComplete = async function(e) {
+                e.preventDefault();
+                const user = auth.currentUser; if (!user) return;
+                const name = document.getElementById('c-comp-name').value.trim();
+                const phoneRaw = document.getElementById('c-comp-phone').value;
+                if (!name || name.length < 3) return showModal('Aviso', 'Por favor, informe seu nome completo.', 'error');
+                if (cleanPhone(phoneRaw).length !== 11) return showModal('Telefone Inválido', 'Informe um telefone/WhatsApp válido com DDD e 9 dígitos. Exemplo: (11) 98765-4321', 'error');
+                window.clientBusy = true; render();
+                try { await addClientRecord(user, name, phoneRaw); }
+                catch (err) { showModal('Erro', 'Não foi possível concluir o cadastro. Tente novamente.', 'error'); }
+                finally { window.clientBusy = false; safeRender(); }
             };
 
             window.clientLogout = async function() { 
