@@ -83,6 +83,20 @@
         .peer:checked ~ .peer-checked\:bg-indigo-600 { background-color: var(--theme-primary) !important; }
         .border-t-transparent { border-top-color: transparent !important; }
         .toast-item { animation: fadeIn 0.25s ease-in-out; }
+
+        /* DESTAQUE VISUAL PARA AGENDAMENTOS PENDENTES (SINAL) */
+        .pending-postit {
+            border: 2px dashed #f59e0b !important;
+            background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.18), rgba(0,0,0,0.18) 6px, transparent 6px, transparent 12px) !important;
+            animation: pulseWarning 2s infinite ease-in-out;
+        }
+        @keyframes pulseWarning {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+            50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+        }
+        .drag-step-card { cursor: grab; user-select: none; }
+        .drag-step-card:active { cursor: grabbing; }
+        .drag-step-over { border-top: 2px solid var(--theme-primary) !important; }
     </style>
 </head>
 <body class="text-slate-800 antialiased h-full w-full">
@@ -267,6 +281,42 @@
         let currentY = 0;
         let dragDateStr = null;
 
+        // ---------- FUNÇÕES DE ARRASTAR AS ETAPAS DO CLIENTE ----------
+        let draggedStepIndex = null;
+        window.handleStepDragStart = function(e, index) {
+            draggedStepIndex = index;
+            e.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => e.target.classList.add('opacity-40'), 0);
+        };
+        window.handleStepDragOver = function(e, index) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const cards = document.querySelectorAll('.drag-step-card');
+            cards.forEach(c => c.classList.remove('drag-step-over'));
+            if (cards[index]) cards[index].classList.add('drag-step-over');
+        };
+        window.handleStepDrop = function(e, targetIndex) {
+            e.preventDefault();
+            if (draggedStepIndex === null || draggedStepIndex === targetIndex) return;
+            const item = t.rules.ordem.splice(draggedStepIndex, 1)[0];
+            t.rules.ordem.splice(targetIndex, 0, item);
+            draggedStepIndex = null;
+            render();
+        };
+        window.handleStepDragEnd = function(e) {
+            draggedStepIndex = null;
+            document.querySelectorAll('.drag-step-card').forEach(c => {
+                c.classList.remove('opacity-40', 'drag-step-over');
+            });
+        };
+        window.moveStep = function(index, direction) {
+            const target = index + direction;
+            if (target < 0 || target >= t.rules.ordem.length) return;
+            const item = t.rules.ordem.splice(index, 1)[0];
+            t.rules.ordem.splice(target, 0, item);
+            render();
+        };
+
         onValue(tenantRef, (snapshot) => {
             const data = snapshot.val();
             if (!data) {
@@ -285,6 +335,16 @@
             if(!t.procedures) t.procedures = [];
             if(!t.appointments) t.appointments = [];
             if(!t.clients) t.clients = [];
+            
+            if(!t.rules) {
+                t.rules = {
+                    sinalAtivo: false, sinalTodos: true, sinalPct: 30, sinalChave: '', sinalTipoChave: 'cpf',
+                    aberturaTipo: 'sempre', aberturaQtd: 1, ordem: ['dia', 'profissional', 'servico', 'horario']
+                };
+            }
+            if(!Array.isArray(t.rules.ordem) || t.rules.ordem.length === 0) {
+                t.rules.ordem = ['dia', 'profissional', 'servico', 'horario'];
+            }
             
             // o Firebase pode devolver listas como objeto; normaliza
             ['requests', 'employees', 'procedures', 'appointments', 'clients'].forEach(k => { t[k] = toList(t[k]); });
@@ -409,6 +469,7 @@
         window.getEffectiveAppStatus = function(appItem) {
             if (appItem.status === 'cancelado') return 'cancelado';
             if (appItem.status === 'nao_compareceu') return 'nao_compareceu';
+            if (appItem.status === 'pendente') return 'pendente';
             if (appItem.status === 'realizado') return 'realizado';
             const appDateTime = new Date(appItem.date + 'T' + appItem.time);
             if (appDateTime < new Date()) return 'realizado';
@@ -1254,7 +1315,60 @@
                         </div>
                     </div>`;
 
-                const empresaHtml = `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${logoShown ? `<img src="${logoShown}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${esc(t.name)}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">Reagendar até quantas horas antes?</label><input type="number" id="org-cancel-hours" min="0" step="1" value="${Number(t.cancelMinHours) || 0}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"><p class="text-[11px] text-slate-400 mt-1 mb-4">Vale só para reagendamento na área do cliente (cancelar é sempre liberado). Use 0 para não ter limite.</p></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>`;
+                const empresaHtml = `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${logoShown ? `<img src="${logoShown}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${esc(t.name)}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">Reagendar até quantas horas antes?</label><input type="number" id="org-cancel-hours" min="0" step="1" value="${Number(t.cancelMinHours) || 0}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"><p class="text-[11px] text-slate-400 mt-1 mb-4">Vale só para reagendamento na área do cliente (cancelar é sempre liberado). Use 0 para não ter limite.</p></div>
+    
+    <div class="pt-5 border-t border-slate-100">
+        <h4 class="font-bold text-base text-slate-900 mb-4">Regras de Agendamento</h4>
+        <label class="flex items-center space-x-3 cursor-pointer p-4 border rounded-xl ${t.rules.sinalAtivo ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50'} hover:bg-slate-100 transition-colors">
+            <input type="checkbox" id="r-sinal-ativo" ${t.rules.sinalAtivo ? 'checked' : ''} onchange="document.getElementById('sinal-config').style.display = this.checked ? 'block' : 'none'; this.parentNode.className = this.checked ? 'flex items-center space-x-3 cursor-pointer p-4 border rounded-xl bg-indigo-50/50 border-indigo-200 transition-colors' : 'flex items-center space-x-3 cursor-pointer p-4 border rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors'" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+            <span class="font-bold text-sm text-slate-800">Cobrar sinal antecipado (Aprovação pendente)</span>
+        </label>
+        <div id="sinal-config" class="mt-3 p-5 border rounded-xl bg-white space-y-4 shadow-sm" style="display: ${t.rules.sinalAtivo ? 'block' : 'none'}">
+            <label class="flex items-center space-x-3 text-sm font-bold text-slate-700 cursor-pointer bg-slate-50 p-3 rounded-lg"><input type="checkbox" id="r-sinal-todos" ${t.rules.sinalTodos ? 'checked' : ''} class="w-4 h-4 text-indigo-600 rounded"><span>Exigir sinal para TODOS os serviços</span></label>
+            
+            <div><label class="block text-xs font-bold text-slate-700 mb-1">Porcentagem padrão do Sinal (%)</label><input type="number" id="r-sinal-pct" value="${t.rules.sinalPct}" min="1" max="100" class="w-full px-4 py-2.5 border rounded-lg text-sm bg-slate-50 focus:bg-white outline-none focus:border-indigo-500"></div>
+            
+            <div class="grid grid-cols-2 gap-4 pt-2">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo da Chave PIX</label>
+                    <select id="r-sinal-tipo" class="w-full px-4 py-2.5 border rounded-lg text-sm bg-slate-50 focus:bg-white outline-none focus:border-indigo-500">
+                        <option value="cpf" ${t.rules.sinalTipoChave==='cpf'?'selected':''}>CPF/CNPJ</option>
+                        <option value="telefone" ${t.rules.sinalTipoChave==='telefone'?'selected':''}>Telefone</option>
+                        <option value="email" ${t.rules.sinalTipoChave==='email'?'selected':''}>E-mail</option>
+                        <option value="aleatoria" ${t.rules.sinalTipoChave==='aleatoria'?'selected':''}>Aleatória</option>
+                    </select>
+                </div>
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">Chave PIX</label><input type="text" id="r-sinal-chave" value="${esc(t.rules.sinalChave)}" placeholder="Sua chave..." class="w-full px-4 py-2.5 border rounded-lg text-sm bg-slate-50 focus:bg-white outline-none focus:border-indigo-500"></div>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">Esses dados aparecerão para o cliente na hora de agendar. O agendamento ficará "Pendente" até que você aprove.</p>
+        </div>
+    </div>
+
+    <div class="pt-5 border-t border-slate-100">
+        <label class="block text-xs font-bold text-slate-700 mb-2">Liberação / Abertura da Agenda</label>
+        <div class="flex flex-col sm:flex-row gap-3">
+            <select id="r-abertura-tipo" onchange="document.getElementById('abertura-qtd-box').style.display = this.value === 'sempre' ? 'none' : 'block'" class="flex-1 px-4 py-3 border rounded-xl text-sm bg-slate-50 focus:bg-white font-semibold outline-none focus:border-indigo-500">
+                <option value="sempre" ${t.rules.aberturaTipo==='sempre'?'selected':''}>Sempre aberta (Sem limite)</option>
+                <option value="semanal" ${t.rules.aberturaTipo==='semanal'?'selected':''}>Abre por Semanas</option>
+                <option value="mensal" ${t.rules.aberturaTipo==='mensal'?'selected':''}>Abre por Meses</option>
+                <option value="anual" ${t.rules.aberturaTipo==='anual'?'selected':''}>Abre por Anos</option>
+            </select>
+            <div id="abertura-qtd-box" style="display: ${t.rules.aberturaTipo==='sempre' ? 'none' : 'block'}" class="w-full sm:w-32">
+                <input type="number" id="r-abertura-qtd" value="${t.rules.aberturaQtd}" min="1" class="w-full px-4 py-3 border rounded-xl text-sm bg-slate-50 focus:bg-white outline-none focus:border-indigo-500" placeholder="Qtd">
+            </div>
+        </div>
+    </div>
+
+    <div class="pt-5 border-t border-slate-100 mb-6">
+        <label class="block text-xs font-bold text-slate-700 mb-3">Ordem das Etapas no Aplicativo do Cliente</label>
+        <div id="etapas-list" class="space-y-2 mt-2">
+            ${t.rules.ordem.map((etapa, idx) => {
+                const nomes = { dia: 'Escolher Dia', profissional: 'Escolher Profissional', servico: 'Escolher Serviço', horario: 'Escolher Horário' };
+                return `<div draggable="true" ondragstart="handleStepDragStart(event, ${idx})" ondragover="handleStepDragOver(event, ${idx})" ondrop="handleStepDrop(event, ${idx})" ondragend="handleStepDragEnd(event)" class="drag-step-card p-3 bg-white border border-slate-200 shadow-sm rounded-xl flex items-center justify-between font-bold text-sm text-slate-700 hover:bg-slate-50 transition-colors"><div class="flex items-center"><i data-lucide="grip-vertical" class="w-5 h-5 mr-3 text-slate-400"></i> ${nomes[etapa]}</div> <div class="flex flex-col items-center gap-1"><button type="button" onclick="moveStep(${idx}, -1)" class="text-slate-400 hover:text-indigo-600"><i data-lucide="chevron-up" class="w-4 h-4"></i></button><button type="button" onclick="moveStep(${idx}, 1)" class="text-slate-400 hover:text-indigo-600"><i data-lucide="chevron-down" class="w-4 h-4"></i></button></div> </div>`;
+            }).join('')}
+        </div>
+        <p class="text-[11px] font-semibold text-slate-400 mt-2 flex items-center"><i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 mr-1"></i>Arraste os blocos ou clique nas setas para organizar.</p>
+    </div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>`;
 
                 const perfilHtml = `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${avatarShown ? `<img src="${avatarShown}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${esc(user.name)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${esc(user.email)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div><div><input type="password" id="prof-pass-conf" placeholder="Repita a Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm mt-3"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><input type="password" id="prof-pass-conf" placeholder="Repita a Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm mt-3 outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="btn-theme-primary font-bold px-4 py-3.5 rounded-xl text-sm w-full mt-4">Salvar Meu Perfil</button></div></div>`;
 
@@ -1605,6 +1719,7 @@
                                 if (st === 'realizado') statusBadge = `<span class="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Concluído</span>`;
                                 else if (st === 'cancelado') statusBadge = `<span class="bg-rose-50 text-rose-700 border-rose-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Cancelado</span>`;
                                 else if (st === 'nao_compareceu') statusBadge = `<span class="bg-amber-50 text-amber-700 border-amber-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Não Compareceu</span>`;
+                                else if (st === 'pendente') statusBadge = `<span class="bg-amber-100 text-amber-800 border-amber-300 border text-[10px] font-bold px-2.5 py-1 rounded-full"><i data-lucide="alert-triangle" class="w-3 h-3 inline mr-1"></i>Pendente (Sinal)</span>`;
 
                                 return `
                                     <div class="p-3.5 bg-slate-50 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white transition-colors">
@@ -1786,10 +1901,12 @@
                             const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
                             const titleText = (role === 'admin' && hasEmployees) ? `${esc(emp?emp.name:'Profissional')} - ${esc(a.clientName)}` : esc(a.clientName);
                             return `
-                            <div onclick="showAppDetails('${a.id}')" class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-300 bg-white gap-4 cursor-pointer transition-colors">
+                            const isPending = a.status === 'pendente';
+                            return `
+                            <div onclick="showAppDetails('${a.id}')" class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-300 gap-4 cursor-pointer transition-colors ${isPending ? 'bg-amber-50/50 border-amber-300' : 'bg-white'}">
                                 <div class="flex items-start space-x-4">
                                     <div class="bg-theme-secondary text-theme-primary w-14 h-14 rounded-xl flex flex-col items-center justify-center border shrink-0"><span class="text-[10px] font-bold uppercase">${a.date.split('-')[1]}</span><span class="text-xl font-bold">${a.date.split('-')[2]}</span></div>
-                                    <div><p class="font-bold text-slate-900 text-base">${titleText}${a.rescheduledAt ? `<span class="text-sky-800 text-[10px] font-bold bg-sky-100 px-1.5 py-0.5 rounded ml-2 align-middle">Reagendado</span>` : ''}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} - ${esc(a.proceduresNames.join(', '))}</p></div>
+                                    <div><p class="font-bold text-slate-900 text-base">${titleText}${a.rescheduledAt ? `<span class="text-sky-800 text-[10px] font-bold bg-sky-100 px-1.5 py-0.5 rounded ml-2 align-middle">Reagendado</span>` : ''}${isPending ? `<span class="text-amber-800 text-[10px] font-bold bg-amber-200 px-1.5 py-0.5 rounded ml-2 align-middle shadow-sm"><i data-lucide="alert-triangle" class="w-3 h-3 inline mr-1"></i>Aprovação Pendente</span>` : ''}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} - ${esc(a.proceduresNames.join(', '))}</p></div>
                                 </div>
                                 <div class="flex items-center justify-between md:justify-end space-x-4 border-t md:border-0 pt-4 md:pt-0 w-full md:w-auto">
                                     <p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">R$ ${a.totalPrice.toFixed(2)}</p>
@@ -1876,9 +1993,11 @@
                     }
 
                     postitsHtmlByDay[dayIdx].push(`
-                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${esc(a.proceduresNames.join(', '))}" class="appointment-postit" 
-                             style="top: ${topPixels}px; height: ${heightPixels}px; width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
-                            <p class="font-bold truncate text-[10px] text-white">${postitTitle}</p>
+                        const isPending = a.status === 'pendente';
+                    postitsHtmlByDay[dayIdx].push(`
+                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${esc(a.proceduresNames.join(', '))}" class="appointment-postit ${isPending ? 'pending-postit' : ''}" 
+                             style="top: ${topPixels}px; height: ${heightPixels}px; width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor}; opacity: ${isPending ? 0.9 : 1};">
+                            <p class="font-bold truncate text-[10px] ${isPending ? 'text-white drop-shadow-md' : 'text-white'}">${isPending ? '⚠️ ' : ''}${postitTitle}</p>
                         </div>
                     `);
                 });
@@ -1941,17 +2060,27 @@
             const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
             const reschedInfo = app.rescheduledAt ? (() => { const d = new Date(app.rescheduledAt); return `<div class="flex items-center space-x-3 bg-sky-50 border border-sky-200 rounded-xl p-3"><div class="bg-sky-100 p-2 rounded-lg text-sky-700"><i data-lucide="refresh-cw" class="w-5 h-5"></i></div><span class="text-xs font-bold text-sky-800">Reagendado pelo cliente em ${formatDateBR(localDateStr(d))} às ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</span></div>`; })() : '';
             const msg = `
-                <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
+                const isPending = app.status === 'pendente';
+            const pendingAlert = isPending ? `<div class="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-4 flex items-start space-x-3"><i data-lucide="alert-triangle" class="w-6 h-6 text-amber-600 shrink-0 mt-0.5"></i><div><p class="text-sm font-bold text-amber-800">Aprovação Pendente (Sinal PIX)</p><p class="text-xs text-amber-700 mt-0.5">O cliente escolheu esse horário, mas você precisa confirmar o recebimento do sinal para aprovar.</p></div></div>` : '';
+            const btnAprovar = isPending ? `<button onclick="confirmAppStatus('${app.id}', 'agendado')" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl text-sm hover:bg-emerald-700 shadow-sm transition-colors mb-2">Aprovar Agendamento</button>` : '';
+
+            const msg = `
+                <div class="text-left bg-slate-50 p-5 rounded-2xl border shadow-inner">
+                    ${pendingAlert}
                     ${reschedInfo}
-                    <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-theme-secondary p-2 rounded-lg text-theme-primary"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">${esc(app.clientName)}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${esc(app.beneficiaryName)}</span>` : ''}</div></div>
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-theme-secondary p-2 rounded-lg text-theme-primary"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">${esc(app.clientName)}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${esc(app.beneficiaryName)}</span>` : ''}</div></div>
                     <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-theme-secondary p-2 rounded-lg text-theme-primary"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${esc(emp?emp.name:'Profissional')}</span></div></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${esc(app.proceduresNames.join(', '))}</span></div>
                     <div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>
                     
-                    <div class="pt-4 border-t flex flex-col sm:flex-row gap-2">
-                        <button onclick="confirmAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">Cancelar Agendamento</button>
-                        <button onclick="confirmAppStatus('${app.id}', 'nao_compareceu')" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-100 transition-colors">Não Compareceu</button>
+                    <div class="pt-4 border-t">
+                        ${btnAprovar}
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <button onclick="confirmAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">Cancelar</button>
+                            <button onclick="confirmAppStatus('${app.id}', 'nao_compareceu')" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-100 transition-colors">Não Compareceu</button>
+                        </div>
                     </div>
                 </div>`;
             showModal('Detalhes do Agendamento', msg, 'info');
@@ -1959,14 +2088,15 @@
 
         window.confirmAppStatus = function(appId, status) {
             closeModal();
-            const msg = status === 'cancelado' ? 'Deseja realmente cancelar este agendamento?' : 'Marcar este cliente como "Não compareceu"?';
-            showModal('Confirmar', msg, 'error', () => updateAppStatus(appId, status));
+            const msg = status === 'cancelado' ? 'Deseja realmente cancelar este agendamento?' : (status === 'agendado' ? 'Confirmar recebimento do sinal e aprovar este agendamento?' : 'Marcar este cliente como "Não compareceu"?');
+            showModal('Confirmar', msg, status === 'agendado' ? 'info' : 'error', () => updateAppStatus(appId, status));
         };
         window.updateAppStatus = function(appId, status) {
             setAppStatusDB(appId, status)
                 .then(() => {
                     closeModal();
-                    showModal('Atualizado', status === 'cancelado' ? 'Agendamento cancelado com sucesso.' : 'Status alterado para Não Compareceu.', 'success');
+                    const smsg = status === 'cancelado' ? 'Agendamento cancelado com sucesso.' : (status === 'agendado' ? 'Agendamento aprovado!' : 'Status alterado para Não Compareceu.');
+                    showModal('Atualizado', smsg, 'success');
                 })
                 .catch(() => showModal('Erro de conexão', 'Não foi possível atualizar o agendamento. Tente novamente.', 'error'));
         };
@@ -1976,10 +2106,21 @@
             t.name = document.getElementById('org-name').value;
             const hours = parseInt(document.getElementById('org-cancel-hours').value);
             t.cancelMinHours = (isNaN(hours) || hours < 0) ? 0 : hours;
-            const keys = ['name', 'cancelMinHours'];
+            
+            // Grava regras
+            t.rules.sinalAtivo = document.getElementById('r-sinal-ativo').checked;
+            t.rules.sinalTodos = document.getElementById('r-sinal-todos').checked;
+            t.rules.sinalPct = Number(document.getElementById('r-sinal-pct').value) || 30;
+            t.rules.sinalChave = document.getElementById('r-sinal-chave').value;
+            t.rules.sinalTipoChave = document.getElementById('r-sinal-tipo').value;
+            t.rules.aberturaTipo = document.getElementById('r-abertura-tipo').value;
+            t.rules.aberturaQtd = Number(document.getElementById('r-abertura-qtd').value) || 1;
+            
+            const keys = ['name', 'cancelMinHours', 'rules'];
             if (draft.logo) { t.logo = draft.logo; keys.push('logo'); delete draft.logo; }
-            saveDB(keys);
-            showModal('Sucesso', 'Organização atualizada!', 'success');
+            saveDB(keys).then(() => {
+                showModal('Sucesso', 'Organização e regras atualizadas!', 'success');
+            });
         };
 
         // só pré-visualiza; grava ao clicar em Salvar
