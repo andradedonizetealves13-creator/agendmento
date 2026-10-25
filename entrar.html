@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Primstav - Acesso Organização</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#d97706">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Primstav">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/icon-192.png">
+    <script src="/erros.js"></script>
+</head>
+<body class="min-h-screen w-full flex items-center justify-center p-4">
+
+    <div id="app-container" class="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full fade-in relative">
+        <div class="text-center mb-6 flex flex-col items-center">
+            <img src="image_cbdce4.png" alt="Logo Primstav" class="h-20 sm:h-24 w-auto object-contain mb-2">
+            <p class="text-sm text-slate-500 font-medium">Portal da Organização</p>
+        </div>
+
+        <div id="tabs" class="flex bg-slate-100 p-1 rounded-xl mb-6">
+            <button id="tab-login" class="flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all">Entrar</button>
+            <button id="tab-register" class="flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all">Criar Empresa</button>
+        </div>
+
+        <div id="error-msg" class="hidden mb-4 p-3 bg-rose-50 text-rose-600 text-sm rounded-lg border border-rose-100 text-center font-medium"></div>
+
+        <form id="auth-form" class="space-y-4" novalidate>
+            <div id="box-empresa" class="hidden">
+                <label class="block text-xs font-semibold mb-1 text-slate-700">Nome da Empresa</label>
+                <input type="text" id="inp-empresa" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold mb-1 text-slate-700">E-mail</label>
+                <input type="email" id="inp-email" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold mb-1 text-slate-700">Senha</label>
+                <input type="password" id="inp-pass" required class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
+            </div>
+            <div id="box-confirm" class="hidden">
+                <label class="block text-xs font-semibold mb-1 text-slate-700">Repetir Senha</label>
+                <input type="password" id="inp-confirm" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500">
+                <p class="text-[11px] text-slate-400 mt-1">Mínimo de 6 caracteres.</p>
+            </div>
+            <div id="box-forgot" class="text-right -mt-2"><button type="button" id="btn-forgot" class="text-xs font-bold text-amber-600 hover:text-amber-700 underline">Esqueci minha senha</button></div>
+            <button type="submit" id="btn-submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md mt-2 transition-all">Acessar Painel</button>
+        </form>
+
+        <div id="wizard" class="hidden"></div>
+
+        <div id="box-google" class="mt-4 pt-4 border-t border-slate-100 text-center">
+            <button id="btn-google" class="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 px-4 border border-slate-200 rounded-xl shadow-sm flex items-center justify-center space-x-2 transition-all">
+                <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <span>Entrar com o Google</span>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Remove .html da barra de endereço
+        if (window.location.pathname.endsWith('.html')) {
+            window.history.replaceState(null, '', window.location.pathname.replace(/\.html$/, '') + window.location.search);
+        }
+
+        import { sendPasswordResetEmail, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
+        import { 
+            auth, 
+            googleProvider, 
+            rtdb, 
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            signInWithPopup, 
+            ref, 
+            get, 
+            set 
+        } from './firebase-config.js';
+
+        const TENANTS = 'agendapro_saas/tenants';
+
+        let mode = 'login';
+        const tabLogin = document.getElementById('tab-login');
+        const tabReg = document.getElementById('tab-register');
+        const boxEmpresa = document.getElementById('box-empresa');
+        const boxConfirm = document.getElementById('box-confirm');
+        const btnSubmit = document.getElementById('btn-submit');
+        const btnGoogle = document.getElementById('btn-google');
+        const errorMsg = document.getElementById('error-msg');
+
+        const ON = 'flex-1 py-2.5 text-sm font-medium rounded-lg bg-white text-amber-600 shadow-sm transition-all';
+        const OFF = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-800 transition-all';
+
+        const CAMPOS = { email: 'inp-email', senha: 'inp-pass', confirm: 'inp-confirm', empresa: 'inp-empresa' };
+        function limparCampos() { Object.values(CAMPOS).forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('border-rose-400', 'bg-rose-50'); }); }
+        function marcarCampos(lista) { limparCampos(); (lista || []).forEach(k => { const el = document.getElementById(CAMPOS[k]); if (el) el.classList.add('border-rose-400', 'bg-rose-50'); }); const p = (lista || [])[0]; if (p) { const el = document.getElementById(CAMPOS[p]); if (el) el.focus(); } }
+        Object.values(CAMPOS).forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('input', () => el.classList.remove('border-rose-400', 'bg-rose-50')); });
+        function erroCampo(msg, campo) { const e = new Error(msg); e.campo = [campo]; return e; }
+        function showError(msg) { errorMsg.className = 'mb-4 p-3 bg-rose-50 text-rose-600 text-sm rounded-lg border border-rose-100 text-center font-medium'; errorMsg.textContent = msg; errorMsg.classList.remove('hidden'); }
+
+        function setMode(m) {
+            mode = m;
+            const reg = m === 'register';
+            tabLogin.className = reg ? OFF : ON;
+            tabReg.className = reg ? ON : OFF;
+            boxEmpresa.classList.toggle('hidden', !reg);
+            boxConfirm.classList.toggle('hidden', !reg);
+            document.getElementById('inp-empresa').required = reg;
+            document.getElementById('inp-confirm').required = reg;
+            btnSubmit.textContent = reg ? 'Criar Conta' : 'Acessar Painel';
+            document.getElementById('box-forgot').classList.toggle('hidden', reg);
+            document.getElementById('auth-form').classList.toggle('hidden', reg);
+            document.getElementById('wizard').classList.toggle('hidden', !reg);
+            errorMsg.classList.add('hidden');
+        }
+        tabLogin.onclick = () => setMode('login');
+        tabReg.onclick = () => setMode('register');
+
+        // Recuperar senha (administrador e profissionais usam este mesmo acesso)
+        document.getElementById('btn-forgot').onclick = async () => {
+            errorMsg.classList.add('hidden');
+            const email = document.getElementById('inp-email').value.trim();
+            if (!email) { marcarCampos(['email']); return showError('Digite seu e-mail no campo “E-mail” e toque em “Esqueci minha senha” de novo.'); }
+            try {
+                await sendPasswordResetEmail(auth, email);
+            } catch (err) {
+                if (err && err.code === 'auth/too-many-requests') return showError(window.traduzErroAuth(err));
+                if (err && err.code === 'auth/invalid-email') return showError(window.traduzErroAuth(err));
+            }
+            errorMsg.className = 'mb-4 p-3 bg-emerald-50 text-emerald-700 text-sm rounded-lg border border-emerald-100 text-center font-medium';
+            errorMsg.textContent = 'Se existir uma conta com este e-mail, enviamos um link para criar uma nova senha. Olhe também o spam.';
+        };
+
+        // Pede à Cloud Function para conferir o cadastro no servidor e gravar o papel no login (custom claims).
+        async function syncRole(slug) {
+            const r = await httpsCallable(getFunctions(getApp()), 'syncRole')(slug ? { slug } : {});
+            await auth.currentUser.getIdToken(true);
+            return r.data;
+        }
+
+        function generateSlug(text) {
+            return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+        }
+
+        // Autenticação com Google
+        // Form Submit (E-mail e Senha)
+        document.getElementById('auth-form').onsubmit = async (e) => {
+            e.preventDefault();
+            errorMsg.classList.add('hidden');
+            btnSubmit.textContent = 'Aguarde...';
+            btnSubmit.disabled = true;
+
+            const email = document.getElementById('inp-email').value.trim();
+            const pass = document.getElementById('inp-pass').value;
+            limparCampos();
+
+            try {
+                if (mode === 'register' && !document.getElementById('inp-empresa').value.trim()) throw erroCampo('Digite o nome da empresa.', 'empresa');
+                if (!email) throw erroCampo('Digite o seu e-mail.', 'email');
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw erroCampo('O e-mail digitado não é válido. Confira se escreveu certo, por exemplo: nome@gmail.com.', 'email');
+                if (!pass) throw erroCampo('Digite a sua senha.', 'senha');
+                if (mode === 'register') {
+                    const empresa = document.getElementById('inp-empresa').value.trim();
+                    const confirm = document.getElementById('inp-confirm').value;
+
+                    if (pass.length < 6) throw erroCampo('A senha é muito curta. Use pelo menos 6 caracteres.', 'senha');
+                    if (!confirm) throw erroCampo('Repita a senha no campo “Repetir Senha”.', 'confirm');
+                    if (pass !== confirm) { const e = new Error('As senhas digitadas não são iguais. Digite a mesma senha nos dois campos.'); e.campo = ['senha', 'confirm']; throw e; }
+
+                    const slug = generateSlug(empresa);
+                    if (!slug) throw erroCampo('O nome da empresa precisa ter letras ou números.', 'empresa');
+
+                    const userCred = await createUserWithEmailAndPassword(auth, email, pass);
+                    const user = userCred.user;
+
+                    await set(ref(rtdb, `${TENANTS}/${slug}`), {
+                        name: empresa,
+                        admin: { id: user.uid, name: 'Administrador', email: email }
+                    });
+
+                    try { await syncRole(slug); } catch (e) { console.warn('syncRole:', e && e.message); }
+                    localStorage.setItem('agendaProSession', JSON.stringify({ slug, id: user.uid, role: 'admin' }));
+                    window.location.href = 'painel_do_profissional.html';
+                } else {
+                    const userCred = await signInWithEmailAndPassword(auth, email, pass);
+                    const user = userCred.user;
+
+                    let found = null;
+                    // 1) caminho seguro: o servidor descobre a organização e grava o papel no login
+                    try {
+                        const r = await syncRole();
+                        if (r && r.slug && (r.role === 'admin' || r.role === 'employee')) found = { slug: r.slug, id: r.id, role: r.role };
+                    } catch (e) { console.warn('syncRole indisponível, usando busca antiga:', e && e.message); }
+
+                    // 2) alternativa (enquanto a Cloud Function não estiver publicada): busca no banco como antes
+                    let tenants = {};
+                    if (!found) { try { tenants = (await get(ref(rtdb, TENANTS))).val() || {}; } catch (e) { tenants = {}; } }
+
+                    for (const slug in tenants) {
+                        const t = tenants[slug];
+                        if (t.admin && (t.admin.email || '').toLowerCase() === email.toLowerCase()) {
+                            found = { slug, id: user.uid, role: 'admin' };
+                            break;
+                        }
+                        const emps = Array.isArray(t.employees) ? t.employees : Object.values(t.employees || {});
+                        for (const emp of emps) {
+                            if (emp && (emp.email || '').toLowerCase() === email.toLowerCase()) {
+                                found = { slug, id: emp.id, role: 'employee' };
+                                break;
+                            }
+                        }
+                        if (found) break;
+                    }
+
+                    if (!found) {
+                        found = { slug: email.replace(/[^a-zA-Z0-9]/g, '_'), id: user.uid, role: 'admin' };
+                    }
+
+                    localStorage.setItem('agendaProSession', JSON.stringify(found));
+                    window.location.href = 'painel_do_profissional.html';
+                }
+            } catch (err) {
+                showError(window.traduzErroAuth(err, mode));
+                marcarCampos(window.campoDoErro(err));
+                btnSubmit.textContent = mode === 'login' ? 'Acessar Painel' : 'Criar Conta';
+                btnSubmit.disabled = false;
+            }
+        };
+        // ===== Cadastro em etapas: Conta -> Plano -> Pagamento =====
+        const qs = new URLSearchParams(location.search);
+        const PLANOS = {
+            individual: { n: 'Individual', c: '1 profissional (solo)', max: 1, m: 39.90, a: 399.00, am: 33, cp: '39,90' },
+            equipe: { n: 'Equipe Inicial', c: 'Até 3 colaboradores', max: 3, m: 79.90, a: 799.00, am: 66, cp: '26,60' },
+            crescimento: { n: 'Crescimento', c: 'Até 6 colaboradores', max: 6, m: 139.90, a: 1399.00, am: 116, cp: '23,30' },
+            avancado: { n: 'Avançado', c: 'Até 10 colaboradores', max: 10, m: 219.90, a: 2199.00, am: 183, cp: '21,90' }
+        };
+        const W = { user: null, slug: null, plano: PLANOS[qs.get('plano')] ? qs.get('plano') : 'equipe', ciclo: qs.get('ciclo') === 'anual' ? 'anual' : 'mensal', trialEnd: null };
+        const IN = 'w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500';
+        const $ = id => document.getElementById(id);
+        const brl = n => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const fld = (id, label, type = 'text', extra = '') => `<div><label class="block text-xs font-semibold mb-1 text-slate-700">${label}</label><input id="${id}" type="${type}" ${extra} class="${IN}"></div>`;
+
+        // CPF e CNPJ: máscara no mesmo campo (até 11 números = CPF, acima disso = CNPJ) e validação pelos dígitos verificadores
+        function maskDoc(v) { v = v.replace(/\D/g, '').slice(0, 14); const cpf = v.length <= 11, p = cpf ? [3, 3, 3, 2] : [2, 3, 3, 4, 2], s = cpf ? ['.', '.', '-'] : ['.', '.', '/', '-']; let o = '', i = 0; p.forEach((n, k) => { const x = v.slice(i, i + n); if (!x) return; o += (k ? s[k - 1] : '') + x; i += n; }); return o; }
+        function cpfOk(c) { if (c.length !== 11 || /^(\d)\1+$/.test(c)) return false; for (let t = 9; t < 11; t++) { let s = 0; for (let i = 0; i < t; i++) s += c[i] * (t + 1 - i); if ((s * 10) % 11 % 10 != c[t]) return false; } return true; }
+        function cnpjOk(c) { if (c.length !== 14 || /^(\d)\1+$/.test(c)) return false; for (let t = 12; t < 14; t++) { let s = 0, w = t - 7; for (let i = 0; i < t; i++) { s += c[i] * w--; if (w < 2) w = 9; } if ((s % 11 < 2 ? 0 : 11 - s % 11) != c[t]) return false; } return true; }
+        function docOk(d) { return d.length === 11 ? cpfOk(d) : d.length === 14 ? cnpjOk(d) : false; }
+
+        function falha(id, msg) { const e = new Error(msg); e.wid = id; throw e; }
+        function erroW(err) {
+            showError(err.wid ? err.message : window.traduzErroAuth(err, 'cadastro'));
+            const c = String(err.code || ''), el = $(err.wid || (/email/.test(c) ? 'w-email' : /password/.test(c) ? 'w-pass' : ''));
+            if (el) { el.classList.add('border-rose-400', 'bg-rose-50'); el.focus(); }
+        }
+
+        $('wizard').innerHTML = '<div id="stepper" class="flex items-start justify-between mb-6"></div><div id="w1"></div><div id="w2" class="hidden"></div><div id="w3" class="hidden"></div>';
+        $('wizard').addEventListener('input', e => e.target.classList && e.target.classList.remove('border-rose-400', 'bg-rose-50'));
+        $('w1').innerHTML = `<form id="w-form" class="space-y-4" novalidate>${fld('w-empresa', 'Nome da Empresa')}${fld('w-nome', 'Seu nome completo')}${fld('w-email', 'E-mail', 'email')}
+            <div>${fld('w-doc', 'CPF ou CNPJ', 'text', 'inputmode="numeric" placeholder="Somente números"')}<p id="w-doc-hint" class="text-[11px] mt-1 h-4"></p></div>
+            ${fld('w-nasc', 'Data de nascimento', 'date', 'max="' + new Date().toISOString().slice(0, 10) + '"')}${fld('w-pass', 'Senha', 'password')}${fld('w-pass2', 'Repetir senha', 'password')}
+            <p class="text-[11px] text-slate-400 -mt-2">Mínimo de 6 caracteres. Com e-mail e senha você pode entrar sem usar o Google.</p>
+            <button id="w-go" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md">Continuar</button>
+            <p class="text-center text-[11px] text-slate-400">1 mês grátis. Sem cobrança agora.</p></form>`;
+        $('w-doc').addEventListener('input', e => {
+            const el = e.target; el.value = maskDoc(el.value); const d = el.value.replace(/\D/g, ''), h = $('w-doc-hint');
+            if (d.length === 11 || d.length === 14) { const ok = docOk(d), t = d.length === 11 ? 'CPF' : 'CNPJ'; h.textContent = ok ? t + ' válido' : t + ' inválido, confira os números'; h.className = 'text-[11px] mt-1 h-4 font-semibold ' + (ok ? 'text-emerald-600' : 'text-rose-600'); }
+            else { h.textContent = d.length ? 'Digitando ' + (d.length < 11 ? 'CPF' : 'CNPJ') + '…' : ''; h.className = 'text-[11px] mt-1 h-4 text-slate-400'; }
+        });
+
+        function mostrar(n) {
+            $('stepper').innerHTML = ['Conta', 'Plano', 'Pagamento'].map((t, i) => { const on = i + 1 <= n; return `<div class="flex flex-col items-center"><div class="w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center ${on ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-500'}">${i + 1 < n ? '✓' : i + 1}</div><span class="mt-1 text-[11px] font-semibold ${on ? 'text-amber-700' : 'text-slate-400'}">${t}</span></div>`; }).join('<div class="flex-1 h-0.5 bg-slate-200 mt-4 mx-2"></div>');
+            [1, 2, 3].forEach(i => $('w' + i).classList.toggle('hidden', i !== n));
+            $('app-container').classList.toggle('max-w-md', n !== 2); $('app-container').classList.toggle('max-w-4xl', n === 2);
+            ['tabs', 'box-google'].forEach(id => $(id).classList.toggle('hidden', n > 1));
+            errorMsg.classList.add('hidden');
+        }
+
+        $('w-form').onsubmit = async e => {
+            e.preventDefault(); errorMsg.classList.add('hidden');
+            const b = $('w-go'); b.disabled = true; b.textContent = 'Aguarde...';
+            try {
+                const v = id => $(id).value.trim();
+                const empresa = v('w-empresa'), nome = v('w-nome'), email = (W.user && W.user.email) || v('w-email'), pass = $('w-pass').value, doc = v('w-doc').replace(/\D/g, ''), slug = generateSlug(empresa);
+                if (!slug) falha('w-empresa', 'Digite o nome da empresa (use letras ou números).');
+                if (nome.split(/\s+/).filter(Boolean).length < 2) falha('w-nome', 'Digite seu nome completo (nome e sobrenome).');
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) falha('w-email', 'O e-mail digitado não é válido. Exemplo: nome@gmail.com.');
+                if (doc.length !== 11 && doc.length !== 14) falha('w-doc', 'Digite o CPF (11 números) ou o CNPJ (14 números).');
+                if (!docOk(doc)) falha('w-doc', (doc.length === 11 ? 'CPF' : 'CNPJ') + ' inválido. Confira os números digitados.');
+                const nasc = v('w-nasc'); if (!nasc) falha('w-nasc', 'Informe a data de nascimento.');
+                const d = new Date(nasc + 'T00:00:00'), hoje = new Date();
+                if (isNaN(d) || d.getFullYear() < 1900 || d > hoje) falha('w-nasc', 'Data de nascimento inválida.');
+                if (new Date(d.getFullYear() + 18, d.getMonth(), d.getDate()) > hoje) falha('w-nasc', 'Para criar a conta é preciso ter 18 anos ou mais.');
+                if (pass.length < 6) falha('w-pass', 'A senha é muito curta. Use pelo menos 6 caracteres.');
+                if (pass !== $('w-pass2').value) falha('w-pass2', 'As senhas digitadas não são iguais.');
+                let u = W.user;
+                if (!u) { u = (await createUserWithEmailAndPassword(auth, email, pass)).user; W.user = u; }
+                else if (!u.providerData.some(p => p.providerId === 'password')) await linkWithCredential(u, EmailAuthProvider.credential(email, pass));
+                $('w-email').readOnly = true;
+                const tRef = ref(rtdb, `${TENANTS}/${slug}`);
+                if ((await get(tRef)).exists()) falha('w-empresa', 'Já existe uma empresa com este nome. Escolha outro nome.');
+                await set(tRef, { name: empresa, admin: { id: u.uid, name: nome, email } });
+                // dados sensíveis ficam fora de "tenants" (que o login percorre)
+                await set(ref(rtdb, `agendapro_saas/billing/${slug}`), { responsavel: { nome, email, documento: doc, tipoDocumento: doc.length === 11 ? 'CPF' : 'CNPJ', nascimento: nasc }, criadoEm: Date.now() });
+                try { await syncRole(slug); } catch (x) { console.warn('syncRole:', x && x.message); }
+                W.slug = slug; localStorage.setItem('agendaProSession', JSON.stringify({ slug, id: u.uid, role: 'admin' }));
+                renderPlanos(); mostrar(2);
+            } catch (err) { erroW(err); }
+            b.disabled = false; b.textContent = 'Continuar';
+        };
+
+        function renderPlanos() {
+            const an = W.ciclo === 'anual';
+            $('w2').innerHTML = `<h2 class="text-lg font-bold text-center">Escolha seu plano</h2><p class="text-sm text-slate-500 text-center mb-4">Todos começam com <b>1 mês grátis</b>. Não pedimos forma de pagamento agora.</p>
+            <div class="flex bg-slate-100 p-1 rounded-xl max-w-xs mx-auto mb-5">${['mensal', 'anual'].map(c => `<button type="button" data-ciclo="${c}" class="flex-1 py-2 text-sm font-medium rounded-lg ${W.ciclo === c ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-600'}">${c === 'mensal' ? 'Mensal' : 'Anual (desconto)'}</button>`).join('')}</div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">${Object.entries(PLANOS).map(([id, p]) => `<div class="rounded-2xl border-2 p-4 flex flex-col ${W.plano === id ? 'border-amber-500 bg-amber-50' : 'border-slate-200'}"><p class="font-bold">${p.n}</p><p class="text-xs text-slate-500">${p.c}</p><p class="mt-3"><span class="text-2xl font-extrabold">${an ? '~R$ ' + p.am : brl(p.m)}</span><span class="text-xs text-slate-500">/mês</span></p><p class="text-[11px] text-slate-500 min-h-[28px]">${an ? brl(p.a) + ' por ano' : 'Cobrança mensal'}</p><p class="text-[11px] text-slate-500 mb-3">~R$ ${p.cp} por profissional</p><button type="button" data-plano="${id}" class="mt-auto bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold py-2.5 rounded-xl">Começar 1 mês grátis</button></div>`).join('')}</div>`;
+        }
+        $('w2').onclick = async e => {
+            const c = e.target.closest('[data-ciclo]'); if (c) { W.ciclo = c.dataset.ciclo; return renderPlanos(); }
+            const b = e.target.closest('[data-plano]'); if (!b) return;
+            W.plano = b.dataset.plano; b.disabled = true; b.textContent = 'Aguarde...';
+            try {
+                const p = PLANOS[W.plano], ini = Date.now(); W.trialEnd = ini + 30 * 864e5;
+                await set(ref(rtdb, `agendapro_saas/billing/${W.slug}/assinatura`), { plano: W.plano, ciclo: W.ciclo, maxProfissionais: p.max, valor: W.ciclo === 'anual' ? p.a : p.m, status: 'trial', trialInicio: ini, trialFim: W.trialEnd });
+                renderPagamento(); mostrar(3);
+            } catch (err) { showError(window.traduzErroAuth(err, 'cadastro')); renderPlanos(); }
+        };
+
+        function renderPagamento() {
+            const p = PLANOS[W.plano], f = new Date(W.trialEnd).toLocaleDateString('pt-BR');
+            $('w3').innerHTML = `<div class="p-3 mb-4 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm rounded-xl text-center">Plano <b>${p.n}</b> com <b>1 mês grátis</b> ativo até <b>${f}</b>.</div>
+            <h2 class="text-sm font-bold mb-2">Endereço de cobrança</h2><form id="w-end" class="space-y-3" novalidate>${fld('e-cep', 'CEP', 'text', 'inputmode="numeric" maxlength="9"')}${fld('e-rua', 'Rua / Avenida')}
+            <div class="grid grid-cols-3 gap-3"><div>${fld('e-num', 'Número')}</div><div class="col-span-2">${fld('e-cidade', 'Cidade')}</div></div>${fld('e-uf', 'Estado (UF)', 'text', 'maxlength="2" style="text-transform:uppercase"')}
+            <div class="p-3 bg-slate-50 rounded-xl text-xs text-slate-600"><b>Forma de pagamento:</b> não precisa ser informada agora. Antes de o mês grátis terminar, pediremos a forma de pagamento para a conta continuar ativa.</div>
+            <button class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md">Salvar e ir para o painel</button>
+            <button type="button" id="e-pular" class="w-full text-sm font-semibold text-slate-500 hover:text-slate-700">Preencher depois</button></form>`;
+            const ir = () => { location.href = 'painel_do_profissional.html'; };
+            $('e-cep').oninput = e => { const d = e.target.value.replace(/\D/g, '').slice(0, 8); e.target.value = d.length > 5 ? d.slice(0, 5) + '-' + d.slice(5) : d; };
+            $('e-pular').onclick = ir;
+            $('w-end').onsubmit = async ev => {
+                ev.preventDefault(); const g = id => $(id).value.trim();
+                const end = { cep: g('e-cep'), rua: g('e-rua'), numero: g('e-num'), cidade: g('e-cidade'), uf: g('e-uf').toUpperCase() };
+                if (Object.values(end).some(Boolean)) {
+                    if (end.cep.replace(/\D/g, '').length !== 8) return showError('CEP incompleto. Digite os 8 números.');
+                    if (!end.rua || !end.numero || !end.cidade || end.uf.length !== 2) return showError('Preencha rua, número, cidade e estado (2 letras), ou toque em “Preencher depois”.');
+                    try { await set(ref(rtdb, `agendapro_saas/billing/${W.slug}/endereco`), end); } catch (err) { return showError(window.traduzErroAuth(err, 'cadastro')); }
+                }
+                ir();
+            };
+        }
+
+        // Quem já tem organização vai direto ao painel; quem é novo completa o cadastro.
+        async function acharOrg(user) {
+            try { const r = await syncRole(); if (r && r.slug && (r.role === 'admin' || r.role === 'employee')) return { slug: r.slug, id: r.id, role: r.role }; } catch (e) { }
+            let t = {}; try { t = (await get(ref(rtdb, TENANTS))).val() || {}; } catch (e) { }
+            const em = (user.email || '').toLowerCase();
+            for (const slug in t) {
+                const x = t[slug];
+                if (x.admin && (x.admin.email || '').toLowerCase() === em) return { slug, id: user.uid, role: 'admin' };
+                const f = (Array.isArray(x.employees) ? x.employees : Object.values(x.employees || {})).find(p => p && (p.email || '').toLowerCase() === em);
+                if (f) return { slug, id: f.id, role: 'employee' };
+            }
+            return null;
+        }
+        btnGoogle.onclick = async () => {
+            errorMsg.classList.add('hidden');
+            try {
+                const user = (await signInWithPopup(auth, googleProvider)).user;
+                const org = await acharOrg(user);
+                if (org) { localStorage.setItem('agendaProSession', JSON.stringify(org)); window.location.href = 'painel_do_profissional.html'; return; }
+                W.user = user; setMode('register');
+                $('w-nome').value = user.displayName || ''; $('w-email').value = user.email || ''; $('w-email').readOnly = true;
+                errorMsg.className = 'mb-4 p-3 bg-emerald-50 text-emerald-700 text-sm rounded-lg border border-emerald-100 text-center font-medium';
+                errorMsg.textContent = 'Conectado com o Google. Complete os dados abaixo e crie uma senha para também poder entrar com e-mail e senha.';
+            } catch (err) { showError(window.traduzErroAuth(err, 'google')); }
+        };
+        if (location.hash === '#criar' || qs.get('plano')) setMode('register');
+    </script>
+<script>
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+</script>
+</body>
+</html>

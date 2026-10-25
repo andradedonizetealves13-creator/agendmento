@@ -1,0 +1,50 @@
+{
+  "rules": {
+    "agendapro_saas": {
+      ".read": false,
+      ".write": false,
+      "secrets": {
+        ".read": false,
+        ".write": false
+      },
+      "payments": {
+        ".read": false,
+        ".write": false
+      },
+      "providers": {
+        "$slug": {
+          ".read": true,
+          ".write": false
+        }
+      },
+      "tenants": {
+        ".read": true,
+        ".write": false,
+        "$empresa": {
+          ".write": "!data.exists()",
+          "$campo": {
+            ".write": "auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)"
+          },
+          "appointments": {
+            ".write": "auth != null",
+            "$i": {
+              ".validate": "(auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)) || (auth != null && ((!data.exists() && newData.child('clientId').val() == auth.uid && newData.hasChildren(['id','employeeId','date','time','totalDuration']) && (newData.child('status').val() == null || newData.child('status').val() == 'pendente') && !newData.hasChild('depositPaid') && !newData.hasChild('depositPaidAt') && !newData.hasChild('depositPaidVia') && !newData.hasChild('paymentAlert') && !newData.hasChild('paymentAlertAt') && !newData.hasChild('paidAmount') && !newData.hasChild('paymentAlertResolved') && !newData.hasChild('paymentAlertResolvedAt') && !newData.hasChild('mpPaymentId') && !newData.hasChild('mpPixCode') && !newData.hasChild('rescheduledAt')) || (data.exists() && newData.child('id').val() == data.child('id').val() && newData.child('clientId').val() == data.child('clientId').val() && newData.child('clientName').val() == data.child('clientName').val() && newData.child('beneficiaryName').val() == data.child('beneficiaryName').val() && newData.child('clientPhone').val() == data.child('clientPhone').val() && newData.child('employeeId').val() == data.child('employeeId').val() && newData.child('totalDuration').val() == data.child('totalDuration').val() && newData.child('totalPrice').val() == data.child('totalPrice').val() && newData.child('createdAt').val() == data.child('createdAt').val() && newData.child('depositRequired').val() == data.child('depositRequired').val() && newData.child('depositAmount').val() == data.child('depositAmount').val() && newData.child('depositPercent').val() == data.child('depositPercent').val() && newData.child('pixKeyType').val() == data.child('pixKeyType').val() && newData.child('pixKey').val() == data.child('pixKey').val() && newData.child('whatsappLink').val() == data.child('whatsappLink').val() && newData.child('depositDeadline').val() == data.child('depositDeadline').val() && newData.child('pixProvider').val() == data.child('pixProvider').val() && newData.child('mpPaymentId').val() == data.child('mpPaymentId').val() && newData.child('mpPixCode').val() == data.child('mpPixCode').val() && newData.child('depositPaid').val() == data.child('depositPaid').val() && newData.child('depositPaidAt').val() == data.child('depositPaidAt').val() && newData.child('depositPaidVia').val() == data.child('depositPaidVia').val() && newData.child('paymentAlert').val() == data.child('paymentAlert').val() && newData.child('paymentAlertAt').val() == data.child('paymentAlertAt').val() && newData.child('paidAmount').val() == data.child('paidAmount').val() && newData.child('paymentAlertResolved').val() == data.child('paymentAlertResolved').val() && newData.child('paymentAlertResolvedAt').val() == data.child('paymentAlertResolvedAt').val() && (data.child('clientId').val() == auth.uid ? (newData.child('status').val() == data.child('status').val() || (newData.child('status').val() == 'cancelado' && (data.child('status').val() == null || data.child('status').val() == 'agendado' || data.child('status').val() == 'pendente'))) : (newData.child('status').val() == data.child('status').val() && newData.child('date').val() == data.child('date').val() && newData.child('time').val() == data.child('time').val() && newData.child('rescheduledAt').val() == data.child('rescheduledAt').val())))))"
+            }
+          },
+          "clients": {
+            ".write": "auth != null",
+            "$i": {
+              ".validate": "(auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)) || (auth != null && ((!data.exists() && newData.child('id').val() == auth.uid) || (data.exists() && ((data.child('id').val() == auth.uid || (auth.token.email != null && data.child('email').val() != null && data.child('email').val().toLowerCase() == auth.token.email.toLowerCase())) ? (newData.child('id').val() == auth.uid && newData.child('email').val() == data.child('email').val()) : (newData.child('id').val() == data.child('id').val() && newData.child('email').val() == data.child('email').val() && newData.child('name').val() == data.child('name').val() && newData.child('phone').val() == data.child('phone').val() && newData.child('avatar').val() == data.child('avatar').val())))))"
+            }
+          }
+        }
+      },
+      "billing": {
+        "$empresa": {
+          ".read": "auth != null && root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid",
+          ".write": "auth != null && root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid"
+        }
+      }
+    }
+  }
+}
