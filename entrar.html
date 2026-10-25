@@ -20,6 +20,13 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <script src="/erros.js"></script>
+    <script>
+        if (typeof window.traduzErroAuth !== 'function') window.traduzErroAuth = function (err) {
+            var m = (err && err.message) || '';
+            if (/permission[_ -]?denied/i.test((err && err.code || '') + m)) return 'Sem permissão para salvar os dados. Tente novamente ou fale com o suporte.';
+            return (!m || /^Firebase:/i.test(m)) ? 'Não foi possível concluir. Tente novamente em instantes.' : m;
+        };
+    </script>
 </head>
 <body class="min-h-screen w-full flex items-center justify-center p-4">
 
@@ -265,6 +272,9 @@
 
         function falha(id, msg) { const e = new Error(msg); e.wid = id; throw e; }
         function erroW(err) {
+            try { _erroW(err); } catch (x) { console.error(x); showError('Não foi possível concluir. Tente novamente.'); }
+        }
+        function _erroW(err) {
             showError(err.wid ? err.message : window.traduzErroAuth(err, 'cadastro'));
             const c = String(err.code || ''), el = $(err.wid || (/email/.test(c) ? 'w-email' : /password/.test(c) ? 'w-pass' : ''));
             if (el) { el.classList.add('border-rose-400', 'bg-rose-50'); el.focus(); }
