@@ -1,151 +1,365 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Primstav - Agenda online para profissionais e empresas</title>
-    <meta name="description" content="Agenda online com cobrança de sinal via Pix. Seus clientes agendam sozinhos, você organiza profissionais, horários e clientes em um só lugar.">
-    <meta property="og:title" content="Primstav - Agenda online para profissionais e empresas">
-    <meta property="og:description" content="Seus clientes agendam sozinhos e pagam o sinal via Pix. Você só atende.">
-    <meta property="og:image" content="/icon-512.png">
-    <meta name="theme-color" content="#d97706">
-    <link rel="icon" type="image/png" href="/icon-192.png">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        html { scroll-behavior: smooth; }
-        body { font-family: 'Inter', sans-serif; color: #1c1917; }
-        .gold { background: linear-gradient(135deg, #f0b90b, #d97706 60%, #b45309); }
-        .gold-text { background: linear-gradient(135deg, #e5a800, #b45309); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Primstav - Agenda online com sinal via Pix</title>
+<meta name="description" content="Seus clientes agendam sozinhos e pagam o sinal via Pix. Teste grátis por 1 mês.">
+<meta property="og:title" content="Primstav - Agenda online com sinal via Pix">
+<meta property="og:image" content="/icon-512.png">
+<meta name="theme-color" content="#d97706">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--p:#d97706;--ph:#b45309;--s:#fde68a}
+html{scroll-behavior:smooth}body{font-family:Inter,sans-serif;color:#1c1917}
+.gold{background:linear-gradient(135deg,#f0b90b,#d97706 60%,#b45309)}
+.gold-text{background:linear-gradient(135deg,#e5a800,#b45309);-webkit-background-clip:text;background-clip:text;color:transparent}
+.bp{background:var(--p);color:#fff}.bp:hover{background:var(--ph)}.bs{background:var(--s)}.tp{color:var(--p)}
+.snap{scroll-snap-type:x mandatory;scrollbar-width:none}.snap::-webkit-scrollbar{display:none}.snap>*{scroll-snap-align:center}
+.fade{animation:f .25s ease}@keyframes f{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+\.calendar-grid{display:grid;grid-template-columns:60px repeat(7,minmax(130px,1fr));background:#e2e8f0;gap:1px;border:1px solid #e2e8f0;user-select:none;position:relative}
+.cal-h{background:rgba(255,255,255,.35);padding:12px 4px;text-align:center}.cal-t{background:#f8fafc;text-align:right;padding-right:6px;font-size:11px;color:#64748b;font-weight:500}.cal-d{background:#fff;position:relative}
+.postit{position:absolute;box-sizing:border-box;border-radius:4px;padding:2px 6px;font-size:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.2);color:#fff;z-index:10;cursor:pointer;transition:.2s;white-space:nowrap;text-overflow:ellipsis;display:flex;align-items:center}
+@media(hover:hover){.postit:hover{transform:scale(1.02);z-index:50!important;box-shadow:0 6px 14px rgba(0,0,0,.35);width:auto!important;min-width:140px;max-width:250px!important}}
+.postit.pending{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.30) 0 6px,rgba(255,255,255,0) 6px 12px);border:2px dashed #fff;outline:2px solid #f59e0b;outline-offset:-2px;animation:pp 1.8s ease-in-out infinite}
+@keyframes pp{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.75)}50%{box-shadow:0 0 0 6px rgba(245,158,11,0)}}
+.pchip{margin-left:4px;background:#fef3c7;color:#92400e;font-weight:800;font-size:8px;padding:1px 5px;border-radius:999px;flex-shrink:0;letter-spacing:.04em}
+.cal-day{cursor:crosshair}.drag-box{position:absolute;left:2px;right:2px;background:#e9d8c4;border:2px solid #8b5e3c;border-radius:6px;pointer-events:none;z-index:30;display:flex;align-items:center;justify-content:center;color:#5a3a22;font-weight:700;font-size:11px}
+.ag-wrap{background:#f5ebe0;border-radius:1.25rem;padding:6px}.ag-tan{background:#d8c3ae;color:#6b4226;font-weight:700;border-radius:12px}.ag-tan:hover{background:#cdb59d}.cal-fs{position:fixed!important;inset:0;z-index:30;background:#f5ebe0;height:100vh!important;border-radius:0!important}
+.cal-fs{height:100dvh!important}
+@media(max-width:640px){input,select{font-size:16px!important}.ag-wrap{padding:2px}}
+</style>
 </head>
 <body class="bg-white antialiased">
+<div id="toasts" class="fixed top-4 right-4 z-[60] space-y-2 pointer-events-none"></div>
 
-    <header class="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-100">
-        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-            <a href="/"><img src="/image_cbdce4.png" alt="Primstav" class="h-12 w-auto"></a>
-            <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-                <a href="#recursos" class="hover:text-amber-600">Recursos</a>
-                <a href="#como-funciona" class="hover:text-amber-600">Como funciona</a>
-                <a href="#planos" class="hover:text-amber-600">Planos</a>
-            </nav>
-            <div class="flex items-center gap-2">
-                <a href="/entrar" class="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-amber-600">Entrar</a>
-                <a href="#planos" class="gold px-4 py-2.5 text-sm font-bold text-white rounded-xl shadow-md">Testar 1 mês grátis</a>
-            </div>
-        </div>
-    </header>
+<header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-100">
+ <div class="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
+  <a href="/"><img src="/image_cbdce4.png" alt="Primstav" class="h-14 sm:h-16 w-auto"></a>
+  <nav class="hidden md:flex gap-8 text-sm font-medium text-slate-600"><a href="#demo" class="hover:text-amber-600">Experimente</a><a href="#link" class="hover:text-amber-600">Seu link</a><a href="#planos" class="hover:text-amber-600">Planos</a></nav>
+  <div class="flex items-center gap-1 sm:gap-2"><a href="/entrar" class="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-amber-600">Entrar</a><a href="#planos" class="gold px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold text-white rounded-xl shadow-md">1 mês grátis</a></div>
+ </div>
+</header>
 
-    <section class="bg-gradient-to-b from-amber-50 to-white">
-        <div class="max-w-6xl mx-auto px-4 py-16 md:py-24 grid md:grid-cols-2 gap-12 items-center">
-            <div>
-                <span class="inline-block px-3 py-1 text-xs font-bold text-amber-700 bg-amber-100 rounded-full">1 mês grátis para testar · Agenda online com sinal via Pix</span>
-                <h1 class="mt-5 text-4xl md:text-5xl font-extrabold leading-tight">Seus clientes agendam sozinhos. <span class="gold-text">Você só atende.</span></h1>
-                <p class="mt-5 text-lg text-slate-600">Organize profissionais, horários e clientes em um só lugar. Cada cliente escolhe o horário, paga o sinal pelo Pix e o seu dia fica cheio, sem troca de mensagens.</p>
-                <div class="mt-8 flex flex-col sm:flex-row gap-3">
-                    <a href="#planos" class="gold text-center px-7 py-4 font-bold text-white rounded-xl shadow-lg">Ver planos e testar grátis</a>
-                    <a href="#como-funciona" class="text-center px-7 py-4 font-bold text-slate-700 bg-white border border-slate-200 rounded-xl">Ver como funciona</a>
-                </div>
-                <p class="mt-4 text-sm text-slate-500">Funciona no celular e no computador, direto no navegador.</p>
-            </div>
-            <div class="relative">
-                <div class="bg-white rounded-3xl shadow-2xl border border-slate-100 p-5 max-w-sm mx-auto">
-                    <div class="flex items-center justify-between mb-4">
-                        <p class="font-bold">Agenda de hoje</p>
-                        <span class="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-1 rounded-full">4 horários</span>
-                    </div>
-                    <div class="space-y-3 text-sm">
-                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50"><span class="font-bold w-12">09:00</span><div class="flex-1"><p class="font-semibold">Maria Souza</p><p class="text-xs text-slate-500">Corte e escova</p></div><span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">Sinal pago</span></div>
-                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50"><span class="font-bold w-12">10:30</span><div class="flex-1"><p class="font-semibold">João Lima</p><p class="text-xs text-slate-500">Barba</p></div><span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">Sinal pago</span></div>
-                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50"><span class="font-bold w-12">14:00</span><div class="flex-1"><p class="font-semibold">Ana Paula</p><p class="text-xs text-slate-500">Manicure</p></div><span class="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Aguardando Pix</span></div>
-                        <div class="flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-slate-200"><span class="font-bold w-12 text-slate-400">16:00</span><p class="text-slate-400">Horário livre</p></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<section class="bg-gradient-to-b from-amber-50 to-white">
+ <div class="max-w-4xl mx-auto px-4 pt-12 pb-8 md:pt-20 text-center">
+  <span class="inline-block px-3 py-1 text-xs font-bold text-amber-700 bg-amber-100 rounded-full">Teste grátis por 1 mês · sem cartão</span>
+  <h1 class="mt-5 text-4xl md:text-6xl font-extrabold leading-tight">Seus clientes agendam sozinhos. <span class="gold-text">Você só atende.</span></h1>
+  <p class="mt-5 text-lg text-slate-600 max-w-2xl mx-auto">Abaixo está a agenda real que o seu cliente usa: calendário, horários livres e sinal via Pix. Agende um horário e veja o painel do organizador.</p>
+  <a href="#demo" class="gold inline-block mt-7 px-8 py-4 font-bold text-white rounded-xl shadow-lg">Experimentar agora ↓</a>
+ </div>
+</section>
 
-    <section id="recursos" class="max-w-6xl mx-auto px-4 py-16 md:py-20">
-        <div class="text-center max-w-2xl mx-auto">
-            <h2 class="text-3xl md:text-4xl font-extrabold">Tudo o que você precisa para atender melhor</h2>
-            <p class="mt-3 text-slate-600">Menos tempo no WhatsApp marcando horário, mais tempo com seus clientes.</p>
-        </div>
-        <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div class="p-6 rounded-2xl border border-slate-100 shadow-sm"><div class="text-3xl">📅</div><h3 class="mt-3 font-bold">Agenda online</h3><p class="mt-2 text-sm text-slate-600">Seus clientes veem os horários livres e agendam a qualquer hora, 24 horas por dia.</p></div>
-            <div class="p-6 rounded-2xl border border-slate-100 shadow-sm"><div class="text-3xl">💸</div><h3 class="mt-3 font-bold">Sinal via Pix</h3><p class="mt-2 text-sm text-slate-600">O cliente paga o sinal para confirmar o horário. Menos faltas e menos buracos na agenda.</p></div>
-            <div class="p-6 rounded-2xl border border-slate-100 shadow-sm"><div class="text-3xl">👥</div><h3 class="mt-3 font-bold">Vários profissionais</h3><p class="mt-2 text-sm text-slate-600">Cada profissional tem o seu acesso e a sua agenda. Você acompanha tudo pelo painel da empresa.</p></div>
-            <div class="p-6 rounded-2xl border border-slate-100 shadow-sm"><div class="text-3xl">💬</div><h3 class="mt-3 font-bold">Cadastro de clientes</h3><p class="mt-2 text-sm text-slate-600">Nome, telefone e histórico de cada cliente guardados, com contato direto pelo WhatsApp.</p></div>
-        </div>
-    </section>
+<section id="demo" class="max-w-6xl mx-auto px-4 py-10 md:py-14">
+ <div class="text-center max-w-2xl mx-auto"><h2 class="text-2xl md:text-4xl font-extrabold">Agende como o seu cliente agendaria</h2>
+ <p class="mt-2 text-slate-600">É a mesma agenda do sistema. Defina a ordem das etapas e depois confirme o sinal no painel.</p></div>
+ <div class="mt-8 grid lg:grid-cols-5 gap-6 items-start">
+  <div id="lft" class="lg:col-span-2 bg-slate-50 rounded-3xl p-5 border border-slate-100">
+   <h3 class="font-bold">1. Defina a ordem do agendamento</h3>
+   <p class="text-xs text-slate-500 mb-3">Cada empresa escolhe a ordem das etapas nas Regras. Use as setas.</p>
+   <div id="ord" class="space-y-2"></div>
+   <p class="text-[11px] text-slate-400 mt-3">O horário sempre vem depois do dia.</p>
+   <div class="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-emerald-800"><b>Grátis por 1 mês:</b> teste a agenda do cliente e o painel do organizador sem informar cartão.</div>
+  </div>
+  <div id="rgt" class="lg:col-span-3">
+   <div class="flex bg-slate-100 p-1 rounded-xl max-w-md mx-auto mb-4 text-xs sm:text-sm font-semibold">
+    <button id="t-book" class="flex-1 py-2.5 rounded-lg">Agendar</button><button id="t-apps" class="flex-1 py-2.5 rounded-lg">Meus horários</button><button id="t-org" class="flex-1 py-2.5 rounded-lg">Painel do organizador</button></div>
+   <div id="tela" class="bg-white/90 rounded-[2rem] shadow-2xl border border-slate-100 p-5 sm:p-8 min-h-[440px] max-w-lg lg:max-w-none mx-auto" style="background:#fffbeb"></div>
+   <p id="cap" class="hidden mt-3 text-center text-xs text-slate-500">Arraste em um espaço vazio da agenda para criar um agendamento e clique em um bloco para ver os detalhes. Tudo fica salvo só neste navegador, sem conexão com banco de dados. <button onclick="resetDemo()" class="underline font-semibold">Restaurar exemplos</button></p>
+  </div>
+ </div>
+</section>
 
-    <section id="como-funciona" class="bg-slate-50">
-        <div class="max-w-6xl mx-auto px-4 py-16 md:py-20">
-            <h2 class="text-3xl md:text-4xl font-extrabold text-center">Como funciona</h2>
-            <div class="mt-12 grid md:grid-cols-3 gap-8">
-                <div class="text-center"><div class="gold w-12 h-12 mx-auto rounded-full text-white font-extrabold flex items-center justify-center text-lg">1</div><h3 class="mt-4 font-bold">Crie a conta da empresa</h3><p class="mt-2 text-sm text-slate-600">Cadastre o nome da empresa, os serviços e os profissionais em poucos minutos.</p></div>
-                <div class="text-center"><div class="gold w-12 h-12 mx-auto rounded-full text-white font-extrabold flex items-center justify-center text-lg">2</div><h3 class="mt-4 font-bold">Envie o link aos clientes</h3><p class="mt-2 text-sm text-slate-600">Compartilhe o link de agendamento no WhatsApp, no Instagram ou no balcão.</p></div>
-                <div class="text-center"><div class="gold w-12 h-12 mx-auto rounded-full text-white font-extrabold flex items-center justify-center text-lg">3</div><h3 class="mt-4 font-bold">Receba os agendamentos</h3><p class="mt-2 text-sm text-slate-600">O cliente escolhe o horário e paga o sinal. Você acompanha tudo na agenda.</p></div>
-            </div>
-        </div>
-    </section>
+<section id="link" class="bg-slate-50">
+ <div class="max-w-4xl mx-auto px-4 py-14 text-center">
+  <h2 class="text-2xl md:text-4xl font-extrabold">Cada empresa tem o <span class="gold-text">próprio link</span></h2>
+  <p class="mt-2 text-slate-600">Digite o nome da empresa e veja o link de agendamento que você divulga.</p>
+  <input id="nome" value="Meu Studio" maxlength="30" class="mt-6 w-full max-w-sm px-4 py-3 text-center border border-slate-200 rounded-xl outline-none focus:border-amber-500" aria-label="Nome da empresa">
+  <div class="mt-4 max-w-xl mx-auto flex items-center gap-2 bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
+   <span id="lk" class="flex-1 truncate text-sm sm:text-base font-semibold text-amber-700 px-2 text-left"></span>
+   <button id="cp" class="gold px-4 py-2.5 text-sm font-bold text-white rounded-xl">Copiar</button></div>
+ </div>
+</section>
 
-    <section id="planos" class="bg-slate-50">
-        <div class="max-w-6xl mx-auto px-4 py-16 md:py-20">
-            <div class="text-center max-w-2xl mx-auto">
-                <h2 class="text-3xl md:text-4xl font-extrabold">Planos para cada tamanho de equipe</h2>
-                <p class="mt-3 text-slate-600">Todos os planos começam com <b>1 mês grátis</b>. Para testar, você não precisa informar forma de pagamento.</p>
-            </div>
-            <div class="mt-8 flex bg-slate-200 p-1 rounded-xl max-w-xs mx-auto">
-                <button id="t-mensal" class="flex-1 py-2.5 text-sm font-semibold rounded-lg">Mensal</button>
-                <button id="t-anual" class="flex-1 py-2.5 text-sm font-semibold rounded-lg">Anual <span class="text-[11px]">(desconto)</span></button>
-            </div>
-            <div id="planos-grid" class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5"></div>
-        </div>
-    </section>
+<section id="planos" class="max-w-6xl mx-auto px-4 py-14">
+ <div class="text-center max-w-2xl mx-auto"><h2 class="text-2xl md:text-4xl font-extrabold">Planos para cada tamanho de equipe</h2>
+ <p class="mt-2 text-slate-600">Todos começam com <b>1 mês grátis</b>, sem informar forma de pagamento.</p></div>
+ <div class="mt-6 flex bg-slate-200 p-1 rounded-xl max-w-xs mx-auto"><button id="tm" class="flex-1 py-2.5 text-sm font-semibold rounded-lg">Mensal</button><button id="ta" class="flex-1 py-2.5 text-sm font-semibold rounded-lg">Anual <span class="text-[11px]">(desconto)</span></button></div>
+ <div class="relative mt-8">
+  <button id="pl" class="hidden sm:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-slate-200 rounded-full shadow items-center justify-center" aria-label="Anterior">‹</button>
+  <div id="car" class="snap flex gap-4 overflow-x-auto pb-4 px-1"></div>
+  <button id="pr" class="hidden sm:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-slate-200 rounded-full shadow items-center justify-center" aria-label="Próximo">›</button>
+ </div>
+ <p class="text-center text-xs text-slate-500">Deslize para ver todos os planos. Ao testar, você concorda com os <button class="underline font-semibold termos">Termos de uso</button>.</p>
+</section>
 
-    <section id="comecar" class="max-w-6xl mx-auto px-4 py-16 md:py-20">
-        <div class="gold rounded-3xl px-6 py-14 text-center text-white shadow-xl">
-            <h2 class="text-3xl md:text-4xl font-extrabold">Pronto para organizar a sua agenda?</h2>
-            <p class="mt-3 text-amber-50 max-w-xl mx-auto">Crie a conta da sua empresa, teste 1 mês grátis e comece a receber agendamentos online.</p>
-            <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-                <a href="#planos" class="px-8 py-4 font-bold text-amber-700 bg-white rounded-xl shadow-md">Escolher meu plano</a>
-                <a href="/entrar" class="px-8 py-4 font-bold text-white border-2 border-white/70 rounded-xl">Já tenho conta</a>
-            </div>
-        </div>
-    </section>
+<footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+ <img src="/image_cbdce4.png" alt="Primstav" class="h-14 w-auto">
+ <div class="flex gap-5"><button class="termos hover:text-amber-600">Termos de uso</button><button class="termos hover:text-amber-600">Privacidade</button><a href="/entrar" class="hover:text-amber-600">Entrar</a></div>
+ <p>© <span id="ano"></span> Primstav</p></div></footer>
 
-    <footer class="border-t border-slate-100">
-        <div class="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
-            <img src="/image_cbdce4.png" alt="Primstav" class="h-8 w-auto">
-            <p>© <span id="ano"></span> Primstav. Todos os direitos reservados.</p>
-        </div>
-    </footer>
+<div id="md" class="hidden fixed inset-0 z-40 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+ <div id="mdc" class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 max-h-[88vh] overflow-y-auto text-sm text-slate-600 space-y-3"></div></div>
 
-    <script>
-        document.getElementById('ano').textContent = new Date().getFullYear();
-        const P = [
-            { id: 'individual', n: 'Individual', c: '1 profissional (solo)', m: '39,90', a: '399,00', am: '33', cp: '39,90' },
-            { id: 'equipe', n: 'Equipe Inicial', c: 'Até 3 colaboradores', m: '79,90', a: '799,00', am: '66', cp: '26,60' },
-            { id: 'crescimento', n: 'Crescimento', c: 'Até 6 colaboradores', m: '139,90', a: '1.399,00', am: '116', cp: '23,30' },
-            { id: 'avancado', n: 'Avançado', c: 'Até 10 colaboradores', m: '219,90', a: '2.199,00', am: '183', cp: '21,90' }
-        ];
-        let ciclo = 'mensal';
-        function desenhar() {
-            const an = ciclo === 'anual';
-            document.getElementById('t-mensal').className = 'flex-1 py-2.5 text-sm font-semibold rounded-lg ' + (an ? 'text-slate-600' : 'bg-white text-amber-600 shadow-sm');
-            document.getElementById('t-anual').className = 'flex-1 py-2.5 text-sm font-semibold rounded-lg ' + (an ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-600');
-            document.getElementById('planos-grid').innerHTML = P.map(p => `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col">
-                <h3 class="text-lg font-bold">${p.n}</h3><p class="text-sm text-slate-500">${p.c}</p>
-                <p class="mt-5"><span class="text-3xl font-extrabold">${an ? '~R$ ' + p.am : 'R$ ' + p.m}</span><span class="text-sm text-slate-500">/mês</span></p>
-                <p class="mt-1 text-xs text-slate-500 min-h-[32px]">${an ? 'R$ ' + p.a + ' por ano, com desconto' : 'Cobrança mensal'}</p>
-                <p class="mt-3 text-sm text-slate-600">~R$ ${p.cp} por profissional</p>
-                <p class="mt-3 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 text-center">1 mês grátis para testar</p>
-                <a href="/entrar?plano=${p.id}&ciclo=${ciclo}#criar" class="gold mt-5 text-center py-3 font-bold text-white rounded-xl shadow-md">Testar 1 mês grátis</a></div>`).join('');
-        }
-        document.getElementById('t-mensal').onclick = () => { ciclo = 'mensal'; desenhar(); };
-        document.getElementById('t-anual').onclick = () => { ciclo = 'anual'; desenhar(); };
-        desenhar();
-    </script>
+<script>
+const $=id=>document.getElementById(id);$('ano').textContent=new Date().getFullYear();
+const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const pad=n=>String(n).padStart(2,'0'),lds=(d=new Date())=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()),fBR=s=>s.split('-').reverse().join('/');
+const t2m=s=>{const[h,m]=s.split(':');return +h*60+ +m},m2t=m=>pad(Math.floor(m/60))+':'+pad(m%60);
+const wkD=k=>{const d=new Date();d.setDate(d.getDate()-d.getDay()+k);return lds(d)};
+const dayN=n=>{const d=new Date();d.setDate(d.getDate()+n);return lds(d)};
+/* ===== Dados de exemplo (mesma estrutura do sistema) ===== */
+function getDefWH(){const w={0:{active:false,start:'09:00',end:'13:00'},6:{active:true,start:'09:00',end:'14:00'}};for(let i=1;i<=5;i++)w[i]={active:true,start:'09:00',end:'18:00'};return w}
+const WH=getDefWH();
+const t={name:'Studio Demonstração',admin:{id:'admin',name:'Você (ADM)',color:'#0f766e',workingHours:WH,exceptions:{}},
+ procedures:[{id:'1',name:'Corte',duration:60,price:60},{id:'2',name:'Barba',duration:30,price:40},{id:'3',name:'Manicure',duration:60,price:50},{id:'4',name:'Hidratação',duration:45,price:70}],
+ employees:[{id:'e1',name:'Profissional 1',color:'#b45309',procedures:['1','3','4'],workingHours:WH,exceptions:{}},{id:'e2',name:'Profissional 2',color:'#0369a1',procedures:['1','2'],workingHours:WH,exceptions:{}}],
+ appointments:[],
+ rules:{deposit:{enabled:true,all:true,percent:30,pixKeyType:'random',pixKey:'00000000-0000-0000-0000-000000000000',expiryHours:2}}};
+/* Agendamentos de teste (fictícios), sempre relativos a hoje */
+(function(){const T=[[['09:00','e1',['1']],['10:00','e2',['2']]],[['14:00','e1',['3']]],[['11:00','e1',['1','3']],['15:00','e2',['1']]],[['10:00','e2',['1','2']],['10:30','e1',['3']]],[['09:00','e2',['2']],['13:00','e1',['4']]],[['09:30','admin',['1']],['16:00','e2',['2']]]];
+let n=0,pend=0,mine=false;
+for(let d=-6;d<=14;d++){const dt=new Date();dt.setDate(dt.getDate()+d);if(dt.getDay()===0)continue;
+ T[(d+6)%T.length].forEach(([tm,emp,ps],i)=>{const pr=t.procedures.filter(p=>ps.includes(p.id)),dur=pr.reduce((s,p)=>s+p.duration,0),price=pr.reduce((s,p)=>s+p.price,0),dep=Math.round(price*30)/100;n++;
+  const a={id:'seed-'+n,clientId:'demo'+n,clientName:'Cliente Teste '+n,employeeId:emp,date:lds(dt),time:tm,totalDuration:dur,totalPrice:price,proceduresNames:pr.map(p=>p.name),status:'agendado'};
+  if(emp!=='admin'){a.depositRequired=true;a.depositAmount=dep;a.depositPaid=dep}
+  if(d>=1&&i===0&&pend<3&&emp!=='admin'){a.status='pendente';delete a.depositPaid;a.depositDeadline=new Date(Date.now()+(2+pend*.5)*36e5).toISOString();pend++}
+  else if(d>=2&&!mine&&emp!=='admin'){a.clientId='me';mine=true}
+  t.appointments.push(a)})}})();
+/* ===== Armazenamento: somente neste navegador (localStorage). Nenhuma conexão com banco de dados. ===== */
+const LSK='primstav_demo_v1';
+function saveDemo(){try{localStorage.setItem(LSK,JSON.stringify({day:lds(),appointments:t.appointments,flow:flow}))}catch(e){}}
+function loadDemo(){try{const x=JSON.parse(localStorage.getItem(LSK)||'null');return x&&x.day===lds()&&Array.isArray(x.appointments)?x:null}catch(e){return null}}
+function resetDemo(){try{localStorage.removeItem(LSK)}catch(e){}location.reload()}
+{const sv=loadDemo();if(sv)t.appointments=sv.appointments}
+const me={id:'me',name:'Você'};
+const isDepositExpired=a=>{if(!a||a.status!=='pendente')return false;if(a.depositDeadline&&new Date(a.depositDeadline)<new Date())return true;return new Date(a.date+'T'+a.time)<new Date()};
+const isBusyStatus=a=>a.status!=='cancelado'&&a.status!=='nao_compareceu'&&!isDepositExpired(a);
+/* ===== Regras de agenda (mesma lógica do sistema) ===== */
+function doesEmployeeWorkOnDate(emp,ds){if(!emp)return false;const[y,m,d]=ds.split('-');const dow=new Date(y,m-1,d).getDay();return(emp.workingHours||WH)[dow].active!==false}
+function legacyDateAllowed(c){const today=new Date();today.setHours(0,0,0,0);if(c<today)return false;const cy=today.getFullYear(),cm=today.getMonth(),y=c.getFullYear(),m=c.getMonth(),d=c.getDate();const last=today.getDate()>(new Date(cy,cm+1,0).getDate()-7);if(y===cy&&m===cm)return true;const n=new Date(cy,cm+1,1);if(y===n.getFullYear()&&m===n.getMonth()){if(!last)return false;if(d>(new Date(y,m+1,0).getDate()-7))return false;return true}return false}
+function getEmployeeById(id){return id===t.admin.id?t.admin:t.employees.find(e=>e.id===id)}
+function doesClientHaveCollision(ds,s,dur){return t.appointments.some(a=>a.clientId===me.id&&a.date===ds&&isBusyStatus(a)&&s<t2m(a.time)+a.totalDuration&&s+dur>t2m(a.time))}
+function getAvailableTimeSlots(empId,ds,dur){const emp=getEmployeeById(empId);if(!emp||!doesEmployeeWorkOnDate(emp,ds))return[];const[y,m,d]=ds.split('-');const wh=emp.workingHours[new Date(y,m-1,d).getDay()];if(!wh||!wh.active)return[];
+ const sM=t2m(wh.start),eM=t2m(wh.end),apps=t.appointments.filter(a=>a.employeeId===empId&&a.date===ds&&isBusyStatus(a)),slots=[],now=new Date(),isToday=ds===lds(now),nowM=now.getHours()*60+now.getMinutes();
+ for(let x=sM;x<=eM-dur;x+=30){if(isToday&&x<=nowM)continue;if(apps.some(a=>x<t2m(a.time)+a.totalDuration&&x+dur>t2m(a.time)))continue;slots.push({time:m2t(x),hasClientCollision:doesClientHaveCollision(ds,x,dur)})}return slots}
+function capableEmployees(ds,pids){return t.employees.filter(e=>pids.every(p=>e.procedures.includes(p))&&doesEmployeeWorkOnDate(e,ds))}
+function getBookingSlots(empId,ds,dur,pids){if(empId&&empId!=='any')return getAvailableTimeSlots(empId,ds,dur);const map=new Map();capableEmployees(ds,pids||[]).forEach(e=>getAvailableTimeSlots(e.id,ds,dur).forEach(s=>{if(!map.has(s.time))map.set(s.time,s)}));return[...map.values()].sort((a,b)=>t2m(a.time)-t2m(b.time))}
+function resolveEmployeeForTime(ds,dur,pids,time){const f=capableEmployees(ds,pids||[]).find(e=>getAvailableTimeSlots(e.id,ds,dur).some(s=>s.time===time));return f?f.id:null}
+/* ===== Ordem das etapas (bookingOrder do sistema) ===== */
+const LEG=['date','procedure','professional','time'],LB={date:'Dia',procedure:'Serviços',professional:'Profissional',time:'Horário'};
+let flow=[...LEG];{const sv=loadDemo();if(sv&&Array.isArray(sv.flow)&&sv.flow.length===4&&LEG.every(k=>sv.flow.includes(k)))flow=sv.flow}
+function bookingOrder(){let s=flow.filter((x,i)=>flow.indexOf(x)===i);const di=s.indexOf('date'),ti=s.indexOf('time');if(ti<di){s.splice(ti,1);s.splice(s.indexOf('date')+1,0,'time')}return s}
+let bk,cy,cm,tab='book',pending=null;
+function resetBk(){bk={step:bookingOrder()[0],date:null,procedures:[],employeeId:null,time:null};const n=new Date();cy=n.getFullYear();cm=n.getMonth()}
+function mv(i,d){const j=i+d;if(j<0||j>3)return;[flow[i],flow[j]]=[flow[j],flow[i]];const di=flow.indexOf('date'),ti=flow.indexOf('time');if(ti<di){flow.splice(ti,1);flow.splice(flow.indexOf('date')+1,0,'time')}resetBk();tab='book';draw()}
+function next(){const o=bookingOrder(),i=o.indexOf(bk.step);bk.step=(i>=0&&i<o.length-1)?o[i+1]:'confirm';draw()}
+function back(){const o=bookingOrder();if(bk.step==='confirm')bk.step=o[o.length-1];else{const i=o.indexOf(bk.step);if(i>0)bk.step=o[i-1]}draw()}
+const bkProcs=()=>t.procedures.filter(p=>bk.procedures.includes(p.id)),bkDur=()=>{const s=bkProcs();return s.length?s.reduce((a,p)=>a+p.duration,0):30};
+const bkSlots=()=>getBookingSlots(bk.employeeId||'any',bk.date,bkDur(),bk.procedures);
+function bkDayOpen(ds){if(!legacyDateAllowed(new Date(ds+'T00:00:00')))return false;const c=bk.employeeId;if(c&&c!=='any'){const e=getEmployeeById(c);return doesEmployeeWorkOnDate(e,ds)&&bk.procedures.every(p=>e.procedures.includes(p))}return capableEmployees(ds,bk.procedures).length>0}
+function bkDayFull(ds){const ids=(bk.employeeId&&bk.employeeId!=='any')?[bk.employeeId]:capableEmployees(ds,bk.procedures).map(e=>e.id);return!ids.some(id=>getAvailableTimeSlots(id,ds,bkDur()).length>0)}
+/* ===== Sinal e Pix (BR Code do sistema) ===== */
+function crc16(s){let c=0xFFFF;for(let i=0;i<s.length;i++){c^=s.charCodeAt(i)<<8;for(let j=0;j<8;j++)c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF}return c.toString(16).toUpperCase().padStart(4,'0')}
+const emv=(id,v)=>{v=String(v);return id+String(v.length).padStart(2,'0')+v};
+const pixClean=(x,max)=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+function buildPixPayload(key,amount,name){const acc=emv('00','br.gov.bcb.pix')+emv('01',key);let p=emv('00','01')+emv('26',acc)+emv('52','0000')+emv('53','986')+emv('54',Number(amount).toFixed(2))+emv('58','BR')+emv('59',pixClean(name,25)||'RECEBEDOR')+emv('60','BRASIL')+emv('62',emv('05','***'));p+='6304';return p+crc16(p)}
+function getDepositInfo(procs){const d=t.rules.deposit;if(!d.enabled)return null;const base=procs.reduce((s,p)=>s+p.price,0),amount=Math.round(base*d.percent)/100;return amount>0?{amount,percent:d.percent,expiryHours:d.expiryHours}:null}
+const fmtDl=iso=>new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+function pixHtml(a){const pl=buildPixPayload(t.rules.deposit.pixKey,a.depositAmount,t.name);
+ return `<h3 class="text-lg font-bold text-slate-900 text-center">Quase lá! Falta o sinal</h3><p>Seu horário em <b>${fBR(a.date)} às ${a.time}</b> está reservado, mas ainda <b>pendente</b>. Pague o sinal por Pix para o profissional confirmar.</p>
+ <p class="text-xs font-bold text-rose-700 bg-rose-50 border border-dashed border-rose-300 rounded-xl p-3">⏰ Pague até <b>${fmtDl(a.depositDeadline)}</b>. Depois desse prazo o horário é liberado para outras pessoas.</p>
+ <div class="bg-slate-50 border rounded-2xl p-4"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor do sinal</p><p class="text-2xl font-black text-emerald-600">R$ ${a.depositAmount.toFixed(2)}</p>
+ <div class="mt-3 flex justify-center"><div class="relative"><div id="qr" class="bg-white p-2 rounded-xl border"></div><span class="absolute inset-0 flex items-center justify-center pointer-events-none"><span class="bg-rose-600 text-white text-xs font-black tracking-widest px-3 py-1 rounded-full shadow">DEMO</span></span></div></div><p class="text-[11px] font-bold text-rose-700 text-center mt-2">QR Code de demonstração: não gera cobrança real.</p><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-3">Pix copia e cola (valor já preenchido)</p>
+ <p class="font-mono text-[11px] break-all text-slate-700 bg-white border rounded-lg p-2 max-h-20 overflow-y-auto" id="pl">${esc(pl)}</p><button id="cc" class="mt-3 w-full text-xs font-bold bp py-2.5 rounded-xl">Copiar código Pix</button></div>
+ <p class="text-xs font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-xl p-3">⏳ Depois de pagar, o agendamento fica pendente até o profissional confirmar o pagamento. Veja e confirme no <b>Painel do organizador</b>.</p>
+ <button id="ok" class="bp w-full py-3 font-bold rounded-xl">OK</button>`}
+function openM(h,after){$('mdc').innerHTML=h;$('md').classList.remove('hidden');const ok=$('ok');if(ok)ok.onclick=()=>{closeM();after&&after()};
+ const q=$('qr');if(q&&window.QRCode)try{new QRCode(q,{text:$('pl').textContent,width:160,height:160,correctLevel:QRCode.CorrectLevel.M})}catch(e){}
+ const cc=$('cc');if(cc)cc.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText($('pl').textContent);cc.textContent='Código copiado!'}}
+function closeM(){$('md').classList.add('hidden')}
+/* ===== Telas ===== */
+const back_=()=>`<button onclick="back()" class="text-slate-400 mb-3 text-2xl leading-none">←</button>`;
+function viewDate(){const mn=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],wd=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],now=new Date(),n2=new Date(now.getFullYear(),now.getMonth()+1,1);
+ const prev=cy>now.getFullYear()||(cy===now.getFullYear()&&cm>now.getMonth()),nxt=(cy*12+cm)<(n2.getFullYear()*12+n2.getMonth());
+ if(bk.date&&!bkDayOpen(bk.date)){bk.date=null;bk.time=null}
+ const fd=new Date(cy,cm,1).getDay(),dim=new Date(cy,cm+1,0).getDate();let cells='';for(let i=0;i<fd;i++)cells+='<div></div>';
+ for(let d=1;d<=dim;d++){const ds=cy+'-'+pad(cm+1)+'-'+pad(d),open=bkDayOpen(ds),blk=!open||bkDayFull(ds);cells+=blk?`<div class="h-10 sm:h-11 flex items-center justify-center rounded-xl bg-slate-100 text-slate-300 text-xs select-none">${d}</div>`:`<button onclick="bk.date='${ds}';bk.time=null;draw()" class="h-10 sm:h-11 flex items-center justify-center rounded-xl text-xs font-bold ${bk.date===ds?'bp':'bg-white border text-slate-700 hover:bg-slate-50'}">${d}</button>`}
+ return `<div class="fade">${bookingOrder().indexOf('date')>0?back_():''}<h2 class="text-xl sm:text-2xl font-black text-center mb-6">Escolha o Dia</h2>
+ <div class="flex justify-between items-center mb-6 bg-slate-50 p-2.5 rounded-2xl border"><button onclick="${prev?'cm--;if(cm<0){cm=11;cy--}draw()':''}" class="${prev?'text-slate-700':'text-slate-300'} px-3 text-lg">‹</button><span class="text-sm font-black">${mn[cm]} ${cy}</span><button onclick="${nxt?'cm++;if(cm>11){cm=0;cy++}draw()':''}" class="${nxt?'text-slate-700':'text-slate-300'} px-3 text-lg">›</button></div>
+ <div class="grid grid-cols-7 gap-1 text-center mb-2">${wd.map(w=>`<span class="text-[11px] font-bold text-slate-400 uppercase">${w}</span>`).join('')}</div><div class="grid grid-cols-7 gap-1.5">${cells}</div>
+ <p class="text-[11px] text-slate-400 text-center mt-4">Dias em cinza estão fechados, sem horários livres ou ainda não liberados.</p>${bk.date?`<button onclick="next()" class="w-full bp font-bold py-3.5 rounded-xl shadow-lg mt-6">Continuar</button>`:''}</div>`}
+function viewProc(){const av=t.procedures.filter(p=>t.employees.some(e=>e.procedures.includes(p.id)&&(!bk.employeeId||bk.employeeId==='any'||e.id===bk.employeeId)&&(!bk.date||doesEmployeeWorkOnDate(e,bk.date))));
+ return `<div class="fade">${bookingOrder().indexOf('procedure')>0?back_():''}<h2 class="text-xl sm:text-2xl font-black text-center mb-2">Escolha os Serviços</h2><p class="text-xs text-slate-400 text-center mb-6">${bk.date?'Disponíveis para '+fBR(bk.date):'Escolha o que você quer fazer'}</p>
+ <div class="space-y-3">${av.map(p=>{const d=getDepositInfo([p]);return `<label class="flex justify-between items-center p-4 border rounded-2xl cursor-pointer hover:bg-slate-50 bg-white"><div class="flex items-center space-x-3"><input type="checkbox" value="${p.id}" ${bk.procedures.includes(p.id)?'checked':''} class="cp w-5 h-5 rounded"><div><p class="font-bold text-sm text-left">${p.name}</p><p class="text-xs text-slate-500 text-left">${p.duration} min${d?` • <span class="text-amber-700 font-bold">sinal R$ ${d.amount.toFixed(2)}</span>`:''}</p></div></div><span class="font-bold text-emerald-600 text-sm">R$ ${p.price.toFixed(2)}</span></label>`}).join('')}</div>
+ <button onclick="goProc()" class="w-full bp font-bold py-4 rounded-2xl shadow-lg mt-6">Continuar</button></div>`}
+function goProc(){const c=[...document.querySelectorAll('.cp:checked')].map(x=>x.value);if(!c.length)return openM('<p class="text-center">Selecione pelo menos um serviço.</p><button id="ok" class="bp w-full py-3 font-bold rounded-xl">OK</button>');
+ const pool=(bk.employeeId&&bk.employeeId!=='any')?t.employees.filter(e=>e.id===bk.employeeId):t.employees;if(!pool.some(e=>c.every(p=>e.procedures.includes(p))&&(!bk.date||doesEmployeeWorkOnDate(e,bk.date))))return openM('<h3 class="text-lg font-bold text-slate-900 text-center">Combinação indisponível</h3><p>Nenhum profissional faz todos esses serviços juntos. Tente marcar menos serviços.</p><button id="ok" class="bp w-full py-3 font-bold rounded-xl">OK</button>');
+ bk.procedures=c;next()}
+function viewProf(){let es=t.employees.filter(e=>bk.procedures.every(p=>e.procedures.includes(p))&&(!bk.date||doesEmployeeWorkOnDate(e,bk.date)));if(bk.date&&bk.time)es=es.filter(e=>getAvailableTimeSlots(e.id,bk.date,bkDur()).some(s=>s.time===bk.time));
+ return `<div class="fade">${bookingOrder().indexOf('professional')>0?back_():''}<h2 class="text-xl sm:text-2xl font-black text-center mb-6">Quem vai te atender?</h2><div class="grid grid-cols-2 gap-4">${es.length>1?`<div onclick="bk.employeeId='any';next()" class="col-span-2 p-4 border-2 border-dashed rounded-2xl flex items-center justify-center space-x-3 cursor-pointer bg-white hover:border-amber-600"><div class="text-left"><p class="font-bold text-sm">Qualquer profissional</p><p class="text-xs text-slate-500">Mostra todos os horários livres</p></div></div>`:''}
+ ${es.map(e=>`<div onclick="bk.employeeId='${e.id}';next()" class="p-4 border rounded-2xl flex flex-col items-center cursor-pointer hover:border-amber-600 bg-slate-50"><div class="w-16 h-16 rounded-full bs tp flex items-center justify-center font-bold text-xl mb-2 border">${e.name[0]}</div><p class="font-bold text-sm">${e.name}</p></div>`).join('')}</div></div>`}
+function viewTime(){const o=bookingOrder(),step=bk.step,isLast=o[o.length-1]===step||step==='confirm',showSlots=step==='time',sp=bkProcs(),has=sp.length>0,dur=sp.reduce((s,p)=>s+p.duration,0),price=sp.reduce((s,p)=>s+p.price,0),slots=bkSlots(),er=bk.employeeId,emp=(er&&er!=='any')?getEmployeeById(er):null,lbl=er==='any'?'Qualquer profissional':(emp?emp.name:null);
+ if(bk.time&&!slots.some(s=>s.time===bk.time)){bk.time=null;if(step==='confirm'){bk.step='time';return viewTime()}}
+ const sel=slots.find(s=>s.time===bk.time),col=sel&&sel.hasClientCollision,dep=getDepositInfo(sp);
+ const sum=`<div class="bg-slate-50 p-4 rounded-2xl border mb-6 text-xs sm:text-sm text-left"><p><b>Data:</b> ${fBR(bk.date)}</p>${bk.time&&!showSlots?`<p><b>Horário:</b> ${bk.time}</p>`:''}${lbl?`<p><b>Profissional:</b> ${lbl}</p>`:''}${has?`<p><b>Serviços:</b> ${sp.map(p=>p.name).join(', ')}</p><p class="mt-2 text-emerald-600 font-bold text-sm sm:text-base">Total: R$ ${price.toFixed(2)} (${dur} min)</p>`:''}</div>`;
+ const sl=!showSlots?'':`<p class="text-xs font-bold text-slate-500 uppercase mb-2 text-left">Horários Livres:</p>${slots.length?`<div class="grid grid-cols-3 gap-2 mb-6 max-h-40 overflow-y-auto pr-1">${slots.map(s=>`<button onclick="bk.time='${s.time}';draw()" class="py-2.5 border rounded-xl text-xs font-bold relative ${bk.time===s.time?'bp':'bg-white hover:bg-slate-50'}">${s.time}</button>`).join('')}</div>`:`<div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl mb-4 text-center"><p class="text-sm font-bold text-amber-900">Não há horários livres neste dia com as escolhas feitas.</p><button onclick="bk.step='date';bk.time=null;draw()" class="bp font-bold px-5 py-2.5 rounded-xl text-xs mt-3">Escolher outro dia</button></div>`}`;
+ const dh=dep?`<div class="p-4 bg-amber-50 border-2 border-dashed border-amber-300 rounded-2xl mb-4 text-xs text-left"><p class="font-black text-amber-900 mb-1">Este agendamento exige sinal</p><p class="text-amber-800">Sinal de <b>R$ ${dep.amount.toFixed(2)}</b> (${dep.percent}%). Ao confirmar, você verá o QR Code e o Pix copia e cola. O horário fica reservado como <b>pendente</b> até o profissional confirmar o pagamento. Pague em até <b>${dep.expiryHours}h</b> ou o horário é liberado.</p></div>`:'';
+ const cf=!bk.time?'':`${col?`<div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl mb-4 text-xs text-left"><p class="font-bold text-amber-900">Você já possui um agendamento neste horário.</p></div>`:''}${dh}${isLast?`<button onclick="confirmar()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-lg">${dep?'Confirmar e pagar o sinal':'Confirmar Agendamento'}</button>`:`<button onclick="next()" class="w-full bp font-bold py-4 rounded-2xl shadow-lg">Continuar</button>`}`;
+ return `<div class="fade">${(step==='confirm'||o.indexOf(step)>0)?back_():''}<h2 class="text-xl sm:text-2xl font-black text-center mb-6">${step==='time'?(isLast?'Confirmar Horário':'Escolha o Horário'):'Confirmar Agendamento'}</h2>${sum}${sl}${cf}</div>`}
+function confirmar(){const sp=bkProcs(),dur=sp.reduce((s,p)=>s+p.duration,0),price=sp.reduce((s,p)=>s+p.price,0);const eid=(bk.employeeId==='any'||!bk.employeeId)?resolveEmployeeForTime(bk.date,dur,bk.procedures,bk.time):bk.employeeId;
+ if(!eid||!getAvailableTimeSlots(eid,bk.date,dur).some(s=>s.time===bk.time)){bk.time=null;bk.step='time';draw();return openM('<h3 class="text-lg font-bold text-slate-900 text-center">Horário indisponível</h3><p>Esse horário acabou de ser ocupado. Escolha outro horário.</p><button id="ok" class="bp w-full py-3 font-bold rounded-xl">OK</button>')}
+ const dep=getDepositInfo(sp),a={id:'app-'+Date.now(),clientId:me.id,clientName:me.name,employeeId:eid,date:bk.date,time:bk.time,totalDuration:dur,totalPrice:price,proceduresNames:sp.map(p=>p.name),status:dep?'pendente':'agendado'};
+ if(dep){a.depositRequired=true;a.depositAmount=dep.amount;a.depositPercent=dep.percent;a.depositDeadline=new Date(Date.now()+dep.expiryHours*36e5).toISOString()}
+ t.appointments.push(a);{const sw=d=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()-x.getDay());return x},n=new Date();n.setHours(0,0,0,0);n.setDate(n.getDate()-n.getDay());weekOff=Math.round((sw(a.date)-n)/6048e5)}resetBk();tab='apps';draw();openM(dep?pixHtml(a):`<h3 class="text-lg font-bold text-slate-900 text-center">Sucesso!</h3><p class="text-center">Agendamento confirmado para ${fBR(a.date)} às ${a.time}!</p><button id="ok" class="bp w-full py-3 font-bold rounded-xl">OK</button>`)}
+function viewApps(){const L=t.appointments.filter(a=>a.clientId===me.id&&['agendado','pendente'].includes(a.status==='pendente'&&isDepositExpired(a)?'x':a.status)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ return `<div class="fade"><h2 class="text-xl sm:text-2xl font-black mb-4 text-slate-900">Meus Agendamentos Próximos</h2>${L.length?L.map(a=>{const e=getEmployeeById(a.employeeId);return `<div class="bg-white p-4 rounded-2xl border shadow-sm mb-3 text-left"><div class="flex items-center space-x-2 mb-1"><span class="bs tp text-xs font-bold px-2.5 py-1 rounded-lg">${fBR(a.date)} às ${a.time}</span><span class="text-xs text-slate-500">${a.totalDuration} min</span></div>
+ <p class="font-bold text-slate-800 text-base">${a.proceduresNames.join(', ')}</p>${a.status==='pendente'?`<span class="inline-block mt-1.5 bg-amber-100 text-amber-800 border border-dashed border-amber-400 text-[10px] font-bold px-2.5 py-1 rounded-full">⏳ Aguardando confirmação do sinal • R$ ${a.depositAmount.toFixed(2)} • pague até ${fmtDl(a.depositDeadline)}</span>`:(a.depositPaid?`<span class="inline-block mt-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold px-2.5 py-1 rounded-full">Sinal pago R$ ${a.depositPaid.toFixed(2)} • restante R$ ${Math.max(0,a.totalPrice-a.depositPaid).toFixed(2)}</span>`:'')}
+ <p class="text-xs text-slate-500 mt-1">Com <b>${e?e.name:''}</b></p><div class="flex items-center justify-between mt-2"><span class="font-black text-emerald-600">R$ ${a.totalPrice.toFixed(2)}</span><div class="flex gap-2">${a.status==='pendente'?`<button onclick="verPix('${a.id}')" class="text-xs bg-amber-50 text-amber-800 font-bold px-4 py-2 rounded-xl border border-amber-300">Ver Pix</button>`:''}<button onclick="cancelar('${a.id}')" class="text-xs bg-rose-50 text-rose-600 font-bold px-4 py-2 rounded-xl border border-rose-200">Cancelar</button></div></div></div>`}).join(''):`<div class="bg-white p-6 rounded-2xl border text-center"><p class="text-slate-500 text-sm">Você não possui agendamentos futuros pendentes.</p><button onclick="tab='book';draw()" class="mt-3 text-sm font-bold tp hover:underline">Fazer novo agendamento agora</button></div>`}</div>`}
+function verPix(id){const a=t.appointments.find(x=>x.id===id);openM(pixHtml(a))}
+function cancelar(id){t.appointments.find(x=>x.id===id).status='cancelado';draw()}
+const CS=6,CE=22,PX=51,MN=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let weekOff=0,dashView='calendar',filtEmp='all',pickOpen=false,pickYear=null,orgFull=false,listMonth='',listDate='',dragOn=false,dragCol=null,dragY0=0,dragY1=0,dragDate='';
+const people=()=>[t.admin,...t.employees];
+const brl=v=>'R$ '+(Number(v)||0).toFixed(2);
+const effSt=a=>{if(a.status==='cancelado'||a.status==='nao_compareceu'||a.status==='realizado')return a.status;if(a.status==='pendente')return isDepositExpired(a)?'expirado':'pendente';return new Date(a.date+'T'+a.time)<new Date()?'realizado':'agendado'};
+const scope=()=>t.appointments.filter(a=>isBusyStatus(a)&&(filtEmp==='all'||a.employeeId===filtEmp));
+const pendList=()=>scope().filter(a=>effSt(a)==='pendente').sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+const ic=p=>`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const IC={l:ic('<polyline points="15 18 9 12 15 6"/>'),r:ic('<polyline points="9 18 15 12 9 6"/>'),d:ic('<polyline points="6 9 12 15 18 9"/>'),grid:ic('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),list:ic('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'),max:ic('<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>'),min:ic('<path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>'),plus:ic('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>')};
+function toast(title,msg){const c=$('toasts'),el=document.createElement('div');el.className='bg-white border border-emerald-200 shadow-xl rounded-xl px-4 py-3 max-w-xs pointer-events-auto fade';el.innerHTML='<p class="text-sm font-bold text-slate-800">✓ '+esc(title)+'</p><p class="text-xs text-slate-600">'+esc(msg)+'</p>';c.appendChild(el);setTimeout(()=>el.remove(),3200)}
+function msgM(title,body){openM(`<h3 class="text-lg font-bold text-slate-900 text-center">${title}</h3><p class="text-center">${body}</p><button id="ok" class="bp w-full py-3 font-bold rounded-xl">OK</button>`)}
+function askM(title,body,yes){openM(`<h3 class="text-lg font-bold text-slate-900 text-center">${title}</h3><p class="text-center">${body}</p><div class="flex gap-3"><button onclick="closeM()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold">Cancelar</button><button id="ok" class="flex-1 bp py-3 font-bold rounded-xl">Confirmar</button></div>`,yes)}
+/* ===== navegação da agenda ===== */
+function pickDay(ds){selDay=ds;draw()}
+function shiftWeek(d){if(selDay){const x=new Date(selDay+'T00:00:00');x.setDate(x.getDate()+7*d);selDay=lds(x)}weekOff+=d;pickOpen=false;draw()}
+function goToday(){weekOff=0;selDay=lds();pickOpen=false;draw()}
+function togglePick(y){pickOpen=!pickOpen;pickYear=y;draw()}
+function pickYr(d){pickYear+=d;draw()}
+function jumpMY(y,m){selDay=null;const sw=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate()-d.getDay());weekOff=Math.round((sw(new Date(y,m,1))-sw(new Date()))/6048e5);pickOpen=false;draw()}
+function toggleFs(){orgFull=!orgFull;pickOpen=false;draw()}
+function setEmp(id){filtEmp=id;draw()}
+function setView(v){dashView=v;pickOpen=false;draw()}
+document.addEventListener('keydown',e=>{if(e.key!=='Escape'||!$('md').classList.contains('hidden'))return;if(orgFull||pickOpen){orgFull=false;pickOpen=false;draw()}});
+/* ===== criar agendamento (arrastar ou tocar) ===== */
+let PXH=96,RH=76,DLW=112,lastMob=null,selDay=null;const PXV=56;
+function setDims(){const m=(window.innerWidth||1200)<640;PXH=m?72:96;RH=m?68:76;DLW=m?58:112;return m}
+if(window.addEventListener)window.addEventListener('resize',()=>{const m=(window.innerWidth||1200)<640;if(m!==lastMob){lastMob=m;if(tab==='org')draw()}});
+function attachDrag(){document.querySelectorAll('.cal-day').forEach(col=>{
+ col.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'||e.target.closest('.postit'))return;dragOn=true;dragCol=col;dragDate=col.getAttribute('data-date');const r=col.getBoundingClientRect();dragY0=dragY1=e.clientX-r.left;dragBox()});
+ col.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'||!dragOn||dragCol!==col)return;const r=col.getBoundingClientRect();dragY1=Math.max(0,Math.min(e.clientX-r.left,r.width));dragBox()});
+ col.addEventListener('click',e=>{if(e.pointerType==='mouse'||e.target.closest('.postit'))return;const r=col.getBoundingClientRect(),x=Math.max(0,e.clientX-r.left),s=Math.floor(((x/PXH)*60+CS*60)/30)*30;openCreate(col.getAttribute('data-date'),m2t(s),m2t(s+60))})})}
+document.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse'||!dragOn||!dragCol)return;dragOn=false;const lf=Math.min(dragY0,dragY1),rt=Math.max(dragY0,dragY1),s0=Math.floor((lf/PXH)*60)+CS*60;let e0=Math.floor((rt/PXH)*60)+CS*60;if(e0-s0<15)e0=s0+30;const rs=Math.floor(s0/15)*15,re=Math.ceil(e0/15)*15;document.querySelectorAll('.drag-box').forEach(b=>b.remove());dragCol=null;openCreate(dragDate,m2t(rs),m2t(re))});
+function dragBox(){if(!dragCol)return;let b=dragCol.querySelector('.drag-box');if(!b){b=document.createElement('div');b.className='drag-box';dragCol.appendChild(b)}const lf=Math.min(dragY0,dragY1),w=Math.max(Math.abs(dragY1-dragY0),15);b.style.left=lf+'px';b.style.width=w+'px';b.style.right='auto';b.style.top='3px';b.style.bottom='3px';b.textContent=m2t(Math.floor((Math.floor((lf/PXH)*60)+CS*60)/15)*15)+' - '+m2t(Math.ceil((Math.floor(((lf+w)/PXH)*60)+CS*60)/15)*15)}
+function attachVDay(){document.querySelectorAll('.cal-vday').forEach(col=>col.addEventListener('click',e=>{if(e.target.closest('.postit'))return;const r=col.getBoundingClientRect(),y=Math.max(0,e.clientY-r.top),s=Math.floor(((y/PXV)*60+CS*60)/30)*30;openCreate(col.getAttribute('data-date'),m2t(s),m2t(s+60))}))}
+function mobBodyHtml(days,by,todayS,nowM,prof,hours,inR){
+ const d0=lds(days[0]),d6=lds(days[6]);const sel=(selDay&&selDay>=d0&&selDay<=d6)?selDay:(todayS>=d0&&todayS<=d6?todayS:d0);selDay=sel;
+ const strip=days.map(d=>{const ds=lds(d),w=doesEmployeeWorkOnDate(prof,ds),n=(by[ds]||[]).length,on=ds===sel;return `<button onclick="pickDay('${ds}')" class="flex-1 min-w-0 flex flex-col items-center py-2 rounded-xl border ${on?'ag-tan border-transparent':'bg-white'} ${w?'':'opacity-60'}"><span class="text-[10px] uppercase font-bold ${on?'':'text-slate-500'}">${d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','')}</span><span class="text-lg font-bold leading-tight" ${on?'':'style="color:'+(ds===todayS?'#7c4a2d':'#1e293b')+'"'}>${d.getDate()}</span><span class="h-2 flex items-center">${n?'<span class="w-1.5 h-1.5 rounded-full" style="background:'+(on?'#6b4226':'#8b5e3c')+'"></span>':''}</span></button>`}).join('');
+ const w=doesEmployeeWorkOnDate(prof,sel),L=by[sel]||[];
+ const blocks=L.map(a=>{const ov=L.filter(o=>a.s<o.e&&a.e>o.s),n=ov.length,ix=ov.findIndex(o=>o.id===a.id),top=(a.s-CS*60)/60*PXV,h=Math.max(a.totalDuration/60*PXV-2,28),emp=getEmployeeById(a.employeeId),pd=a.status==='pendente',q=100/n;
+  return `<div onclick="appDet('${a.id}')" class="postit ${pd?'pending':''}" style="top:${top}px;height:${h}px;left:calc(${ix*q}% + 2px);width:calc(${q}% - 4px);background-color:${emp?emp.color:'#dc2626'}"><div class="min-w-0 flex-1"><p class="font-bold truncate text-[11px] text-white">${pd?'⏳ ':''}${a.time} · ${esc(a.clientName)}</p>${h>=42?`<p class="truncate text-[10px] text-white/90">${esc(emp?emp.name:'')} · ${esc(a.proceduresNames.join(', '))}</p>`:''}</div>${pd?'<span class="pchip">PEND.</span>':''}</div>`}).join('');
+ const nl=(sel===todayS&&inR)?`<div class="absolute left-0 right-0 z-20 pointer-events-none" style="top:${(nowM-CS*60)/60*PXV}px;height:2px;background:#f87171"><span class="absolute -left-1 -top-[3px] w-2 h-2 rounded-full" style="background:#f87171"></span></div>`:'';
+ const hint=(!L.length&&w)?'<p class="absolute inset-x-0 text-center text-xs text-slate-400 pointer-events-none" style="top:'+(2*PXV)+'px">Nenhum atendimento neste dia.<br>Toque em um horário para agendar.</p>':'';
+ const folga=!w?'<div class="absolute top-2 inset-x-0 flex justify-center pointer-events-none z-10"><span class="text-[10px] bg-rose-100 text-rose-700 font-extrabold px-2 py-1 rounded uppercase">Folga</span></div>':'';
+ return `<div class="p-2 bg-slate-100/50 shrink-0"><div class="flex gap-1">${strip}</div></div><div id="calsc" class="flex-1 overflow-y-auto bg-white" style="${orgFull?'':'max-height:60vh'}"><div class="flex" style="height:${hours.length*PXV}px"><div class="flex-none border-r bg-slate-50" style="width:46px">${hours.map(h=>`<div class="cal-t border-b pt-1" style="height:${PXV}px;padding-right:6px">${h}</div>`).join('')}</div><div data-date="${sel}" class="cal-vday relative flex-1 ${w?'bg-white':'opacity-60 pointer-events-none'}" style="${w?'':'background:#e2e8f0'}">${hours.map(()=>`<div class="border-b border-slate-100" style="height:${PXV}px"></div>`).join('')}${nl}${hint}${folga}${blocks}</div></div></div>`}
+function openCreate(date,st,en){st=st||'09:00';en=en||'10:00';
+ const emps=people().map(p=>`<option value="${p.id}" ${filtEmp===p.id?'selected':''}>${esc(p.name)}${p.id===t.admin.id?' (ADM)':''}</option>`).join('');
+ const procs=t.procedures.map(p=>`<label class="flex items-center justify-between p-2.5 bg-white border rounded-xl hover:bg-amber-50 cursor-pointer"><div class="flex items-center space-x-2"><input type="checkbox" value="${p.id}" onchange="mnSync()" class="mn-cb w-4 h-4 rounded"><span class="text-xs font-bold text-slate-800">${esc(p.name)} (${p.duration} min)</span></div><span class="text-xs font-bold text-emerald-600">${brl(p.price)}</span></label>`).join('');
+ openM(`<h3 class="text-xl font-black text-slate-900 text-left">Novo Agendamento</h3><p class="text-xs text-slate-500 text-left -mt-1">Preencha os detalhes do horário selecionado</p>
+ <form onsubmit="saveManual(event)" class="space-y-3 text-left">
+ <div><label class="block text-xs font-bold text-slate-700 mb-1">Nome do Cliente *</label><input id="mn-name" required maxlength="40" placeholder="Ex: Cliente Teste" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500 font-medium"></div>
+ <div><label class="block text-xs font-bold text-slate-700 mb-1">Profissional Responsável *</label><select id="mn-emp" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none font-bold text-slate-800">${emps}</select></div>
+ <div class="grid grid-cols-2 sm:grid-cols-3 gap-2"><div class="col-span-2 sm:col-span-1"><label class="block text-xs font-bold text-slate-700 mb-1">Data *</label><input type="date" id="mn-date" required value="${date||lds()}" class="w-full px-2 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">Início *</label><input type="time" id="mn-st" required value="${st}" class="w-full px-2 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">Fim *</label><input type="time" id="mn-en" required value="${en}" class="w-full px-2 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none"></div></div>
+ <div><label class="block text-xs font-bold text-slate-700 mb-1">Serviços</label><div class="space-y-2 max-h-40 overflow-y-auto border p-3 rounded-2xl bg-slate-50">${procs}</div></div>
+ <div class="pt-1 flex items-center justify-between"><button type="button" onclick="closeM()" class="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">Cancelar</button><button type="submit" class="px-7 py-3 bp font-bold rounded-xl text-xs shadow-md">Salvar Agendamento</button></div></form>`)}
+function mnSync(){const ids=[...document.querySelectorAll('.mn-cb:checked')].map(x=>x.value),d=t.procedures.filter(p=>ids.includes(p.id)).reduce((s,p)=>s+p.duration,0),st=$('mn-st').value;if(d&&st)$('mn-en').value=m2t(t2m(st)+d)}
+function saveManual(e){e.preventDefault();
+ const name=$('mn-name').value.trim(),eid=$('mn-emp').value,date=$('mn-date').value,st=$('mn-st').value,en=$('mn-en').value,ids=[...document.querySelectorAll('.mn-cb:checked')].map(x=>x.value);
+ if(!ids.length)return msgM('Aviso','Selecione pelo menos um serviço.');
+ const s=t2m(st),f=t2m(en);if(f<=s)return msgM('Horário inválido','O horário de fim precisa ser depois do início.');
+ const cf=t.appointments.find(a=>a.employeeId===eid&&a.date===date&&isBusyStatus(a)&&s<t2m(a.time)+a.totalDuration&&f>t2m(a.time));
+ if(cf)return msgM('Horário ocupado','Este profissional já tem um agendamento nesse horário ('+esc(cf.time)+' - '+esc(cf.clientName)+').');
+ const pr=t.procedures.filter(p=>ids.includes(p.id));
+ const save=()=>{const a={id:'app-'+Date.now(),clientId:'manual-'+Date.now(),clientName:name,employeeId:eid,date,time:st,proceduresNames:pr.map(p=>p.name),totalDuration:f-s,totalPrice:pr.reduce((x,p)=>x+p.price,0),status:'agendado'};t.appointments.push(a);closeM();draw();toast('Sucesso!','Agendamento cadastrado com sucesso.')};
+ const prof=getEmployeeById(eid);if(prof&&!doesEmployeeWorkOnDate(prof,date))return askM('Dia de folga','Este profissional está de folga nessa data. Deseja agendar mesmo assim?',save);
+ save()}
+/* ===== detalhes e ações ===== */
+function appDet(id){const a=t.appointments.find(x=>x.id===id);if(!a)return;const e=getEmployeeById(a.employeeId),st=effSt(a),dr=t.rules.deposit,dv=a.depositAmount!=null?Number(a.depositAmount):a.totalPrice*dr.percent/100,dl=a.depositDeadline?fmtDl(a.depositDeadline):'';
+ const pend=st==='pendente'?`<div class="rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50 p-4 space-y-3"><div><p class="text-sm font-black text-amber-900">⏳ Aguardando confirmação do sinal</p><p class="text-[11px] text-amber-800">Este horário está reservado, mas só vira agendamento firme depois que você confirmar.</p></div><div class="bg-white/80 border border-amber-200 rounded-xl p-3 text-xs text-slate-700 space-y-1"><p>Sinal combinado: <b class="text-emerald-700">${brl(dv)}</b>${dl?' • pagar até <b>'+dl+'</b>':''}</p><p>Chave Pix (Aleatória) enviada ao cliente: <b class="font-mono break-all">${esc(dr.pixKey)}</b></p><p class="text-[10px] text-rose-700 font-bold">Chave fictícia de demonstração.</p></div><button onclick="confirmPend('${a.id}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm">✓ Confirmar agendamento (sinal recebido)</button></div>`:'';
+ const paid=(a.depositRequired&&a.status!=='pendente'&&a.status!=='cancelado')?`<div class="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs"><span class="font-bold text-emerald-800">Sinal pago ${brl(dv)}</span><span class="font-bold text-slate-700">Restante ${brl(Math.max(0,a.totalPrice-dv))}</span></div>`:'';
+ openM(`<h3 class="text-lg font-bold text-slate-900 text-center">Detalhes do Agendamento</h3><div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">${pend}
+ <div class="border-b pb-3"><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">${esc(a.clientName)}</span></div>
+ <div class="border-b pb-3"><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${esc(e?e.name:'Profissional')}</span></div>
+ <p class="text-sm font-medium text-slate-700">📅 ${fBR(a.date)} às ${a.time} (${a.totalDuration} min)</p><p class="text-sm font-medium text-slate-700 leading-tight">✂️ ${esc(a.proceduresNames.join(', '))}</p>
+ <p class="font-bold text-emerald-600 text-lg pt-3 border-t">${brl(a.totalPrice)}</p>${paid}
+ <div class="pt-4 border-t flex flex-col sm:flex-row gap-2"><button onclick="askStatus('${a.id}','cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100">${a.status==='pendente'?'Recusar / Cancelar':'Cancelar Agendamento'}</button><button onclick="askStatus('${a.id}','nao_compareceu')" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-100">Não Compareceu</button></div></div><button id="ok" class="bp w-full py-3 font-bold rounded-xl">Fechar</button>`)}
+function confirmPend(id){const a=t.appointments.find(x=>x.id===id);if(!a)return;a.status='agendado';a.depositPaid=a.depositAmount;closeM();draw();toast('Confirmado','Agendamento confirmado com sucesso.')}
+function askStatus(id,st){closeM();askM('Confirmar',st==='cancelado'?'Deseja realmente cancelar este agendamento?':'Marcar este cliente como "Não compareceu"?',()=>{const a=t.appointments.find(x=>x.id===id);if(a)a.status=st;draw();toast('Atualizado',st==='cancelado'?'Agendamento cancelado com sucesso.':'Status alterado para Não Compareceu.')})}
+/* ===== telas da agenda ===== */
+function selMonth(v){listMonth=v;listDate='';draw()}
+function viewOrg(){
+ const today=new Date(),sow=new Date(today.getFullYear(),today.getMonth(),today.getDate()-today.getDay()+weekOff*7),days=[...Array(7)].map((_,i)=>{const d=new Date(sow);d.setDate(sow.getDate()+i);return d}),vm=days[3];
+ if(filtEmp!=='all'&&!people().some(p=>p.id===filtEmp))filtEmp='all';
+ const now=new Date(),nowM=now.getHours()*60+now.getMinutes(),todayS=lds(now);
+ const tl=scope().filter(a=>a.date===todayS).sort((a,b)=>t2m(a.time)-t2m(b.time)),nx=tl.find(a=>t2m(a.time)>=nowM);
+ const sum=`Hoje: <b>${tl.length}</b> ${tl.length===1?'atendimento':'atendimentos'}${nx?` • Próximo às <b>${nx.time}</b> — ${esc(nx.clientName)}`:''}`;
+ const head=`<div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3"><div><h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2><p class="text-xs text-slate-500 mt-0.5">${sum}</p></div>
+ <div class="flex space-x-2 bg-white/90 rounded-lg p-1 border shadow-sm self-start"><button onclick="setView('calendar')" class="px-3 sm:px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 ${dashView==='calendar'?'ag-tan':'text-slate-500 hover:text-slate-900'}">${IC.grid}<span>Calendário</span></button><button onclick="setView('list')" class="px-3 sm:px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 ${dashView==='list'?'ag-tan':'text-slate-500 hover:text-slate-900'}">${IC.list}<span>Lista</span></button></div></div>`;
+ return `<div class="ag-wrap text-left">${head}${dashView==='calendar'?calHtml(days,vm,todayS,nowM):listHtml()}</div>`}
+function calHtml(days,vm,todayS,nowM){
+ const vmo=vm.getMonth(),vy=vm.getFullYear(),py=pickYear!==null?pickYear:vy;
+ const hours=[];for(let i=CS;i<=CE;i++)hours.push(pad(i)+':00');
+ const d0=lds(days[0]),d6=lds(days[6]),W=hours.length*PXH;
+ const picker=pickOpen?`<div class="absolute top-full left-0 mt-2 w-64 bg-white border rounded-2xl shadow-xl p-3 z-40 fade"><div class="flex items-center justify-between mb-3"><button onclick="pickYr(-1)" class="p-2 bg-slate-50 border rounded-lg hover:bg-slate-100">${IC.l}</button><span class="font-bold text-sm text-slate-800">${py}</span><button onclick="pickYr(1)" class="p-2 bg-slate-50 border rounded-lg hover:bg-slate-100">${IC.r}</button></div><div class="grid grid-cols-3 gap-2">${MN.map((n,i)=>`<button onclick="jumpMY(${py},${i})" class="px-2 py-2.5 rounded-xl text-xs font-bold ${(i===vmo&&py===vy)?'bp':'bg-slate-50 text-slate-700 hover:bg-amber-50'}">${n.slice(0,3)}</button>`).join('')}</div></div>`:'';
+ const by={};scope().filter(a=>a.date>=d0&&a.date<=d6).forEach(a=>{const h=+a.time.split(':')[0];if(h<CS||h>CE)return;(by[a.date]=by[a.date]||[]).push({...a,s:t2m(a.time),e:t2m(a.time)+a.totalDuration})});
+ const post={};Object.keys(by).forEach(k=>{post[k]=by[k].map(a=>{const ov=by[k].filter(o=>a.s<o.e&&a.e>o.s),n=ov.length,ix=ov.findIndex(o=>o.id===a.id),left=(a.s-CS*60)/60*PXH,w=Math.max(a.totalDuration/60*PXH-3,26),lh=(RH-8)/n,top=4+ix*lh,emp=getEmployeeById(a.employeeId),pd=a.status==='pendente',ti=(pd?'⏳ ':'')+a.time+' - '+(emp?emp.name:'Profissional')+' - '+a.clientName;
+  return `<div onclick="appDet('${a.id}')" title="${esc(ti+' — '+a.proceduresNames.join(', '))}" class="postit ${pd?'pending':''}" style="left:${left}px;width:${w}px;top:${top}px;height:${lh-3}px;background-color:${emp?emp.color:'#dc2626'}"><p class="font-bold truncate text-[10px] text-white">${esc(ti)}</p>${pd?'<span class="pchip">PENDENTE</span>':''}</div>`})});
+ const prof=t.admin,inR=nowM>=CS*60&&nowM<=(CE+1)*60;
+ const hdr=`<div class="flex sticky top-0 z-30 bg-white border-b" style="width:${DLW+W}px"><div class="sticky left-0 z-40 bg-white border-r flex-none" style="width:${DLW}px"></div>${hours.map(h=>`<div class="cal-t border-r flex-none py-2" style="width:${PXH}px;text-align:left;padding-left:8px;background:#f8fafc">${h}</div>`).join('')}</div>`;
+ const rows=days.map(d=>{const ds=lds(d),w=doesEmployeeWorkOnDate(prof,ds),nl=(ds===todayS&&inR)?`<div class="absolute z-20 pointer-events-none" style="left:${(nowM-CS*60)/60*PXH}px;width:2px;top:0;bottom:0;background:#f87171"><span class="absolute -top-[1px] -left-[3px] w-2 h-2 rounded-full" style="background:#f87171"></span></div>`:'';
+  return `<div class="flex border-b" style="width:${DLW+W}px;height:${RH}px"><div class="sticky left-0 z-20 border-r flex-none flex flex-col items-center justify-center ${w?'bg-white':'bg-slate-200'}" style="width:${DLW}px${w?'':';background:#eef1f7'}"><p class="text-[10px] sm:text-xs text-slate-500 uppercase font-bold">${d.toLocaleDateString('pt-BR',{weekday:'short'})}</p><p class="text-lg sm:text-xl font-bold leading-tight" style="color:${ds===todayS?'#7c4a2d':'#1e293b'}">${d.getDate()}</p>${!w?'<span class="text-[9px] bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded uppercase">Folga</span>':''}</div>
+  <div data-date="${ds}" class="cal-day relative flex-none ${w?'bg-white':'opacity-60 pointer-events-none'}" style="width:${W}px;height:${RH}px${w?'':';background:#e2e8f0'}">${hours.map((h,i)=>`<div class="absolute top-0 bottom-0 border-r border-slate-100" style="left:${i*PXH}px;width:${PXH}px"></div>`).join('')}${nl}${(post[ds]||[]).join('')}</div></div>`}).join('');
+ const body=lastMob?mobBodyHtml(days,by,todayS,nowM,prof,hours,inR):`<div id="calsc" class="flex-1 overflow-auto p-2 bg-slate-100/50"><div class="bg-white border" style="width:${DLW+W+2}px">${hdr}${rows}</div></div>`;
+ return `<div class="bg-white/90 border rounded-2xl shadow-sm overflow-hidden flex flex-col relative ${orgFull?'cal-fs':''}"><div class="p-3 border-b flex justify-between bg-slate-50 shrink-0 gap-2"><div class="flex space-x-2"><button onclick="shiftWeek(-1)" class="p-2 sm:p-2.5 bg-white border rounded-xl hover:bg-slate-100" aria-label="Semana anterior">${IC.l}</button><div class="relative"><button onclick="togglePick(${vy})" title="Escolher mês" class="h-full flex items-center px-3 sm:px-4 bg-white border rounded-xl font-bold hover:bg-slate-100 text-sm sm:text-base"><span class="sm:hidden">${MN[vmo].slice(0,3)}</span><span class="hidden sm:inline">${MN[vmo]}</span>&nbsp;${vy}<span class="ml-2 text-slate-400">${IC.d}</span></button>${picker}</div><button onclick="shiftWeek(1)" class="p-2 sm:p-2.5 bg-white border rounded-xl hover:bg-slate-100" aria-label="Próxima semana">${IC.r}</button></div>
+ <div class="flex space-x-2"><button onclick="goToday()" class="ag-tan px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base">Hoje</button><button onclick="toggleFs()" class="p-2 sm:p-2.5 rounded-xl text-white" style="background:#1e293b" aria-label="Tela cheia">${orgFull?IC.min:IC.max}</button></div></div>
+ ${body}</div>`}
+function listHtml(){
+ const todayS=lds();let apps=scope().filter(a=>a.date>=todayS);
+ if(listMonth)apps=apps.filter(a=>a.date.split('-')[1]===listMonth);if(listDate)apps=apps.filter(a=>a.date===listDate);
+ apps.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ return `<div class="bg-white/90 p-4 md:p-5 rounded-2xl border shadow-sm ${orgFull?'cal-fs overflow-auto':''}"><div class="flex flex-col md:flex-row gap-3 md:gap-4 mb-5 bg-slate-50 p-4 rounded-xl border"><div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Mês</label><select onchange="selMonth(this.value)" class="w-full px-4 py-2.5 bg-white border rounded-xl text-sm font-semibold outline-none"><option value="">Todos os Meses</option>${MN.map((n,i)=>{const v=pad(i+1);return `<option value="${v}" ${listMonth===v?'selected':''}>${n}</option>`}).join('')}</select></div>
+ <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Data Específica</label><input type="date" value="${listDate}" onchange="listDate=this.value;listMonth='';draw()" class="w-full px-4 py-2 bg-white border rounded-xl text-sm font-semibold outline-none"></div>
+ <div class="flex items-end w-full md:w-auto"><button onclick="listDate='';listMonth='';draw()" class="w-full px-4 py-2.5 bg-white border text-slate-600 hover:bg-rose-50 hover:text-rose-600 rounded-xl text-sm font-bold">Limpar</button></div></div>
+ <div class="space-y-3">${apps.length===0?'<div class="text-center py-16 bg-slate-50 rounded-2xl border-dashed border"><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>':apps.map(a=>{const e=getEmployeeById(a.employeeId);return `<div onclick="appDet('${a.id}')" class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-amber-500 bg-white gap-3 cursor-pointer"><div class="flex items-start space-x-4"><div class="ag-tan w-14 h-14 flex flex-col items-center justify-center shrink-0"><span class="text-[10px] font-bold uppercase">${a.date.split('-')[1]}</span><span class="text-xl font-bold">${a.date.split('-')[2]}</span></div><div><p class="font-bold text-slate-900 text-base">${esc(e?e.name:'Profissional')} - ${esc(a.clientName)}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} - ${esc(a.proceduresNames.join(', '))}</p>${a.status==='pendente'?'<span class="inline-block mt-1.5 bg-amber-100 text-amber-800 border border-dashed border-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ Aguardando confirmação do sinal</span>':''}</div></div><div class="flex items-center justify-between md:justify-end gap-3 border-t md:border-0 pt-3 md:pt-0"><p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">${brl(a.totalPrice)}</p><span class="text-xs ag-tan px-4 py-2 font-bold">Ver / Alterar</span></div></div>`}).join('')}</div></div>`}
+function draw(){const o=bookingOrder();lastMob=setDims();
+ $('lft').classList.toggle('hidden',tab==='org');$('rgt').className=tab==='org'?'lg:col-span-5':'lg:col-span-3';
+ $('tela').className=tab==='org'?'rounded-3xl sm:rounded-[2rem] shadow-xl sm:shadow-2xl border border-slate-100 p-2 sm:p-5 min-h-[440px] mx-auto':'bg-white/90 rounded-[2rem] shadow-2xl border border-slate-100 p-5 sm:p-8 min-h-[440px] max-w-lg lg:max-w-none mx-auto';
+ $('tela').style.background=tab==='org'?'#f5ebe0':'#fffbeb';
+ $('ord').innerHTML=o.map((k,i)=>`<div class="flex items-center gap-3 bg-white rounded-xl border border-slate-200 p-2.5"><span class="gold w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center">${i+1}</span><span class="flex-1 font-semibold text-sm">${LB[k]}</span><button class="w-9 h-9 rounded-lg bg-slate-100 disabled:opacity-30" ${i==0?'disabled':''} onclick="mv(${i},-1)" aria-label="Subir">▲</button><button class="w-9 h-9 rounded-lg bg-slate-100 disabled:opacity-30" ${i==3?'disabled':''} onclick="mv(${i},1)" aria-label="Descer">▼</button></div>`).join('');
+ [['book','t-book'],['apps','t-apps'],['org','t-org']].forEach(([k,id])=>$(id).className='flex-1 py-2.5 rounded-lg '+(tab===k?'bg-white text-amber-600 shadow-sm':'text-slate-600'));
+ let h;if(tab==='apps')h=viewApps();else if(tab==='org')h=viewOrg();else{const s=bk.step;h=s==='date'?viewDate():s==='procedure'?viewProc():s==='professional'?viewProf():viewTime()}
+ const sc0=$('calsc'),st=sc0?sc0.scrollTop:0,sl=sc0?sc0.scrollLeft:0;$('tela').innerHTML=h;const sc=$('calsc');if(sc){sc.scrollTop=(!sc0&&lastMob)?2*PXV:st;sc.scrollLeft=sc0?sl:0}
+ $('cap').classList.toggle('hidden',tab!=='org');saveDemo();if(tab==='org'&&dashView==='calendar'){attachDrag();attachVDay()}}
+$('t-book').onclick=()=>{tab='book';draw()};$('t-apps').onclick=()=>{tab='apps';draw()};$('t-org').onclick=()=>{tab='org';draw()};
+/* ===== Link próprio ===== */
+const slug=()=>($('nome').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))||'sua-empresa';
+function lk(){$('lk').textContent='primstav.com.br/cliente?org='+slug()}$('nome').oninput=lk;lk();
+$('cp').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText('https://'+$('lk').textContent);$('cp').textContent='Copiado ✓';setTimeout(()=>$('cp').textContent='Copiar',1500)};
+/* ===== Planos (carrossel) ===== */
+const P=[{id:'individual',n:'Individual',c:'1 profissional (solo)',m:'39,90',a:'399,00',am:'33',cp:'39,90'},{id:'equipe',n:'Equipe Inicial',c:'Até 3 colaboradores',m:'79,90',a:'799,00',am:'66',cp:'26,60',top:1},{id:'crescimento',n:'Crescimento',c:'Até 6 colaboradores',m:'139,90',a:'1.399,00',am:'116',cp:'23,30'},{id:'avancado',n:'Avançado',c:'Até 10 colaboradores',m:'219,90',a:'2.199,00',am:'183',cp:'21,90'}];
+let ciclo='mensal';
+function planos(){const an=ciclo=='anual';$('tm').className='flex-1 py-2.5 text-sm font-semibold rounded-lg '+(an?'text-slate-600':'bg-white text-amber-600 shadow-sm');$('ta').className='flex-1 py-2.5 text-sm font-semibold rounded-lg '+(an?'bg-white text-amber-600 shadow-sm':'text-slate-600');
+ $('car').innerHTML=P.map(p=>`<div class="shrink-0 w-[80%] sm:w-[calc(50%-.5rem)] lg:w-[calc(25%-.75rem)] bg-white rounded-2xl border-2 ${p.top?'border-amber-500 shadow-lg':'border-slate-200'} p-6 flex flex-col">${p.top?'<span class="self-start mb-2 text-[11px] font-bold text-white gold px-2 py-0.5 rounded-full">Mais escolhido</span>':''}<h3 class="text-lg font-bold">${p.n}</h3><p class="text-sm text-slate-500">${p.c}</p><p class="mt-4"><span class="text-3xl font-extrabold">${an?'~R$ '+p.am:'R$ '+p.m}</span><span class="text-sm text-slate-500">/mês</span></p><p class="mt-1 text-xs text-slate-500 min-h-[32px]">${an?'R$ '+p.a+' por ano':'Cobrança mensal'}</p><p class="mt-2 text-sm text-slate-600">~R$ ${p.cp} por profissional</p><p class="mt-3 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 text-center">1 mês grátis</p><a href="/entrar?plano=${p.id}&ciclo=${ciclo}#criar" class="gold mt-5 text-center py-3 font-bold text-white rounded-xl shadow-md">Testar grátis</a></div>`).join('')}
+$('tm').onclick=()=>{ciclo='mensal';planos()};$('ta').onclick=()=>{ciclo='anual';planos()};$('pl').onclick=()=>$('car').scrollBy({left:-300,behavior:'smooth'});$('pr').onclick=()=>$('car').scrollBy({left:300,behavior:'smooth'});planos();
+/* ===== Termos ===== */
+const TERMOS=`<h3 class="text-lg font-bold text-slate-900">Termos de uso e privacidade</h3><p><b>Serviço.</b> A Primstav oferece agenda online, link de agendamento e controle de sinal via Pix para profissionais e empresas.</p><p><b>Teste grátis.</b> O primeiro mês é gratuito e não exige forma de pagamento. Antes do fim, pediremos a forma de pagamento para a conta continuar ativa.</p><p><b>Cobrança e cancelamento.</b> Os planos são cobrados mensal ou anualmente e podem ser cancelados a qualquer momento, sem multa.</p><p><b>Sinal e atendimento.</b> Valores, regras de sinal e o atendimento são de responsabilidade de cada profissional ou empresa.</p><p><b>Dados (LGPD).</b> Usamos os dados apenas para operar o serviço. Não vendemos dados e você pode pedir acesso ou exclusão a qualquer momento.</p><button id="ok" class="gold w-full py-3 font-bold text-white rounded-xl">Entendi</button>`;
+document.querySelectorAll('.termos').forEach(b=>b.onclick=()=>openM(TERMOS));
+$('md').onclick=e=>{if(e.target===$('md'))closeM()};
+resetBk();draw();
+</script>
 </body>
 </html>
