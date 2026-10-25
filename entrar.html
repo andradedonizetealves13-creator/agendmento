@@ -20,6 +20,13 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <script src="/erros.js"></script>
+    <script>
+        if (typeof window.traduzErroAuth !== 'function') window.traduzErroAuth = function (err) {
+            var m = (err && err.message) || '';
+            if (/permission[_ -]?denied/i.test((err && err.code || '') + m)) return 'Sem permissão para salvar os dados. Tente novamente ou fale com o suporte.';
+            return (!m || /^Firebase:/i.test(m)) ? 'Não foi possível concluir. Tente novamente em instantes.' : m;
+        };
+    </script>
 </head>
 <body class="min-h-screen w-full flex items-center justify-center p-4">
 
@@ -89,9 +96,11 @@
             signInWithEmailAndPassword, 
             createUserWithEmailAndPassword, 
             signInWithPopup, 
+            signOut, 
             ref, 
             get, 
-            set 
+            set, 
+            update 
         } from './firebase-config.js';
 
         const TENANTS = 'agendapro_saas/tenants';
@@ -265,6 +274,9 @@
 
         function falha(id, msg) { const e = new Error(msg); e.wid = id; throw e; }
         function erroW(err) {
+            try { _erroW(err); } catch (x) { console.error(x); showError('Não foi possível concluir. Tente novamente.'); }
+        }
+        function _erroW(err) {
             showError(err.wid ? err.message : window.traduzErroAuth(err, 'cadastro'));
             const c = String(err.code || ''), el = $(err.wid || (/email/.test(c) ? 'w-email' : /password/.test(c) ? 'w-pass' : ''));
             if (el) { el.classList.add('border-rose-400', 'bg-rose-50'); el.focus(); }
@@ -309,17 +321,9 @@
                 if (new Date(d.getFullYear() + 18, d.getMonth(), d.getDate()) > hoje) falha('w-nasc', 'Para criar a conta é preciso ter 18 anos ou mais.');
                 if (pass.length < 6) falha('w-pass', 'A senha é muito curta. Use pelo menos 6 caracteres.');
                 if (pass !== $('w-pass2').value) falha('w-pass2', 'As senhas digitadas não são iguais.');
-                let u = W.user;
-                if (!u) { u = (await createUserWithEmailAndPassword(auth, email, pass)).user; W.user = u; }
-                else if (!u.providerData.some(p => p.providerId === 'password')) await linkWithCredential(u, EmailAuthProvider.credential(email, pass));
-                $('w-email').readOnly = true;
-                const tRef = ref(rtdb, `${TENANTS}/${slug}`);
-                if ((await get(tRef)).exists()) falha('w-empresa', 'Já existe uma empresa com este nome. Escolha outro nome.');
-                await set(tRef, { name: empresa, admin: { id: u.uid, name: nome, email } });
-                // dados sensíveis ficam fora de "tenants" (que o login percorre)
-                await set(ref(rtdb, `agendapro_saas/billing/${slug}`), { responsavel: { nome, email, documento: doc, tipoDocumento: doc.length === 11 ? 'CPF' : 'CNPJ', nascimento: nasc }, criadoEm: Date.now() });
-                try { await syncRole(slug); } catch (x) { console.warn('syncRole:', x && x.message); }
-                W.slug = slug; localStorage.setItem('agendaProSession', JSON.stringify({ slug, id: u.uid, role: 'admin' }));
+                // Nada é gravado agora: só confere se o nome da empresa está livre. A conta é criada no final, se tudo der certo.
+                if ((await get(ref(rtdb, `${TENANTS}/${slug}`))).exists()) falha('w-empresa', 'Já existe uma empresa com este nome. Escolha outro nome.');
+                W.dados = { empresa, nome, email, pass, doc, nasc, slug }; W.slug = slug;
                 renderPlanos(); mostrar(2);
             } catch (err) { erroW(err); }
             b.disabled = false; b.textContent = 'Continuar';
@@ -336,8 +340,7 @@
             const b = e.target.closest('[data-plano]'); if (!b) return;
             W.plano = b.dataset.plano; b.disabled = true; b.textContent = 'Aguarde...';
             try {
-                const p = PLANOS[W.plano], ini = Date.now(); W.trialEnd = ini + 30 * 864e5;
-                await set(ref(rtdb, `agendapro_saas/billing/${W.slug}/assinatura`), { plano: W.plano, ciclo: W.ciclo, maxProfissionais: p.max, valor: W.ciclo === 'anual' ? p.a : p.m, status: 'trial', trialInicio: ini, trialFim: W.trialEnd });
+                const ini = Date.now(); W.ini = ini; W.trialEnd = ini + 30 * 864e5;
                 renderPagamento(); mostrar(3);
             } catch (err) { showError(window.traduzErroAuth(err, 'cadastro')); renderPlanos(); }
         };
@@ -350,19 +353,55 @@
             <div class="p-3 bg-slate-50 rounded-xl text-xs text-slate-600"><b>Forma de pagamento:</b> não precisa ser informada agora. Antes de o mês grátis terminar, pediremos a forma de pagamento para a conta continuar ativa.</div>
             <button class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md">Salvar e ir para o painel</button>
             <button type="button" id="e-pular" class="w-full text-sm font-semibold text-slate-500 hover:text-slate-700">Preencher depois</button></form>`;
-            const ir = () => { location.href = 'painel_do_profissional.html'; };
+            const ir = (end) => finalizar(end);
             $('e-cep').oninput = e => { const d = e.target.value.replace(/\D/g, '').slice(0, 8); e.target.value = d.length > 5 ? d.slice(0, 5) + '-' + d.slice(5) : d; };
-            $('e-pular').onclick = ir;
+            $('e-pular').onclick = () => ir(null);
             $('w-end').onsubmit = async ev => {
                 ev.preventDefault(); const g = id => $(id).value.trim();
                 const end = { cep: g('e-cep'), rua: g('e-rua'), numero: g('e-num'), cidade: g('e-cidade'), uf: g('e-uf').toUpperCase() };
                 if (Object.values(end).some(Boolean)) {
                     if (end.cep.replace(/\D/g, '').length !== 8) return showError('CEP incompleto. Digite os 8 números.');
                     if (!end.rua || !end.numero || !end.cidade || end.uf.length !== 2) return showError('Preencha rua, número, cidade e estado (2 letras), ou toque em “Preencher depois”.');
-                    try { await set(ref(rtdb, `agendapro_saas/billing/${W.slug}/endereco`), end); } catch (err) { return showError(window.traduzErroAuth(err, 'cadastro')); }
                 }
-                ir();
+                ir(Object.values(end).some(Boolean) ? end : null);
             };
+        }
+
+
+        // Cria tudo de uma vez só no final. Se qualquer parte falhar, nada fica gravado (a conta recém-criada é apagada).
+        async function finalizar(end) {
+            const D = W.dados, p = PLANOS[W.plano], form = $('w-end');
+            if (!D) { mostrar(1); return showError('Preencha seus dados para continuar.'); }
+            const btns = form.querySelectorAll('button'), txt = [...btns].map(x => x.textContent);
+            btns.forEach(x => { x.disabled = true; x.textContent = 'Aguarde...'; });
+            errorMsg.classList.add('hidden');
+            let criado = null;
+            try {
+                let u = W.user;
+                if (!u) { u = (await createUserWithEmailAndPassword(auth, D.email, D.pass)).user; criado = u; }
+                else if (!u.providerData.some(x => x.providerId === 'password')) await linkWithCredential(u, EmailAuthProvider.credential(D.email, D.pass));
+                if ((await get(ref(rtdb, `${TENANTS}/${D.slug}`))).exists()) { const e = new Error('Já existe uma empresa com este nome. Volte e escolha outro nome.'); e.back = true; throw e; }
+                const bill = {
+                    responsavel: { nome: D.nome, email: D.email, documento: D.doc, tipoDocumento: D.doc.length === 11 ? 'CPF' : 'CNPJ', nascimento: D.nasc },
+                    assinatura: { plano: W.plano, ciclo: W.ciclo, maxProfissionais: p.max, valor: W.ciclo === 'anual' ? p.a : p.m, status: 'trial', trialInicio: W.ini, trialFim: W.trialEnd },
+                    criadoEm: Date.now()
+                };
+                if (end) bill.endereco = end;
+                // gravação única e atômica: empresa + dados de cobrança, ou nada
+                await update(ref(rtdb, 'agendapro_saas'), {
+                    ['tenants/' + D.slug]: { name: D.empresa, admin: { id: u.uid, name: D.nome, email: D.email } },
+                    ['billing/' + D.slug]: bill
+                });
+                try { await syncRole(D.slug); } catch (x) { console.warn('syncRole:', x && x.message); }
+                localStorage.setItem('agendaProSession', JSON.stringify({ slug: D.slug, id: u.uid, role: 'admin' }));
+                window.location.href = 'painel_do_profissional.html';
+            } catch (err) {
+                if (criado) { try { await criado.delete(); } catch (x) { } W.user = null; try { await signOut(auth); } catch (x) { } }
+                const volta = err.back || (err.code === 'auth/email-already-in-use') || (err.code === 'auth/invalid-email');
+                if (volta) mostrar(1);
+                showError(err.back ? err.message : window.traduzErroAuth(err, 'cadastro'));
+                btns.forEach((x, k) => { x.disabled = false; x.textContent = txt[k]; });
+            }
         }
 
         // Quem já tem organização vai direto ao painel; quem é novo completa o cadastro.
