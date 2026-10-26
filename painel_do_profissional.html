@@ -637,7 +637,7 @@
                         </header>
 
                         <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 w-full">
-                            ${renderDashboardContent(role, userProfile)}
+                            ${notifBannerHtml()}${renderDashboardContent(role, userProfile)}
                         </div>
                     </main>
                 </div>`;
@@ -2624,6 +2624,31 @@
             await u.getIdToken(true);   // o servidor confere que a senha foi digitada agora há pouco
         }
         function mpCall(name, data) { return httpsCallable(getFunctions(getApp()), name)(Object.assign({ slug: session.slug }, data || {})); }
+
+        // ---------- NOTIFICAÇÕES (push) ----------
+        // Chave pública VAPID: Firebase > Configurações do projeto > Cloud Messaging > Certificados push da Web > Gerar par de chaves
+        const VAPID_KEY = 'COLE_AQUI_A_CHAVE_VAPID';
+        window.pushSupported = () => 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+        window.enablePush = async function (manual) {
+            try {
+                if (!pushSupported()) { if (manual) alert('Este aparelho não aceita notificações. No iPhone, instale o app na Tela de Início e abra por lá.'); return; }
+                if (VAPID_KEY.startsWith('COLE')) { console.warn('Chave VAPID não configurada'); if (manual) alert('Falta configurar a chave VAPID do Firebase. Avise o suporte.'); return; }
+                const perm = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
+                if (perm !== 'granted') { if (manual) alert('As notificações não foram permitidas. Libere nas configurações do navegador para este site.'); return; }
+                const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js');
+                const reg = await navigator.serviceWorker.ready;
+                const token = await getToken(getMessaging(getApp()), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+                if (!token) return;
+                await mpCall('registerPushToken', { token });
+                if (manual) { alert('Notificações ativadas neste aparelho.'); if (typeof render === 'function') render(); }
+            } catch (e) { console.warn('push:', e); if (manual) alert('Não foi possível ativar as notificações: ' + (e && e.message || e)); }
+        };
+        window.notifBannerHtml = function () {
+            if (!pushSupported() || VAPID_KEY.startsWith('COLE')) return '';   // só aparece depois de configurar a chave VAPID
+            if (Notification.permission === 'granted') { if (!window.__pushAuto) { window.__pushAuto = 1; setTimeout(() => enablePush(false), 800); } return ''; }
+            if (Notification.permission === 'denied') return '';
+            return `<div class="mb-4 p-4 rounded-2xl border flex items-center justify-between gap-3" style="background:var(--theme-secondary)"><p class="text-sm font-semibold" style="color:var(--theme-text-primary)">🔔 Ative as notificações para saber de novos agendamentos e ser avisado 10 min antes de cada atendimento.</p><button onclick="enablePush(true)" class="btn-theme-primary px-4 py-2.5 rounded-xl text-sm font-bold shrink-0">Ativar</button></div>`;
+        };
         window.mpConnectClick = async function() {
             if (window.mpBusy) return;
             if (session.role !== 'admin') return showModal('Atenção', 'Só o administrador pode alterar o pagamento automático.', 'error');
