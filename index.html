@@ -16,8 +16,9 @@
 <style>
 :root{--p:#d97706;--ph:#b45309;--s:#fde68a}
 html{scroll-behavior:smooth}body{font-family:Inter,sans-serif;color:#1c1917}
-.gold{background:linear-gradient(135deg,#f0b90b,#d97706 60%,#b45309)}
-.gold-text{background:linear-gradient(135deg,#e5a800,#b45309);-webkit-background-clip:text;background-clip:text;color:transparent}
+:root{--a1:#f0b90b;--a2:#d97706;--a3:#b45309}
+.gold{background:linear-gradient(135deg,var(--a1),var(--a2) 60%,var(--a3))}
+.gold-text{background:linear-gradient(135deg,var(--a1),var(--a3));-webkit-background-clip:text;background-clip:text;color:transparent}
 .bp{background:var(--p);color:#fff}.bp:hover{background:var(--ph)}.bs{background:var(--s)}.tp{color:var(--p)}
 .snap{scroll-snap-type:x mandatory;scrollbar-width:none}.snap::-webkit-scrollbar{display:none}.snap>*{scroll-snap-align:center}
 .fade{animation:f .25s ease}@keyframes f{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
@@ -36,32 +37,43 @@ html{scroll-behavior:smooth}body{font-family:Inter,sans-serif;color:#1c1917}
 .cf{position:fixed;top:-14px;width:8px;height:12px;z-index:70;pointer-events:none;animation:cf 1.8s ease-in forwards}@keyframes cf{to{transform:translate(var(--x),105vh) rotate(720deg);opacity:.6}}
 details.fq summary{cursor:pointer;list-style:none}details.fq summary::-webkit-details-marker{display:none}details.fq[open] .chev{transform:rotate(180deg)}.chev{transition:.2s}
 @media(prefers-reduced-motion:reduce){.cf{display:none}.slide,.fade{animation:none}}
+.rv{opacity:0;transform:translateY(24px);transition:.6s ease}.rv.in{opacity:1;transform:none}@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
+@keyframes fl{50%{transform:translateY(-10px)}}.fl{animation:fl 5s ease-in-out infinite}@keyframes okp{0%,55%{opacity:0;transform:translateY(8px)}65%,90%{opacity:1;transform:none}100%{opacity:0}}.okp{animation:okp 4s infinite}@media(prefers-reduced-motion:reduce){.fl,.okp{animation:none}}
+.bg-white,.bg-slate-50,.bg-white\/90,#tela,#lft,#car>div,details.fq{color:#0f172a}
+.mq{animation:mq var(--d,30s) linear infinite}.mq:hover{animation-play-state:paused}@keyframes mq{to{transform:translateX(calc(-50% - .5rem))}}
+.mqw{-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+@media(prefers-reduced-motion:reduce){.mq{animation:none}.mqw{overflow-x:auto!important}}
 </style>
 </head>
-<body class="bg-white antialiased">
+<body class="bg-[#07070a] text-slate-100 antialiased">
 <div id="toasts" class="fixed top-4 right-4 z-[60] space-y-2 pointer-events-none"></div>
 
-<header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-100">
+<header class="sticky top-0 z-30 bg-black/60 backdrop-blur border-b border-white/10">
  <div class="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
-  <a href="/"><img src="/image_cbdce4.png" alt="Primstav" class="h-14 sm:h-16 w-auto"></a>
-  <nav class="hidden md:flex gap-8 text-sm font-medium text-slate-600"><a href="#demo" class="hover:text-amber-600">Experimente</a><a href="#link" class="hover:text-amber-600">Seu link</a><a href="#planos" class="hover:text-amber-600">Planos</a></nav>
-  <div class="flex items-center gap-1 sm:gap-2"><a href="/entrar" class="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-amber-600">Entrar</a><a href="#planos" class="gold px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold text-white rounded-xl shadow-md">1 mês grátis</a></div>
+  <a href="/"><img src="/image_cbdce4.png" alt="Primstav" class="h-14 sm:h-16 w-auto brightness-0 invert"></a>
+  <nav class="hidden md:flex gap-8 text-sm font-medium text-zinc-300"><a href="#demo" class="hover:text-amber-600">Experimente</a><a href="#link" class="hover:text-amber-600">Seu link</a><a href="#planos" class="hover:text-amber-600">Planos</a></nav>
+  <div class="flex items-center gap-1 sm:gap-2"><a href="/entrar" class="px-3 py-2 text-sm font-semibold text-zinc-200 hover:text-amber-500">Entrar</a><a href="#planos" class="gold px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold text-white rounded-xl shadow-md">1 mês grátis</a></div>
  </div>
 </header>
 
-<section class="bg-gradient-to-b from-amber-50 to-white">
- <div class="max-w-4xl mx-auto px-4 pt-12 pb-8 md:pt-20 text-center">
-  <span class="inline-block px-3 py-1 text-xs font-bold text-amber-700 bg-amber-100 rounded-full">Teste grátis por 1 mês · sem cartão</span>
-  <h1 class="mt-5 text-4xl md:text-6xl font-extrabold leading-tight">Seus clientes agendam sozinhos. <span class="gold-text">Você só atende.</span></h1>
-  <p class="mt-5 text-lg text-slate-600 max-w-2xl mx-auto">Abaixo está a agenda real que o seu cliente usa: calendário, horários livres e sinal via Pix. Agende um horário e veja o painel do organizador.</p>
-  <a href="#demo" class="gold inline-block mt-7 px-8 py-4 font-bold text-white rounded-xl shadow-lg">Experimentar agora ↓</a>
- </div>
-</section>
+<section class="relative overflow-hidden"><div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(60% 60% at 75% 40%,color-mix(in srgb,var(--a2) 35%,transparent),transparent 70%)"></div>
+ <div class="relative max-w-6xl mx-auto px-4 py-14 md:py-24 grid md:grid-cols-2 gap-10 items-center">
+  <div><span class="inline-block px-3 py-1 text-xs font-bold rounded-full border border-white/15 text-zinc-300">1 mês grátis · sem cartão</span>
+  <h1 class="mt-5 text-5xl md:text-7xl font-extrabold leading-[1.05] text-white">Seus clientes agendam sozinhos. <span class="gold-text">Você só atende.</span></h1>
+  <p class="mt-5 text-lg text-zinc-400 max-w-md">Agenda online com sinal via Pix e painel do organizador.</p>
+  <div class="mt-8 flex gap-3 flex-wrap"><a href="#demo" class="gold px-8 py-4 font-bold text-white rounded-xl shadow-lg hover:scale-105 transition">Experimentar agora ↓</a><a href="#planos" class="px-8 py-4 font-bold text-white rounded-xl border border-white/20 hover:bg-white/10 transition">Ver planos</a></div></div>
+  <div class="flex justify-center"><div class="fl relative w-64 rounded-[2.5rem] border-[10px] border-zinc-800 bg-white p-4 shadow-2xl text-slate-900" aria-hidden="true"><p class="text-xs font-bold text-center">Escolha o Dia</p><div id="mk" class="grid grid-cols-7 gap-1.5 mt-3"></div><div class="gold mt-4 rounded-xl py-2 text-center text-xs font-bold text-white">Confirmar horário</div><div class="okp absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg">✓ Horário confirmado</div></div></div>
+ </div></section>
 
+<section id="como" class="max-w-5xl mx-auto px-4 py-10"><div class="grid md:grid-cols-3 gap-4">
+<div class="rv rounded-2xl border border-white/10 bg-white/5 p-6 text-center hover:border-white/30 transition"><p class="text-3xl">💬</p><h3 class="mt-2 font-bold text-white">Sem WhatsApp o dia todo</h3><p class="mt-1 text-sm text-zinc-400">O cliente vê os horários livres e agenda sozinho.</p></div>
+<div class="rv rounded-2xl border border-white/10 bg-white/5 p-6 text-center hover:border-white/30 transition"><p class="text-3xl">💸</p><h3 class="mt-2 font-bold text-white">Cliente que não some</h3><p class="mt-1 text-sm text-zinc-400">O sinal via Pix garante o compromisso.</p></div>
+<div class="rv rounded-2xl border border-white/10 bg-white/5 p-6 text-center hover:border-white/30 transition"><p class="text-3xl">📅</p><h3 class="mt-2 font-bold text-white">Zero horário duplicado</h3><p class="mt-1 text-sm text-zinc-400">O painel do organizador mostra tudo em um só lugar.</p></div></div><div class="rv mt-4 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-white/5 to-transparent p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-4 md:gap-8"><div class="flex-1"><h3 class="text-xl md:text-2xl font-extrabold text-white">Suas regras, <span class="gold-text">do seu jeito</span></h3><p class="mt-1 text-zinc-400">Cada negócio funciona de um jeito. Na Primstav, as regras de agendamento se adaptam ao seu, e não o contrário.</p></div><div class="flex flex-wrap gap-2 md:max-w-md"><span class="px-3 py-1.5 rounded-full text-sm font-semibold border border-white/15 text-zinc-200 bg-white/5">Ordem das etapas</span><span class="px-3 py-1.5 rounded-full text-sm font-semibold border border-white/15 text-zinc-200 bg-white/5">Serviços</span><span class="px-3 py-1.5 rounded-full text-sm font-semibold border border-white/15 text-zinc-200 bg-white/5">Profissionais</span><span class="px-3 py-1.5 rounded-full text-sm font-semibold border border-white/15 text-zinc-200 bg-white/5">Horários de atendimento</span></div></div></section>
+<section id="clientes" class="max-w-5xl mx-auto px-4 py-10"><p class="text-center text-xs font-bold uppercase tracking-widest text-zinc-500">Quem já usa a Primstav</p><div id="cli" class="mt-5"></div></section>
 <section id="demo" class="max-w-6xl mx-auto px-4 py-10 md:py-14">
  <div class="text-center max-w-2xl mx-auto"><h2 class="text-2xl md:text-4xl font-extrabold">Agende como o seu cliente agendaria</h2>
- <p class="mt-2 text-slate-600">É a mesma agenda do sistema. Defina a ordem das etapas e depois confirme o sinal no painel.</p></div>
- <div class="mt-8 grid lg:grid-cols-5 gap-6 items-start">
+ <p class="mt-2 text-zinc-400">É a mesma agenda do sistema. Defina a ordem das etapas e depois confirme o sinal no painel. As regras são suas: mude a ordem ao lado e veja o agendamento se reorganizar.</p></div>
+ <div class="mt-8 grid lg:grid-cols-5 gap-6 items-start lg:items-center">
   <div id="lft" class="lg:col-span-2 bg-slate-50 rounded-3xl p-5 border border-slate-100">
    <h3 class="font-bold">1. Defina a ordem do agendamento</h3>
    <p class="text-xs text-slate-500 mb-3">Cada empresa escolhe a ordem das etapas nas Regras. Use as setas.</p>
@@ -78,10 +90,10 @@ details.fq summary{cursor:pointer;list-style:none}details.fq summary::-webkit-de
  </div>
 </section>
 
-<section id="link" class="bg-slate-50">
+<section id="link" class="bg-white/5">
  <div class="max-w-4xl mx-auto px-4 py-14 text-center">
   <h2 class="text-2xl md:text-4xl font-extrabold">Cada empresa tem o <span class="gold-text">próprio link</span></h2>
-  <p class="mt-2 text-slate-600">Digite o nome da empresa e veja o link de agendamento que você divulga.</p>
+  <p class="mt-2 text-zinc-400">Digite o nome da empresa e veja o link de agendamento que você divulga.</p>
   <input id="nome" value="Meu Studio" maxlength="30" class="mt-6 w-full max-w-sm px-4 py-3 text-center border border-slate-200 rounded-xl outline-none focus:border-amber-500" aria-label="Nome da empresa">
   <div class="mt-4 max-w-xl mx-auto flex items-center gap-2 bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
    <span id="lk" class="flex-1 truncate text-sm sm:text-base font-semibold text-amber-700 px-2 text-left"></span>
@@ -91,9 +103,9 @@ details.fq summary{cursor:pointer;list-style:none}details.fq summary::-webkit-de
 
 <section id="planos" class="max-w-6xl mx-auto px-4 py-14">
  <div class="text-center max-w-2xl mx-auto"><h2 class="text-2xl md:text-4xl font-extrabold">Planos para cada tamanho de equipe</h2>
- <p class="mt-2 text-slate-600">Todos começam com <b>1 mês grátis</b>, sem informar forma de pagamento.</p></div>
- <div class="mt-5 mx-auto max-w-3xl bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 text-center"><p class="text-[11px] font-bold uppercase tracking-wider text-amber-700">Todos os planos incluem</p><div class="mt-1 flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs sm:text-sm text-slate-700"><span>✓ Agenda online</span><span>✓ Link próprio</span><span>✓ Sinal via Pix</span><span>✓ Painel do organizador</span><span>✓ Cancele sem multa</span></div></div>
- <div class="mt-8 text-center"><p class="text-sm font-bold text-slate-800">Quantos profissionais atendem na sua empresa?</p><div id="sz" class="mt-3 flex flex-wrap justify-center gap-2"></div><p id="rm" class="mt-3 text-sm text-slate-600 min-h-[20px]"></p></div>
+ <p class="mt-2 text-zinc-400">Todos começam com <b>1 mês grátis</b>, sem informar forma de pagamento.</p></div>
+ <div class="mt-5 mx-auto max-w-3xl bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 text-center"><p class="text-[11px] font-bold uppercase tracking-wider text-amber-700">Todos os planos incluem</p><div class="mt-1 flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs sm:text-sm text-slate-700"><span>✓ Agenda online</span><span>✓ Link próprio</span><span>✓ Sinal via Pix</span><span>✓ Painel do organizador</span><span>✓ Regras adaptáveis</span><span>✓ Cancele sem multa</span></div></div>
+ <div class="mt-8 text-center"><p class="text-sm font-bold text-white">Quantos profissionais atendem na sua empresa?</p><div id="sz" class="mt-3 flex flex-wrap justify-center gap-2"></div><p id="rm" class="mt-3 text-sm text-zinc-400 min-h-[20px]"></p></div>
  <div class="mt-5 flex bg-slate-200 p-1 rounded-xl max-w-sm mx-auto"><button id="tm" class="flex-1 py-2.5 text-sm font-semibold rounded-lg">Mensal</button><button id="ta" class="flex-1 py-2.5 text-sm font-semibold rounded-lg">Anual <span class="text-[11px]">(2 meses grátis)</span></button></div>
  <div class="relative mt-6">
   <button id="pl" class="hidden sm:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-slate-200 rounded-full shadow items-center justify-center lg:hidden" aria-label="Anterior">‹</button>
@@ -102,22 +114,23 @@ details.fq summary{cursor:pointer;list-style:none}details.fq summary::-webkit-de
  </div>
  <div id="dots" class="flex justify-center gap-2 mt-1 lg:hidden"></div>
  <p class="mt-3 text-center text-xs text-slate-500">Ao testar, você concorda com os <button class="underline font-semibold termos">Termos de uso</button>.</p>
- <div class="mt-10 max-w-2xl mx-auto space-y-2"><h3 class="text-center text-lg font-bold mb-3">Dúvidas frequentes</h3>
+ <details class="mt-10 max-w-2xl mx-auto"><summary class="text-center cursor-pointer font-bold text-zinc-300 mb-3">Dúvidas frequentes ▾</summary><div class="space-y-2">
   <details class="fq bg-white border border-slate-200 rounded-xl p-4"><summary class="flex justify-between items-center font-semibold text-sm">Preciso de cartão para testar?<span class="chev text-slate-400">⌄</span></summary><p class="mt-2 text-sm text-slate-600">Não. O primeiro mês é gratuito e não exige forma de pagamento. Antes do fim, pedimos a forma de pagamento para a conta continuar ativa.</p></details>
   <details class="fq bg-white border border-slate-200 rounded-xl p-4"><summary class="flex justify-between items-center font-semibold text-sm">Posso cancelar quando quiser?<span class="chev text-slate-400">⌄</span></summary><p class="mt-2 text-sm text-slate-600">Sim, a qualquer momento e sem multa.</p></details>
   <details class="fq bg-white border border-slate-200 rounded-xl p-4"><summary class="flex justify-between items-center font-semibold text-sm">Qual a diferença entre mensal e anual?<span class="chev text-slate-400">⌄</span></summary><p class="mt-2 text-sm text-slate-600">No anual você paga o equivalente a 10 meses e usa 12: são 2 meses grátis em qualquer plano.</p></details>
   <details class="fq bg-white border border-slate-200 rounded-xl p-4"><summary class="flex justify-between items-center font-semibold text-sm">Minha equipe tem mais de 10 profissionais.<span class="chev text-slate-400">⌄</span></summary><p class="mt-2 text-sm text-slate-600">Fale com a gente em <a class="underline font-semibold tp" href="mailto:contato@primstav.com.br">contato@primstav.com.br</a> e montamos um plano sob medida.</p></details>
- </div>
+ </div></details>
 </section>
 
-<footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
- <img src="/image_cbdce4.png" alt="Primstav" class="h-14 w-auto">
+<footer class="border-t border-white/10"><div class="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+ <img src="/image_cbdce4.png" alt="Primstav" class="h-14 w-auto brightness-0 invert">
  <div class="flex gap-5"><button class="termos hover:text-amber-600">Termos de uso</button><button class="termos hover:text-amber-600">Privacidade</button><a href="/entrar" class="hover:text-amber-600">Entrar</a></div>
  <p>© <span id="ano"></span> Primstav</p></div></footer>
 
 <div id="md" class="hidden fixed inset-0 z-40 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
  <div id="mdc" class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 max-h-[88vh] overflow-y-auto text-sm text-slate-600 space-y-3"></div></div>
 
+<a id="sb" href="#planos" class="md:hidden fixed bottom-0 inset-x-0 z-40 gold text-white text-center font-bold py-4 shadow-2xl translate-y-full transition">Testar grátis por 1 mês</a>
 <script>
 const $=id=>document.getElementById(id);$('ano').textContent=new Date().getFullYear();
 const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -395,6 +408,24 @@ const TERMOS=`<h3 class="text-lg font-bold text-slate-900">Termos de uso e priva
 document.querySelectorAll('.termos').forEach(b=>b.onclick=()=>openM(TERMOS));
 $('md').onclick=e=>{if(e.target===$('md'))closeM()};
 resetBk();draw();
+
+/* ===== Landing: mockup, reveal, barra fixa, WhatsApp ===== */
+(function(){const WA='';/* ex.: '5519999999999' */
+const mk=document.getElementById('mk');if(mk){for(let i=1;i<=21;i++){const c=['bg-emerald-300','bg-amber-300','bg-slate-100'][i%3];mk.insertAdjacentHTML('beforeend',`<span class="h-6 rounded transition ${c}"></span>`)}}
+const io='IntersectionObserver'in window?new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}}),{threshold:.15}):null;
+if(mk){const cs=[...mk.children],on=['scale-125','ring-2','ring-zinc-900'];let k=8;cs[k].classList.add(...on);setInterval(()=>{cs[k].classList.remove(...on);k=(k+3)%21;cs[k].classList.add(...on)},2000)}
+document.querySelectorAll('.rv').forEach(el=>io?io.observe(el):el.classList.add('in'));
+const sb=document.getElementById('sb');addEventListener('scroll',()=>{const pl=document.getElementById('planos').getBoundingClientRect();sb.style.transform=(scrollY>500&&!(pl.top<innerHeight*.7&&pl.bottom>0))?'translateY(0)':'translateY(100%)'},{passive:true});
+if(WA){document.body.insertAdjacentHTML('beforeend',`<a href="https://wa.me/${WA}?text=${encodeURIComponent('Olá! Quero saber mais sobre a agenda online.')}" target="_blank" rel="noopener" aria-label="Falar no WhatsApp" class="fixed right-4 bottom-20 md:bottom-6 z-40 w-14 h-14 rounded-full bg-emerald-500 text-white text-2xl flex items-center justify-center shadow-2xl hover:scale-110 transition">💬</a>`)}})();
+
+/* ===== Clientes (edite aqui: foto = caminho/URL da imagem, ex.: '/clientes/maria.jpg') ===== */
+const CLIENTES=[{nome:'Nome do cliente',negocio:'Nome do negócio',foto:'',texto:'Escreva aqui o depoimento do cliente.'}];
+(function(){const el=document.getElementById('cli');
+const h=CLIENTES.map(c=>{const ini=(c.nome||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+return `<div class="w-[min(20rem,85vw)] shrink-0 rounded-2xl border border-white/10 bg-white/5 p-6 text-center hover:border-white/30 transition"><div class="relative mx-auto w-24 h-24 rounded-full gold flex items-center justify-center text-3xl font-extrabold text-white overflow-hidden ring-4 ring-white/10"><span>${esc(ini)}</span>${c.foto?`<img src="${esc(c.foto)}" alt="${esc(c.nome)}" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()">`:''}</div><p class="mt-4 text-zinc-300 italic">“${esc(c.texto)}”</p><p class="mt-3 font-bold text-white">${esc(c.nome)}</p><p class="text-sm text-zinc-400">${esc(c.negocio)}</p></div>`}).join('');
+function draw(){el.className='flex flex-nowrap justify-center gap-4 overflow-hidden';el.innerHTML=h;
+ if(el.scrollWidth>el.clientWidth+1){el.className='mqw overflow-hidden';el.innerHTML=`<div class="mq flex gap-4 w-max" style="--d:${CLIENTES.length*8}s">${h}<div class="flex gap-4" aria-hidden="true">${h}</div></div>`}}
+draw();let t;addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(draw,200)})})();
 </script>
 </body>
 </html>
