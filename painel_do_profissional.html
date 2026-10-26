@@ -98,6 +98,14 @@
         .border-t-transparent { border-top-color: transparent !important; }
         .toast-item { animation: fadeIn 0.25s ease-in-out; }
     </style>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Primstav Pro">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/icon-192.png">
 </head>
 <body class="text-slate-800 antialiased h-full w-full">
 
@@ -377,6 +385,10 @@
             document.documentElement.style.setProperty('--theme-primary-hover', palette.primaryHover);
             document.documentElement.style.setProperty('--theme-secondary', palette.secondary);
             document.documentElement.style.setProperty('--theme-text-primary', palette.dark);
+            // barra do app (celular e janela do PC) na cor do tema escolhido no perfil
+            let tc = document.querySelector('meta[name="theme-color"]');
+            if (!tc) { tc = document.createElement('meta'); tc.name = 'theme-color'; document.head.appendChild(tc); }
+            tc.setAttribute('content', palette.primary);
         }
 
         // A foto de fundo só aparece no painel se a opção "Aplicar também no painel" estiver marcada (bgApplyPanel)
@@ -404,6 +416,8 @@
         
         window.addEventListener('resize', () => {
             if(window.t) applyBgImageSettings();
+            const m = window.innerWidth <= 768;
+            if (m !== window.__calMob) { window.__calMob = m; if (window.t && typeof window.render === 'function') window.render(); }
         });
 
         function toList(v) { return Array.isArray(v) ? v.filter(x => x) : (v ? Object.values(v) : []); }
@@ -641,11 +655,13 @@
 
         // ---------- CALENDÁRIO: arrastar com mouse / tocar no celular ----------
         function attachDragHandlers() {
+            const msc = document.getElementById('cal-mob-sc');
+            if (msc) { msc.scrollTop = window.__calMobTop != null ? window.__calMobTop : 2 * 56; msc.addEventListener('scroll', () => { window.__calMobTop = msc.scrollTop; }, { passive: true }); }
             const dayColumns = document.querySelectorAll('.calendar-day-column');
             
             dayColumns.forEach(col => {
                 col.addEventListener('pointerdown', (e) => {
-                    if (e.pointerType !== 'mouse') return;
+                    if (e.pointerType !== 'mouse' || col.dataset.px) return;
                     if (e.target.closest('.appointment-postit')) return;
                     isDragging = true;
                     activeColumnEl = col;
@@ -669,11 +685,11 @@
 
                 // toque no celular: abre o modal no horário tocado (1h de duração)
                 col.addEventListener('click', (e) => {
-                    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+                    if (e.pointerType !== 'touch' && e.pointerType !== 'pen' && !col.dataset.px) return;
                     if (e.target.closest('.appointment-postit')) return;
                     const rect = col.getBoundingClientRect();
                     const y = Math.max(0, e.clientY - rect.top);
-                    const startMins = Math.floor(((y / 51) * 60 + CAL_START_HOUR * 60) / 30) * 30;
+                    const startMins = Math.floor(((y / (+col.dataset.px || 51)) * 60 + CAL_START_HOUR * 60) / 30) * 30;
                     openCreateModal(col.getAttribute('data-date'), minsToTime(startMins), minsToTime(startMins + 60));
                 });
             });
@@ -2262,13 +2278,21 @@
             currentWeekOffset = Math.floor((tgt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 7)); render();
         };
         window.calPickerOpen = false; window.calPickerYear = null;
+        // Calendário no celular (até 768px): faixa dos 7 dias + agenda de um dia por vez. No PC nada muda.
+        window.calSelDay = null; window.__calMob = window.innerWidth <= 768; window.__calMobTop = null;
+        window.calPickDay = function(d) { calSelDay = d; calPickerOpen = false; render(); };
+        window.calShiftWeek = function(n) {
+            if (calSelDay) { const x = new Date(calSelDay + 'T00:00:00'); x.setDate(x.getDate() + 7 * n); calSelDay = localDateStr(x); }
+            currentWeekOffset += n; calPickerOpen = false; render();
+        };
+        window.calGoToday = function() { currentWeekOffset = 0; calSelDay = null; calPickerOpen = false; render(); };
         window.toggleMonthPicker = function(y) { calPickerOpen = !calPickerOpen; calPickerYear = y; render(); };
         window.changePickerYear = function(d) { calPickerYear += d; render(); };
         window.jumpToMonthYear = function(y, m) {
             const sow = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
             const diff = sow(new Date(y, m, 1)) - sow(new Date());
             currentWeekOffset = Math.round(diff / (7 * 24 * 60 * 60 * 1000));
-            calPickerOpen = false; render();
+            calSelDay = null; calPickerOpen = false; render();
         };
         window.toggleFullscreen = function() { isCalendarFullscreen = !isCalendarFullscreen; render(); };
 
@@ -2344,24 +2368,54 @@
             const todayStrNow = localDateStr(nowD);
             const nowInRange = nowM >= CAL_START_HOUR * 60 && nowM <= (CAL_END_HOUR + 1) * 60;
 
+            // ---- corpo do calendário no celular ----
+            const isMobCal = window.innerWidth <= 768;
+            let mobBody = '';
+            if (isMobCal) {
+                const PXV = 56, d0 = localDateStr(weekDays[0]), d6 = localDateStr(weekDays[6]);
+                const sel = (calSelDay && calSelDay >= d0 && calSelDay <= d6) ? calSelDay : (todayStrNow >= d0 && todayStrNow <= d6 ? todayStrNow : d0);
+                calSelDay = sel;
+                const strip = weekDays.map(d => {
+                    const ds = localDateStr(d), on = ds === sel, w = doesEmployeeWorkOnDate(currentProfile, ds), n = weekApps.filter(a => a.date === ds).length;
+                    return `<button onclick="calPickDay('${ds}')" class="flex-1 min-w-0 flex flex-col items-center py-2 rounded-xl border ${on ? 'btn-theme-primary border-transparent' : 'bg-white'} ${w ? '' : 'opacity-60'}"><span class="text-[10px] uppercase font-bold ${on ? '' : 'text-slate-500'}">${d.toLocaleDateString('pt-BR', {weekday:'short'}).replace('.', '')}</span><span class="text-lg font-bold leading-tight ${on ? '' : (ds === todayStrNow ? 'text-theme-primary' : 'text-slate-800')}">${d.getDate()}</span><span class="h-2 flex items-center">${n ? `<span class="w-1.5 h-1.5 rounded-full ${on ? 'bg-white' : 'bg-theme-primary'}" ${on ? '' : 'style="background:var(--theme-primary)"'}></span>` : ''}</span></button>`;
+                }).join('');
+                const isW = doesEmployeeWorkOnDate(currentProfile, sel);
+                const L = appsByDayAndSlot[new Date(sel + 'T00:00:00').getDay()] || [];
+                const blocks = L.map(a => {
+                    const ov = L.filter(o => a.startMins < o.endMins && a.endMins > o.startMins), n = ov.length, ix = ov.findIndex(o => o.id === a.id), q = 100 / n;
+                    const top = (a.startMins - CAL_START_HOUR * 60) / 60 * PXV, h = Math.max(a.totalDuration / 60 * PXV - 2, 28), pd = a.status === 'pendente';
+                    const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId), col = emp ? (emp.color || '#dc2626') : '#dc2626';
+                    const ttl = (pd ? '⏳ ' : '') + (a.rescheduledAt ? '↻ ' : '') + a.time + ' · ' + esc(a.clientName);
+                    return `<div onclick="showAppDetails('${a.id}')" class="appointment-postit ${pd ? 'pending' : ''}" style="top:${top}px;height:${h}px;left:calc(${ix * q}% + 2px);width:calc(${q}% - 4px) !important;background-color:${col}"><div class="min-w-0 flex-1"><p class="font-bold truncate text-[11px] text-white">${ttl}</p>${h >= 42 ? `<p class="truncate text-[10px] text-white/90">${esc(emp ? emp.name : '')} · ${esc(a.proceduresNames.join(', '))}</p>` : ''}</div>${pd ? '<span class="pending-chip">PEND.</span>' : ''}</div>`;
+                }).join('');
+                const nl = (sel === todayStrNow && nowInRange) ? `<div class="absolute left-0 right-0 z-20 pointer-events-none" style="top:${(nowM - CAL_START_HOUR * 60) / 60 * PXV}px;height:2px;background:#ef4444"><span class="absolute -left-1 -top-[3px] w-2 h-2 rounded-full bg-red-500"></span></div>` : '';
+                const hint = (!L.length && isW) ? `<p class="absolute inset-x-0 text-center text-xs text-slate-400 pointer-events-none" style="top:${2 * PXV}px">Nenhum atendimento neste dia.<br>Toque em um horário para agendar.</p>` : '';
+                const folga = !isW ? '<div class="absolute top-2 inset-x-0 flex justify-center pointer-events-none z-10"><span class="text-[10px] bg-rose-100 text-rose-700 font-extrabold px-2 py-1 rounded uppercase">Folga</span></div>' : '';
+                mobBody = `<div class="p-2 bg-slate-100/50 shrink-0"><div class="flex gap-1">${strip}</div></div>
+                    <div id="cal-mob-sc" class="flex-1 overflow-y-auto custom-scrollbar bg-white"><div class="flex" style="height:${hours.length * PXV}px">
+                        <div class="flex-none border-r bg-slate-50" style="width:46px">${hours.map(h => `<div class="calendar-time-col border-b pt-1" style="height:${PXV}px">${h}</div>`).join('')}</div>
+                        <div data-date="${sel}" data-px="${PXV}" class="calendar-day-column relative flex-1 ${isW ? 'bg-white' : 'bg-slate-200 opacity-60 pointer-events-none'}">${hours.map(() => `<div class="border-b border-slate-100/80" style="height:${PXV}px"></div>`).join('')}${nl}${hint}${folga}${blocks}</div>
+                    </div></div>`;
+            }
+
             return `
                 ${isCalendarFullscreen ? '' : pendingBannerHtml(role, user)}
                 <div class="bg-white/90 backdrop-blur-md border rounded-2xl shadow-sm overflow-hidden flex flex-col relative ${isCalendarFullscreen ? 'calendar-fullscreen' : 'h-[600px]'}">
                     <div class="p-3 border-b flex justify-between bg-slate-50 shrink-0">
                         <div class="flex space-x-2">
-                            <button onclick="currentWeekOffset--;calPickerOpen=false;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                            <button onclick="calShiftWeek(-1)" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
                             <div class="relative">
-                                <button onclick="toggleMonthPicker(${viewYear})" title="Escolher mês" class="h-full flex items-center px-4 bg-white border rounded-xl font-bold hover:bg-slate-100 cursor-pointer">${monthNames[viewMonth]} ${viewYear}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
+                                <button onclick="toggleMonthPicker(${viewYear})" title="Escolher mês" class="h-full flex items-center px-3 md:px-4 bg-white border rounded-xl font-bold hover:bg-slate-100 cursor-pointer"><span class="md:hidden">${monthNames[viewMonth].slice(0,3)}</span><span class="hidden md:inline">${monthNames[viewMonth]}</span>&nbsp;${viewYear}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
                                 ${monthPicker}
                             </div>
-                            <button onclick="currentWeekOffset++;calPickerOpen=false;render()" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                            <button onclick="calShiftWeek(1)" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                         </div>
                         <div class="flex space-x-3">
-                            <button onclick="currentWeekOffset=0;calPickerOpen=false;render()" class="bg-theme-secondary text-theme-primary px-4 py-2.5 rounded-xl font-bold">Hoje</button>
+                            <button onclick="calGoToday()" class="bg-theme-secondary text-theme-primary px-3 md:px-4 py-2.5 rounded-xl font-bold">Hoje</button>
                             <button onclick="toggleFullscreen()" class="p-2.5 bg-slate-800 text-white rounded-xl"><i data-lucide="${isCalendarFullscreen ? 'minimize' : 'maximize'}" class="w-5 h-5"></i></button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-auto custom-scrollbar p-2 bg-slate-100/50">
+                    ${isMobCal ? mobBody : `<div class="flex-1 overflow-auto custom-scrollbar p-2 bg-slate-100/50">
                         <div class="calendar-grid relative bg-white border">
                             <div class="calendar-header-cell border-b border-r sticky top-0 left-0 z-30"></div>
                             ${weekDays.map(d => {
@@ -2387,7 +2441,7 @@
                                 `;
                             }).join('')}
                         </div>
-                    </div>
+                    </div>`}
                 </div>
             `;
         }
@@ -2776,5 +2830,8 @@
 
         window.cancelarAgendamento = function(id) { updateAppStatus(id, 'cancelado'); };
     </script>
+<script>
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+</script>
 </body>
 </html>
