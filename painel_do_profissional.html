@@ -98,16 +98,22 @@
         .peer:checked ~ .peer-checked\:bg-indigo-600 { background-color: var(--theme-primary) !important; }
         .border-t-transparent { border-top-color: transparent !important; }
         .toast-item { animation: fadeIn 0.25s ease-in-out; }
+        /* botão lua/sol no topo do painel (substitui o botão de copiar link, que agora fica em Configurações > Empresa) */
+        #mode-toggle { width: 2.25rem; height: 2.25rem; flex-shrink: 0; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background-color: var(--theme-secondary); border: 1px solid rgba(15,23,42,.1); box-shadow: 0 1px 2px rgba(15,23,42,.08); transition: transform .2s; cursor: pointer; }
+        #mode-toggle:hover { transform: scale(1.08) rotate(-8deg); }
+        html[data-mode="dark"] #mode-toggle { color: #fcd34d; background-color: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); box-shadow: none; }
+
+        /* modo noturno acompanha SEMPRE o tema escolhido pela empresa (igual ao agendamento do cliente); sem tema escolhido, o tema padrão é o âmbar Primstav */
+        html[data-mode="dark"] { color-scheme: dark; --dk-bg: color-mix(in srgb, var(--theme-primary) 8%, #07070a); }
+        html[data-mode="dark"] :is(.bg-theme-secondary, .bg-indigo-50, .bg-indigo-100, .hover\:bg-indigo-50:hover, .hover\:bg-indigo-100:hover) { background-color: color-mix(in srgb, var(--theme-primary) 30%, #0b0b0f) !important; }
+        html[data-mode="dark"] .drag-selection-box { background-color: color-mix(in srgb, var(--theme-primary) 35%, #0b0b0f); color: #fff; }
+
         /* ===== Modo noturno (só cores; não muda posição, tamanho nem configuração de nada) =====
            Visual padrão Primstav (igual ao index e ao entrar): fundo #07070a, brilho âmbar e cartões de vidro.
            Os dados e o tema salvo da empresa não são alterados: o modo claro continua exatamente como era. */
-        #mode-toggle { position: fixed; right: .75rem; bottom: .75rem; z-index: 90; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background: rgba(255,255,255,.85); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid rgba(15,23,42,.12); box-shadow: 0 6px 18px -6px rgba(15,23,42,.35); transition: transform .2s; cursor: pointer; }
-        #mode-toggle:hover { transform: scale(1.08) rotate(-8deg); }
-        html[data-mode="dark"] { color-scheme: dark; --theme-bg: #07070a !important; --theme-primary: #d97706 !important; --theme-primary-hover: #b45309 !important; --theme-secondary: rgba(245,158,11,.18) !important; --theme-text-primary: #fde68a !important; --a1: #f0b90b; --a2: #d97706; --a3: #b45309; }
-        html[data-mode="dark"] #mode-toggle { color: #fcd34d; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); box-shadow: 0 6px 18px -6px rgba(0,0,0,.6); }
-        html[data-mode="dark"], html[data-mode="dark"] body { background-color: #07070a !important; }
+        html[data-mode="dark"], html[data-mode="dark"] body { background-color: var(--dk-bg) !important; }
         html[data-mode="dark"] body { color: #e4e4e7; }
-        html[data-mode="dark"] body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--a2) 38%, transparent), transparent 70%), radial-gradient(50% 45% at 10% 95%, color-mix(in srgb, var(--a3) 28%, transparent), transparent 70%); }
+        html[data-mode="dark"] body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--theme-primary) 40%, transparent), transparent 70%), radial-gradient(50% 45% at 10% 95%, color-mix(in srgb, var(--theme-primary) 28%, transparent), transparent 70%); }
 
         /* textos */
         html[data-mode="dark"] :is(.text-slate-900, .text-slate-800, .text-slate-700) { color: #f4f4f5; }
@@ -115,7 +121,7 @@
         html[data-mode="dark"] .text-slate-400 { color: #8b8b94; }
         html[data-mode="dark"] .text-slate-300 { color: #71717a; }
         html[data-mode="dark"] :is(.hover\:text-slate-900:hover, .hover\:text-slate-800:hover, .hover\:text-slate-700:hover, .hover\:text-slate-600:hover) { color: #fff; }
-        html[data-mode="dark"] :is(.text-theme-primary, .text-indigo-600, .text-indigo-700) { color: #fbbf24 !important; }
+        html[data-mode="dark"] :is(.text-theme-primary, .text-indigo-600, .text-indigo-700) { color: color-mix(in srgb, var(--theme-primary) 45%, #fff) !important; }
         html[data-mode="dark"] :is(.text-rose-500, .text-rose-600, .text-rose-700, .text-rose-800, .text-rose-900, .hover\:text-rose-600:hover) { color: #fda4af; }
         html[data-mode="dark"] :is(.text-emerald-600, .text-emerald-700, .text-emerald-800) { color: #6ee7b7; }
         html[data-mode="dark"] :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900, .text-yellow-700) { color: #fde68a; }
@@ -141,8 +147,7 @@
         html[data-mode="dark"] :is(.bg-amber-100, .hover\:bg-amber-100:hover) { background-color: rgba(245,158,11,.22); }
         html[data-mode="dark"] .bg-sky-50 { background-color: rgba(56,189,248,.14); }
         html[data-mode="dark"] .bg-sky-100 { background-color: rgba(56,189,248,.22); }
-        html[data-mode="dark"] :is(.btn-theme-primary, .bg-indigo-600) { background: linear-gradient(135deg, #f0b90b, #d97706 60%, #b45309) !important; box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 8px 22px -8px rgba(217,119,6,.7); }
-        html[data-mode="dark"] :is(.btn-theme-primary, .bg-indigo-600):hover { filter: brightness(1.1); }
+        html[data-mode="dark"] :is(.btn-theme-primary, .bg-indigo-600) { box-shadow: 0 0 0 1px rgba(255,255,255,.22), 0 8px 22px -8px color-mix(in srgb, var(--theme-primary) 70%, #fff); }
 
         /* bordas */
         html[data-mode="dark"] :is(.border, .border-t, .border-b, .border-l, .border-r, .border-x, .border-y):not([class*="border-rose"]):not([class*="border-amber"]):not([class*="border-emerald"]):not([class*="border-sky"]):not([class*="border-indigo"]):not([class*="border-white"]) { border-color: rgba(255,255,255,.12); }
@@ -162,8 +167,15 @@
         html[data-mode="dark"] .calendar-header-cell { background: rgba(255,255,255,.05); }
         html[data-mode="dark"] .calendar-time-col { background: rgba(255,255,255,.05); color: #a1a1aa; }
         html[data-mode="dark"] #app .calendar-day-column { background-color: rgba(255,255,255,.02); }
-        html[data-mode="dark"] .calendar-fullscreen { background: #07070a; }
+        html[data-mode="dark"] .calendar-fullscreen { background: var(--dk-bg); }
         html[data-mode="dark"] .pending-chip { background: rgba(252,211,77,.2); color: #fde68a; }
+
+
+        /* ===== Modo noturno: cores que não são de status seguem o tema escolhido (igual ao agendamento do cliente) ===== */
+        html[data-mode="dark"] :is(.border-indigo-100, .border-indigo-300, .border-indigo-600, .hover\:border-indigo-300:hover, .hover\:border-indigo-400:hover, .focus\:border-indigo-500:focus) { border-color: color-mix(in srgb, var(--theme-primary) 60%, transparent) !important; }
+        html[data-mode="dark"] .bg-indigo-50\/30, html[data-mode="dark"] .bg-indigo-50\/20 { background-color: color-mix(in srgb, var(--theme-primary) 14%, transparent) !important; }
+        html[data-mode="dark"] #app .bg-white.rounded-2xl, html[data-mode="dark"] #app .bg-white.rounded-3xl { box-shadow: 0 30px 90px -25px color-mix(in srgb, var(--theme-primary) 45%, transparent), 0 10px 30px rgba(0,0,0,.5); }
+        html[data-mode="dark"] #mode-toggle { box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 45%, transparent); }
 
         /* barra de rolagem */
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -423,6 +435,7 @@
             }
             window.t = data;
             
+            window.__semTema = !t.themePalette;
             if(!t.themePalette) t.themePalette = 'indigo_classic';
             if(!t.admin.workingHours) t.admin.workingHours = getDefWH();
             if(!t.admin.exceptions) t.admin.exceptions = {};
@@ -450,7 +463,8 @@
         });
 
         function applyThemeCSS(paletteId) {
-            const palette = THEME_PALETTES.find(p => p.id === paletteId) || THEME_PALETTES.find(p => p.id === 'indigo_classic');
+            const PRIMSTAV = { id: 'primstav', bg: '#fffbeb', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f' };
+            const palette = window.__semTema ? PRIMSTAV : (THEME_PALETTES.find(p => p.id === paletteId) || THEME_PALETTES.find(p => p.id === 'indigo_classic'));
             document.documentElement.style.setProperty('--theme-bg', palette.bg);
             document.documentElement.style.setProperty('--theme-primary', palette.primary);
             document.documentElement.style.setProperty('--theme-primary-hover', palette.primaryHover);
@@ -701,9 +715,7 @@
                             <div class="flex items-center space-x-3">
                                 <button onclick="openCreateModal()" class="btn-theme-primary px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm transition-all"><i data-lucide="plus" class="w-4 h-4 mr-1"></i> Novo Agendamento</button>
                                 <button onclick="activeTab='profile'; render()" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors hidden sm:block">${esc(userProfile.name)}</button>
-                                ${role === 'admin' ? `
-                                    <button onclick="copiarLinkCliente()" class="text-xs md:text-sm bg-theme-secondary text-theme-primary px-4 py-2 rounded-lg font-bold flex items-center space-x-2 border border-slate-200 transition-colors shadow-sm"><i data-lucide="external-link" class="w-4 h-4"></i> <span class="hidden sm:inline">Copiar Link do Cliente</span><span class="sm:hidden">Link Cliente</span></button>
-                                ` : ''}
+                                ${window.__modeBtn ? window.__modeBtn() : ''}
                             </div>
                         </header>
 
@@ -717,6 +729,7 @@
             fitPreviews();
         };
 
+        window.__linkCliente = function() { return window.location.href.replace(/painel_do_profissional(\.html)?/, 'cliente').split('?')[0] + '?org=' + session.slug; };
         window.copiarLinkCliente = function() { 
             const baseUrl = window.location.href.replace(/painel_do_profissional(\.html)?/, 'cliente').split('?')[0];
             const link = baseUrl + '?org=' + session.slug; 
@@ -1782,7 +1795,8 @@
                         </div>
                     </div>`;
 
-                const empresaHtml = `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${logoShown ? `<img src="${logoShown}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${esc(t.name)}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>`;
+                const linkClienteHtml = `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl"><h3 class="font-bold text-lg mb-1 flex items-center"><i data-lucide="external-link" class="w-5 h-5 mr-2 text-theme-primary"></i> Link de Agendamento do Cliente</h3><p class="text-xs text-slate-500 mb-4">Envie este link aos seus clientes para eles agendarem sozinhos.</p><div class="bg-slate-100 p-3 rounded-lg break-all text-sm font-semibold text-theme-primary mb-4">${esc(window.__linkCliente())}</div><div class="flex gap-2"><button onclick="copiarLinkCliente()" class="flex-1 btn-theme-primary px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2"><i data-lucide="copy" class="w-4 h-4"></i> Copiar Link</button><a href="${esc(window.__linkCliente())}" target="_blank" class="flex-1 bg-theme-secondary text-theme-primary px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2"><i data-lucide="external-link" class="w-4 h-4"></i> Abrir</a></div></div>`;
+                const empresaHtml = linkClienteHtml + `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl"><h3 class="font-bold text-lg mb-4">Dados da Organização</h3><div class="flex items-center space-x-4 mb-6">${logoShown ? `<img src="${logoShown}" class="w-20 h-20 rounded-xl object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="camera" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Atualizar Logo<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'logo')"></label></div><div><label class="block text-xs font-semibold mb-1">Nome da Empresa</label><input type="text" id="org-name" value="${esc(t.name)}" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div><button onclick="salvarOrg()" class="bg-slate-800 text-white px-4 py-3.5 rounded-xl text-sm font-bold w-full">Salvar Dados</button></div>`;
 
                 const perfilHtml = `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl"><h3 class="font-bold text-lg mb-4">Meu Perfil</h3><div class="flex items-center space-x-4 mb-6">${avatarShown ? `<img src="${avatarShown}" class="w-20 h-20 rounded-full object-cover border border-slate-200">` : `<div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300"><i data-lucide="user" class="w-8 h-8 text-slate-400"></i></div>`}<label class="text-sm font-bold text-theme-primary bg-theme-secondary px-4 py-2.5 rounded-lg cursor-pointer">Mudar Foto<input type="file" class="hidden" accept="image/*" onchange="handleImageUpload(event, 'avatar')"></label></div><div class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="prof-name" value="${esc(user.name)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="prof-email" value="${esc(user.email)}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500"></div>${role === 'employee' ? `<div class="pt-4 border-t mt-4"><p class="text-xs font-bold text-rose-600 mb-3 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-1"></i>Trocar Senha</p><div><input type="password" id="prof-old-pass" placeholder="Senha Atual" class="w-full px-4 py-3 border rounded-xl text-sm mb-3"></div><div><input type="password" id="prof-new-pass" placeholder="Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm"></div><div><input type="password" id="prof-pass-conf" placeholder="Repita a Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm mt-3"></div></div>` : `<div><label class="block text-xs font-semibold mb-1">Nova Senha</label><input type="password" id="prof-pass-admin" placeholder="Deixe em branco para manter" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><input type="password" id="prof-pass-conf" placeholder="Repita a Nova Senha" class="w-full px-4 py-3 border rounded-xl text-sm mt-3 outline-none"></div>`}<button onclick="salvarPerfil('${user.id}')" class="btn-theme-primary font-bold px-4 py-3.5 rounded-xl text-sm w-full mt-4">Salvar Meu Perfil</button></div></div>`;
 
@@ -1922,6 +1936,7 @@
         };
 
         window.selectThemePalette = function(paletteId) {
+            window.__semTema = false;
             t.themePalette = paletteId;
             applyThemeCSS(paletteId);
             saveDB(['themePalette']);
@@ -2930,15 +2945,16 @@
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 </script>
 <script>
-/* modo noturno/claro: lua (vai para o escuro) e sol (volta para o claro). A escolha fica salva neste aparelho; o padrão é o noturno Primstav */
+/* modo noturno/claro: lua (vai para o escuro) e sol (volta para o claro). O botão fica no topo do painel; a escolha fica salva neste aparelho */
 (function () {
-    var H = document.documentElement, b = document.createElement('button'); b.id = 'mode-toggle'; b.type = 'button';
-    var A = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+    var H = document.documentElement;
+    var A = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
     var MOON = A + '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     var SUN = A + '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
-    function paint() { var d = H.getAttribute('data-mode') === 'dark'; b.innerHTML = d ? SUN : MOON; b.title = d ? 'Modo claro' : 'Modo noturno'; b.setAttribute('aria-label', b.title); }
-    b.onclick = function () { var d = H.getAttribute('data-mode') === 'dark'; if (d) H.removeAttribute('data-mode'); else H.setAttribute('data-mode', 'dark'); try { localStorage.setItem('painel_mode', d ? 'light' : 'dark'); } catch (e) {} paint(); };
-    document.body.appendChild(b); paint();
+    function dark() { return H.getAttribute('data-mode') === 'dark'; }
+    function paint() { var d = dark(), ttl = d ? 'Modo claro' : 'Modo noturno'; document.querySelectorAll('#mode-toggle').forEach(function (b) { b.innerHTML = d ? SUN : MOON; b.title = ttl; b.setAttribute('aria-label', ttl); }); }
+    window.__modeBtn = function () { var d = dark(), ttl = d ? 'Modo claro' : 'Modo noturno'; return '<button id="mode-toggle" type="button" onclick="__toggleMode()" title="' + ttl + '" aria-label="' + ttl + '">' + (d ? SUN : MOON) + '</button>'; };
+    window.__toggleMode = function () { var d = dark(); if (d) H.removeAttribute('data-mode'); else H.setAttribute('data-mode', 'dark'); try { localStorage.setItem('painel_mode', d ? 'light' : 'dark'); } catch (e) {} paint(); };
 })();
 </script>
 </body>
