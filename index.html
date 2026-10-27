@@ -419,7 +419,7 @@ const sb=document.getElementById('sb');addEventListener('scroll',()=>{const pl=d
 if(WA){document.body.insertAdjacentHTML('beforeend',`<a href="https://wa.me/${WA}?text=${encodeURIComponent('Olá! Quero saber mais sobre a agenda online.')}" target="_blank" rel="noopener" aria-label="Falar no WhatsApp" class="fixed right-4 bottom-20 md:bottom-6 z-40 w-14 h-14 rounded-full bg-emerald-500 text-white text-2xl flex items-center justify-center shadow-2xl hover:scale-110 transition">💬</a>`)}})();
 
 /* ===== Clientes (edite aqui: foto = caminho/URL da imagem, ex.: '/clientes/maria.jpg') ===== */
-const CLIENTES=[{nome:'Isabella Mendes',negocio:'Studio Aurora',foto:'isa.jpg',texto:'Facil de usar e flexivel.'}];
+const CLIENTES=[{nome:'Isabella Mendes',negocio:'Studio Aurora',foto:'isa.jpg',texto:'Fácil de usar, prático e flexível.'}];
 (function(){const el=document.getElementById('cli');
 const h=CLIENTES.map(c=>{const ini=(c.nome||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
 return `<div class="w-[min(20rem,85vw)] shrink-0 rounded-2xl border border-white/10 bg-white/5 p-6 text-center hover:border-white/30 transition"><div class="relative mx-auto w-24 h-24 rounded-full gold flex items-center justify-center text-3xl font-extrabold text-white overflow-hidden ring-4 ring-white/10"><span>${esc(ini)}</span>${c.foto?`<img src="${esc(c.foto)}" alt="${esc(c.nome)}" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()">`:''}</div><p class="mt-4 text-zinc-300 italic">“${esc(c.texto)}”</p><p class="mt-3 font-bold text-white">${esc(c.nome)}</p><p class="text-sm text-zinc-400">${esc(c.negocio)}</p></div>`}).join('');
