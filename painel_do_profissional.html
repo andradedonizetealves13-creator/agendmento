@@ -192,6 +192,8 @@
 
         /* contador de agendamentos no topo de cada dia (só PC): número em pílula; ponto âmbar pulsando = tem pendente */
         .day-count { display: inline-flex; align-items: center; gap: 5px; min-width: 26px; height: 22px; padding: 0 9px; justify-content: center; border-radius: 999px; font-size: 13px; font-weight: 800; line-height: 1; letter-spacing: .01em; color: color-mix(in srgb, var(--theme-primary) 65%, #000); background: color-mix(in srgb, var(--theme-primary) 22%, #fff); border: 1px solid color-mix(in srgb, var(--theme-primary) 45%, #fff); box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--theme-primary) 60%, transparent); }
+        .day-count-sm { min-width: 22px; height: 18px; padding: 0 6px; gap: 4px; font-size: 11px; }
+        .day-count-sm .day-count-dot { width: 6px; height: 6px; }
         .day-count-dot { position: relative; width: 7px; height: 7px; border-radius: 999px; background: #f59e0b; box-shadow: 0 0 0 1.5px rgba(0,0,0,.55); flex-shrink: 0; }
         .day-count-dot::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: #f59e0b; animation: dayPing 1.6s ease-out infinite; }
         @keyframes dayPing { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.8); opacity: 0; } }
@@ -2481,8 +2483,8 @@
                 const sel = (calSelDay && calSelDay >= d0 && calSelDay <= d6) ? calSelDay : (todayStrNow >= d0 && todayStrNow <= d6 ? todayStrNow : d0);
                 calSelDay = sel;
                 const strip = weekDays.map(d => {
-                    const ds = localDateStr(d), on = ds === sel, w = doesEmployeeWorkOnDate(currentProfile, ds), n = weekApps.filter(a => a.date === ds).length;
-                    return `<button onclick="calPickDay('${ds}')" class="flex-1 min-w-0 flex flex-col items-center py-2 rounded-xl border ${on ? 'btn-theme-primary border-transparent' : 'bg-white'} ${w ? '' : 'opacity-60'}"><span class="text-[10px] uppercase font-bold ${on ? '' : 'text-slate-500'}">${d.toLocaleDateString('pt-BR', {weekday:'short'}).replace('.', '')}</span><span class="text-lg font-bold leading-tight ${on ? '' : (ds === todayStrNow ? 'text-theme-primary' : 'text-slate-800')}">${d.getDate()}</span><span class="h-2 flex items-center">${n ? `<span class="w-1.5 h-1.5 rounded-full ${on ? 'bg-white' : 'bg-theme-primary'}" ${on ? '' : 'style="background:var(--theme-primary)"'}></span>` : ''}</span></button>`;
+                    const ds = localDateStr(d), on = ds === sel, w = doesEmployeeWorkOnDate(currentProfile, ds), dApps = weekApps.filter(a => a.date === ds), n = dApps.length, pn = dApps.filter(a => a.status === 'pendente').length;
+                    return `<button onclick="calPickDay('${ds}')" class="flex-1 min-w-0 flex flex-col items-center py-1.5 rounded-xl border ${on ? 'btn-theme-primary border-transparent' : 'bg-white'} ${w ? '' : 'opacity-60'}"><span class="h-[20px] flex items-center justify-center mb-0.5">${n ? `<span class="day-count day-count-sm${pn ? ' has-pending' : ''}" title="${n} ${n === 1 ? 'agendamento' : 'agendamentos'}${pn ? ' · ' + pn + (pn === 1 ? ' pendente' : ' pendentes') : ''}">${pn ? '<i class="day-count-dot"></i>' : ''}${n}</span>` : ''}</span><span class="text-[10px] uppercase font-bold ${on ? '' : 'text-slate-500'}">${d.toLocaleDateString('pt-BR', {weekday:'short'}).replace('.', '')}</span><span class="text-lg font-bold leading-tight ${on ? '' : (ds === todayStrNow ? 'text-theme-primary' : 'text-slate-800')}">${d.getDate()}</span></button>`;
                 }).join('');
                 const isW = doesEmployeeWorkOnDate(currentProfile, sel);
                 const L = appsByDayAndSlot[new Date(sel + 'T00:00:00').getDay()] || [];
