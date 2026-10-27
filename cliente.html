@@ -1191,16 +1191,7 @@
                                     <i data-lucide="gem" class="w-5 h-5 sm:w-6 sm:h-6"></i>
                                     <span class="text-[10px] font-semibold mt-0.5 md:hidden">Catálogo</span>
                                 </button>
-
-                                <button onclick="clientLogout()" class="flex flex-col items-center p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all md:hidden" title="Sair">
-                                    <i data-lucide="log-out" class="w-5 h-5"></i>
-                                    <span class="text-[10px] font-semibold mt-0.5">Sair</span>
-                                </button>
                             </div>
-
-                            <button onclick="clientLogout()" class="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all hidden md:block" title="Sair da Conta">
-                                <i data-lucide="log-out" class="w-6 h-6"></i>
-                            </button>
                         </aside>
 
                         <main class="flex-1 md:ml-20 p-4 sm:p-6 md:p-8 min-h-full flex flex-col">
@@ -1479,6 +1470,7 @@
 
                                 <button type="submit" class="w-full btn-theme-primary font-bold py-4 rounded-2xl shadow-lg mt-6 transition-all">Salvar Alterações do Perfil</button>
                             </form>
+                            <button type="button" onclick="clientLogout()" class="w-full mt-3 py-3.5 rounded-2xl border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-sm flex items-center justify-center gap-2 transition-colors"><i data-lucide="log-out" class="w-4 h-4"></i>Sair da conta</button>
                         </div>
                     </div>`;
             }
