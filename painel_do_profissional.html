@@ -785,6 +785,7 @@
                     </main>
                 </div>`;
             if(window.lucide) lucide.createIcons();
+            setTimeout(() => { if (window.initCompanyMap) initCompanyMap(); }, 0);
             attachDragHandlers();
             fitPreviews();
         };
@@ -1893,6 +1894,7 @@
                 const coAboutShown = ('companyAbout' in draft) ? draft.companyAbout : (t.companyAbout || '');
                 const coAddrShown = ('companyAddress' in draft) ? draft.companyAddress : (t.companyAddress || '');
                 const coPhoneShown = ('companyPhone' in draft) ? draft.companyPhone : (t.companyPhone || '');
+                const coPinShown = (function () { const la = ('companyLat' in draft) ? draft.companyLat : t.companyLat, ln = ('companyLng' in draft) ? draft.companyLng : t.companyLng; return (la === null || la === undefined || la === '' || ln === null || ln === undefined || ln === '' || !isFinite(Number(la)) || !isFinite(Number(ln))) ? null : [Number(la), Number(ln)]; })();
                 const paginaEmpresaHtml = `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl mt-6">
                     <h3 class="font-bold text-lg mb-1 flex items-center"><i data-lucide="store" class="w-5 h-5 mr-2 text-theme-primary"></i> Página da Empresa</h3>
                     <p class="text-xs text-slate-500 mb-4">Aparece para o cliente na aba <b>Empresa</b> do link de agendamento.</p>
@@ -1905,7 +1907,21 @@
                         ${coPhotoShown ? `<button type="button" onclick="removeCompanyPhoto()" class="px-4 py-2.5 rounded-lg text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100">Remover</button>` : ''}
                     </div>
                     <div><label class="block text-xs font-semibold mb-1">Sobre a empresa</label><textarea id="co-about" rows="5" maxlength="1200" placeholder="Conte a história, o diferencial e o que o cliente pode esperar..." class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500">${esc(coAboutShown)}</textarea></div>
-                    <div><label class="block text-xs font-semibold mb-1">Endereço (localização)</label><input type="text" id="co-addr" value="${esc(coAddrShown)}" placeholder="Rua, número, bairro, cidade - UF" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div>
+                    <div><label class="block text-xs font-semibold mb-1">Endereço (localização)</label><input type="text" id="co-addr" value="${esc(coAddrShown)}" placeholder="Rua, número, bairro, cidade - UF" class="w-full px-4 py-3 border rounded-xl text-sm mb-3 outline-none focus:border-indigo-500"></div>
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold mb-1">Local exato no mapa (pino)</label>
+                        <p class="text-[11px] text-slate-500 mb-2">Toque no mapa ou arraste o pino até o local exato. É esse ponto que o cliente vê.</p>
+                        <div class="flex gap-2 mb-2">
+                            <button type="button" onclick="coMapSearch()" class="flex-1 text-xs font-bold text-theme-primary bg-theme-secondary px-3 py-2.5 rounded-lg flex items-center justify-center gap-1.5"><i data-lucide="search" class="w-4 h-4"></i> Achar pelo endereço</button>
+                            <button type="button" onclick="coMapLocate()" class="flex-1 text-xs font-bold text-theme-primary bg-theme-secondary px-3 py-2.5 rounded-lg flex items-center justify-center gap-1.5"><i data-lucide="crosshair" class="w-4 h-4"></i> Estou aqui</button>
+                        </div>
+                        <div id="co-map" class="w-full h-64 rounded-2xl border border-slate-200 bg-slate-100 overflow-hidden relative z-0" data-lat="${coPinShown ? coPinShown[0] : ''}" data-lng="${coPinShown ? coPinShown[1] : ''}"></div>
+                        <input type="text" id="co-maplink" onchange="coMapFromLink(this.value)" placeholder="Ou cole aqui o link completo do Google Maps" class="w-full px-4 py-2.5 border rounded-xl text-xs mt-2 outline-none focus:border-indigo-500">
+                        <div class="flex items-center justify-between mt-2 text-[11px]">
+                            <span id="co-coords" class="font-semibold text-slate-500">${coPinShown ? 'Pino: ' + coPinShown[0].toFixed(5) + ', ' + coPinShown[1].toFixed(5) : 'Nenhum pino definido'}</span>
+                            <button type="button" onclick="coMapClear()" class="font-bold text-rose-600">Remover pino</button>
+                        </div>
+                    </div>
                     <div><label class="block text-xs font-semibold mb-1">Telefone / WhatsApp (opcional)</label><input type="text" id="co-phone" value="${esc(coPhoneShown)}" oninput="formatPhoneInput(this)" placeholder="(00) 00000-0000" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div>
                     <button onclick="salvarPaginaEmpresa()" class="btn-theme-primary px-4 py-3.5 rounded-xl text-sm font-bold w-full shadow-md">Salvar Página da Empresa</button>
                 </div>`;
@@ -2966,8 +2982,79 @@
             t.companyPhone = (draft.companyPhone !== undefined ? draft.companyPhone : (t.companyPhone || '')).trim();
             if ('companyPhoto' in draft) t.companyPhoto = draft.companyPhoto;
             else if (t.companyPhoto === undefined) t.companyPhoto = '';
-            ['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto'].forEach(k => delete draft[k]);
-            saveDB(['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto']).then(ok => { if (ok) showModal('Sucesso', 'Página da empresa atualizada! Já aparece para os clientes.', 'success'); });
+            if ('companyLat' in draft) { t.companyLat = draft.companyLat; t.companyLng = draft.companyLng; }
+            ['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto', 'companyLat', 'companyLng'].forEach(k => delete draft[k]);
+            saveDB(['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto', 'companyLat', 'companyLng']).then(ok => { if (ok) showModal('Sucesso', 'Página da empresa atualizada! Já aparece para os clientes.', 'success'); });
+        };
+        // ----- mapa com pino (Leaflet + OpenStreetMap, sem chave de API) -----
+        window._coMap = null; window._coMarker = null;
+        function coLoadLeaflet(cb) {
+            if (window.L) return cb();
+            if (!document.getElementById('leaflet-css')) {
+                const l = document.createElement('link'); l.id = 'leaflet-css'; l.rel = 'stylesheet';
+                l.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(l);
+            }
+            const sc = document.createElement('script');
+            sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+            sc.onload = cb;
+            sc.onerror = () => { const el = document.getElementById('co-map'); if (el) el.innerHTML = '<p class="p-4 text-xs text-slate-500 text-center">Não foi possível carregar o mapa. Verifique a conexão.</p>'; };
+            document.head.appendChild(sc);
+        }
+        function coSetPin(lat, lng, fly) {
+            lat = Math.round(lat * 1e6) / 1e6; lng = Math.round(lng * 1e6) / 1e6;
+            draft.companyLat = lat; draft.companyLng = lng;
+            const c = document.getElementById('co-coords'); if (c) c.textContent = 'Pino: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
+            if (!window._coMap) return;
+            if (window._coMarker) window._coMarker.setLatLng([lat, lng]);
+            else {
+                window._coMarker = L.marker([lat, lng], { draggable: true }).addTo(window._coMap);
+                window._coMarker.on('dragend', () => { const p = window._coMarker.getLatLng(); coSetPin(p.lat, p.lng, false); });
+            }
+            if (fly) window._coMap.setView([lat, lng], Math.max(window._coMap.getZoom(), 17));
+        }
+        window.initCompanyMap = function() {
+            const el = document.getElementById('co-map');
+            if (window._coMap) { try { window._coMap.remove(); } catch (_) {} window._coMap = null; window._coMarker = null; }
+            if (!el) return;
+            coLoadLeaflet(() => {
+                const el2 = document.getElementById('co-map'); if (!el2 || el2._leaflet_id) return;
+                const la = parseFloat(el2.dataset.lat), ln = parseFloat(el2.dataset.lng);
+                const has = isFinite(la) && isFinite(ln);
+                window._coMap = L.map(el2).setView(has ? [la, ln] : [-14.235, -51.925], has ? 17 : 4);
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(window._coMap);
+                if (has) coSetPin(la, ln, false);
+                window._coMap.on('click', (e) => coSetPin(e.latlng.lat, e.latlng.lng, false));
+                setTimeout(() => { if (window._coMap) window._coMap.invalidateSize(); }, 200);
+            });
+        };
+        window.coMapSearch = async function() {
+            const q = ((document.getElementById('co-addr') || {}).value || '').trim();
+            if (!q) return showModal('Aviso', 'Digite o endereço no campo acima e toque novamente.', 'info');
+            try {
+                const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+                const j = await r.json();
+                if (!j.length) return showModal('Não encontrado', 'Não achei esse endereço. Toque direto no mapa para marcar o local exato.', 'info');
+                coSetPin(parseFloat(j[0].lat), parseFloat(j[0].lon), true);
+            } catch (_) { showModal('Erro', 'Não foi possível buscar o endereço agora. Toque direto no mapa para marcar o local.', 'error'); }
+        };
+        window.coMapLocate = function() {
+            if (!navigator.geolocation) return showModal('Aviso', 'Seu navegador não permite obter a localização.', 'info');
+            navigator.geolocation.getCurrentPosition(
+                (pos) => coSetPin(pos.coords.latitude, pos.coords.longitude, true),
+                () => showModal('Aviso', 'Não consegui acessar sua localização. Permita o acesso ou toque no mapa.', 'info'),
+                { enableHighAccuracy: true, timeout: 10000 });
+        };
+        window.coMapFromLink = function(v) {
+            v = String(v || '');
+            const m = v.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || v.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || v.match(/[?&](?:q|ll|query|destination)=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/);
+            if (!m) { if (v.trim()) showModal('Link não reconhecido', 'Não consegui ler a posição desse link (links curtos como maps.app.goo.gl não funcionam). Abra o link, copie o endereço completo da barra do navegador ou toque direto no mapa.', 'info'); return; }
+            coSetPin(parseFloat(m[1]), parseFloat(m[2]), true);
+            const i = document.getElementById('co-maplink'); if (i) i.value = '';
+        };
+        window.coMapClear = function() {
+            draft.companyLat = null; draft.companyLng = null;
+            if (window._coMarker && window._coMap) { window._coMap.removeLayer(window._coMarker); window._coMarker = null; }
+            const c = document.getElementById('co-coords'); if (c) c.textContent = 'Nenhum pino definido';
         };
         function stashProcInputs() {
             const g = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
