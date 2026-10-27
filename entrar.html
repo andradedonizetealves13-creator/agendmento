@@ -11,7 +11,12 @@
         body { font-family: 'Inter', sans-serif; background-color: #07070a; position: relative; }
         html { background:#07070a; overflow-x:hidden; }
         /* altura = área visível real (dvh acompanha a barra do navegador no celular): só rola se o conteúdo passar da tela */
-        body.min-h-screen { min-height:100vh; min-height:100dvh; }
+        body.min-h-screen { height:100vh; height:100dvh; overflow:hidden; }
+        /* topo congelado (logo + abas); só o conteúdo abaixo rola, dentro do card */
+        #app-container { display:flex; flex-direction:column; max-height:calc(100vh - 2rem); max-height:calc(100dvh - 2rem); }
+        #app-container > * { flex-shrink:0; }
+        #scroll-area { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:4px; margin:0 -4px; -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.25) transparent; }
+        #scroll-area::-webkit-scrollbar { width:6px; } #scroll-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,.25); border-radius:6px; }
         body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
             background:
               radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--a2) 38%, transparent), transparent 70%),
@@ -82,6 +87,7 @@
 
         <div id="error-msg" class="hidden mb-4 p-3 bg-rose-50 text-rose-600 text-sm rounded-lg border border-rose-100 text-center font-medium"></div>
 
+        <div id="scroll-area">
         <form id="auth-form" class="space-y-4" novalidate>
             <div id="box-empresa" class="hidden">
                 <label class="block text-xs font-semibold mb-1 text-slate-700">Nome da Empresa</label>
@@ -118,6 +124,7 @@
                 <span>Entrar com o Google</span>
             </button>
             <p class="mt-4 text-[11px] text-slate-400">🔒 Conexão segura</p>
+        </div>
         </div>
     </div>
 
