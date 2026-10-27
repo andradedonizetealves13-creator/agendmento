@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>try{if(localStorage.getItem("cliente_mode")==="dark")document.documentElement.setAttribute("data-mode","dark")}catch(e){}</script>
     <style>
         :root {
             --theme-bg: #f8fafc;
@@ -116,6 +117,44 @@
         .eye-btn { position: absolute; width: 2.25rem; height: 2.25rem; display: flex; align-items: center; justify-content: center; color: #64748b; border-radius: .6rem; z-index: 2; }
         .eye-btn:hover { color: var(--theme-primary); background: rgba(0,0,0,.05); }
         @media (prefers-reduced-motion: reduce) { .btn-theme-primary { transition: none; } }
+
+        /* ===== Modo claro / escuro (botão sol/lua). As cores do tema da empresa continuam valendo ===== */
+        #mode-toggle { position: fixed; top: .75rem; right: .75rem; z-index: 60; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background: rgba(255,255,255,.75); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.7); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 45%, transparent); transition: transform .2s; }
+        #mode-toggle:hover { transform: scale(1.08) rotate(-8deg); }
+        @media (max-width: 767px) { main > .max-w-3xl.items-center.text-center:first-child { padding-right: 3.5rem; } }
+        html[data-mode="dark"] { color-scheme: dark; --dk-bg: color-mix(in srgb, var(--theme-primary) 14%, #09090c); }
+        html[data-mode="dark"] #mode-toggle { color: #fcd34d; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); box-shadow: 0 6px 18px -6px rgba(0,0,0,.6); }
+        html[data-mode="dark"], html[data-mode="dark"] body { background-color: var(--dk-bg) !important; }
+        html[data-mode="dark"] body { color: #e4e4e7; }
+        html[data-mode="dark"] :is(.text-slate-900, .text-slate-800, .text-slate-700) { color: #f4f4f5; }
+        html[data-mode="dark"] :is(.text-slate-600, .text-slate-500) { color: #a1a1aa; }
+        html[data-mode="dark"] .text-slate-400 { color: #8b8b94; }
+        html[data-mode="dark"] :is(.text-theme-primary, .text-indigo-600, .text-indigo-700) { color: color-mix(in srgb, var(--theme-primary) 45%, #fff) !important; }
+        html[data-mode="dark"] :is(.text-rose-600, .text-rose-700, .text-red-600, .text-red-700, .text-red-500) { color: #fda4af; }
+        html[data-mode="dark"] :is(.text-emerald-600, .text-emerald-700, .text-green-600, .text-green-700) { color: #6ee7b7; }
+        html[data-mode="dark"] :is(.text-amber-600, .text-amber-700, .text-yellow-700) { color: #fcd34d; }
+        html[data-mode="dark"] #app .bg-white { background-color: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.12) !important; box-shadow: 0 10px 30px -14px rgba(0,0,0,.7); }
+        html[data-mode="dark"] :is(.bg-white\/80, .bg-white\/95, .bg-white\/90) { background-color: rgba(20,20,26,.78) !important; }
+        html[data-mode="dark"] aside { background-color: rgba(12,12,16,.84) !important; border-color: rgba(255,255,255,.1) !important; }
+        html[data-mode="dark"] .bg-slate-50 { background-color: rgba(255,255,255,.05); }
+        html[data-mode="dark"] .bg-slate-100 { background-color: rgba(255,255,255,.08); }
+        html[data-mode="dark"] .bg-slate-200 { background-color: rgba(255,255,255,.14); }
+        html[data-mode="dark"] :is(.bg-rose-50, .bg-red-50) { background-color: rgba(244,63,94,.14); }
+        html[data-mode="dark"] :is(.bg-emerald-50, .bg-green-50) { background-color: rgba(16,185,129,.14); }
+        html[data-mode="dark"] :is(.bg-amber-50, .bg-yellow-50) { background-color: rgba(245,158,11,.14); }
+        html[data-mode="dark"] .bg-blue-50 { background-color: rgba(59,130,246,.14); }
+        html[data-mode="dark"] .bg-theme-secondary { background-color: color-mix(in srgb, var(--theme-primary) 30%, #0b0b0f) !important; }
+        html[data-mode="dark"] .bg-indigo-50, html[data-mode="dark"] .bg-indigo-100 { background-color: color-mix(in srgb, var(--theme-primary) 30%, #0b0b0f) !important; }
+        html[data-mode="dark"] :is(.border, .border-slate-100, .border-slate-200, .border-slate-300) { border-color: rgba(255,255,255,.12); }
+        html[data-mode="dark"] :is(input, select, textarea) { background-color: rgba(255,255,255,.07); color: #fff; border-color: rgba(255,255,255,.15); }
+        html[data-mode="dark"] :is(input, textarea)::placeholder { color: #71717a; }
+        html[data-mode="dark"] select option { background: #18181b; color: #fff; }
+        html[data-mode="dark"] .btn-theme-primary, html[data-mode="dark"] .bg-indigo-600 { box-shadow: 0 0 0 1px rgba(255,255,255,.22), 0 8px 22px -8px color-mix(in srgb, var(--theme-primary) 70%, #fff); }
+        html[data-mode="dark"] main button.btn-theme-primary.w-full { box-shadow: 0 -14px 16px -10px var(--dk-bg), 0 0 0 1px rgba(255,255,255,.22), 0 8px 22px -8px color-mix(in srgb, var(--theme-primary) 70%, #fff); }
+        html[data-mode="dark"] #custom-modal .bg-white { background-color: #1c1c22 !important; border: 1px solid rgba(255,255,255,.12); }
+        html[data-mode="dark"] .eye-btn { color: #a1a1aa; } html[data-mode="dark"] .eye-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
+        @media (max-width: 767px) { html[data-mode="dark"] main > .max-w-3xl.items-center.text-center:first-child { background: color-mix(in srgb, var(--dk-bg) 78%, transparent); border-bottom-color: rgba(255,255,255,.08); } }
+        html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -1848,6 +1887,18 @@
     var app = document.getElementById('app'), t;
     if (app) new MutationObserver(function () { cancelAnimationFrame(t); t = requestAnimationFrame(deco); }).observe(app, { childList: true, subtree: true });
     deco();
+})();
+</script>
+<script>
+/* alternar claro/escuro: lua (vai para o escuro) e sol (volta para o claro) */
+(function () {
+    var H = document.documentElement, b = document.createElement('button'); b.id = 'mode-toggle'; b.type = 'button';
+    var A = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+    var MOON = A + '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    var SUN = A + '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+    function paint() { var d = H.getAttribute('data-mode') === 'dark'; b.innerHTML = d ? SUN : MOON; b.title = b.ariaLabel = d ? 'Modo claro' : 'Modo escuro'; b.setAttribute('aria-label', b.title); }
+    b.onclick = function () { var d = H.getAttribute('data-mode') === 'dark'; if (d) H.removeAttribute('data-mode'); else H.setAttribute('data-mode', 'dark'); try { localStorage.setItem('cliente_mode', d ? 'light' : 'dark'); } catch (e) {} paint(); };
+    document.body.appendChild(b); paint();
 })();
 </script>
 </body>
