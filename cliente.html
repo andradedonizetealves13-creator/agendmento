@@ -129,6 +129,39 @@
         html[data-mode="dark"] #app .grid-cols-7 > div.select-none { background: transparent !important; border: 1px dashed rgba(255,255,255,.08); color: #4a4a55 !important; }
         html[data-mode="dark"] #app .grid-cols-7 > button:not(.btn-theme-primary) { background-color: rgba(255,255,255,.12) !important; border-color: color-mix(in srgb, var(--theme-primary) 60%, transparent) !important; color: #fff !important; font-weight: 800; box-shadow: 0 0 14px -6px color-mix(in srgb, var(--theme-primary) 70%, transparent); transition: background-color .15s, transform .15s; }
         html[data-mode="dark"] #app .grid-cols-7 > button:not(.btn-theme-primary):hover { background-color: color-mix(in srgb, var(--theme-primary) 30%, transparent) !important; transform: translateY(-1px); }
+
+        /* ===== Empresa + Catálogo ===== */
+        @keyframes riseIn { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
+        @keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes shine { to { transform: translateX(260%) skewX(-18deg); } }
+        @keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,.6); } 100% { box-shadow: 0 0 0 10px rgba(16,185,129,0); } }
+        .rise { opacity: 0; animation: riseIn .6s cubic-bezier(.2,.8,.2,1) forwards; }
+        .co-hero { position: relative; overflow: hidden; border-radius: 2rem; min-height: 280px; background: linear-gradient(135deg, var(--theme-primary), color-mix(in srgb, var(--theme-primary) 55%, #000)); box-shadow: 0 30px 70px -30px color-mix(in srgb, var(--theme-primary) 70%, transparent); }
+        .co-hero img.cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 6s ease; }
+        .co-hero:hover img.cover { transform: scale(1.08); }
+        .co-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.78), rgba(0,0,0,.15) 55%, rgba(0,0,0,.05)); pointer-events: none; }
+        .co-hero .orb { position: absolute; border-radius: 9999px; background: rgba(255,255,255,.14); filter: blur(2px); animation: floatY 6s ease-in-out infinite; }
+        .co-open-dot { width: 8px; height: 8px; border-radius: 9999px; background: #10b981; animation: pulseDot 1.6s infinite; }
+        .co-stat { transition: transform .25s ease, box-shadow .25s ease; }
+        .co-stat:hover { transform: translateY(-4px); }
+        .cat-card { position: relative; overflow: hidden; border-radius: 1.5rem; cursor: pointer; aspect-ratio: 4/5; background: linear-gradient(135deg, var(--theme-secondary), color-mix(in srgb, var(--theme-primary) 35%, #fff)); box-shadow: 0 14px 34px -16px rgba(0,0,0,.35); transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s ease; border: 0; padding: 0; text-align: left; width: 100%; }
+        .cat-card:hover { transform: translateY(-6px) scale(1.015); box-shadow: 0 28px 50px -18px color-mix(in srgb, var(--theme-primary) 60%, transparent); }
+        .cat-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .7s ease; }
+        .cat-card:hover img { transform: scale(1.1); }
+        .cat-card::before { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); transform: skewX(-18deg); z-index: 3; pointer-events: none; }
+        .cat-card:hover::before { animation: shine .9s ease; }
+        .cat-card .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.25) 45%, transparent 70%); z-index: 1; }
+        .cat-card .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 1rem; z-index: 2; color: #fff; }
+        .cat-card .price-tag { position: absolute; top: .75rem; right: .75rem; z-index: 2; background: rgba(255,255,255,.92); color: #047857; font-weight: 800; font-size: .75rem; padding: .3rem .65rem; border-radius: 9999px; box-shadow: 0 6px 16px -6px rgba(0,0,0,.4); }
+        .cat-chip { white-space: nowrap; transition: all .2s ease; }
+        #cat-detail { position: fixed; inset: 0; z-index: 120; display: flex; align-items: flex-end; justify-content: center; background: rgba(15,23,42,.62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); animation: fadeIn .25s ease; padding: 0; }
+        @media (min-width: 640px) { #cat-detail { align-items: center; padding: 1rem; } }
+        #cat-detail .cd-card { width: 100%; max-width: 30rem; max-height: 92vh; overflow-y: auto; background: #fff; color: #1e293b; border-radius: 2rem 2rem 0 0; box-shadow: 0 40px 100px -20px rgba(0,0,0,.6); animation: riseIn .45s cubic-bezier(.2,.8,.2,1) both; }
+        @media (min-width: 640px) { #cat-detail .cd-card { border-radius: 2rem; } }
+        html[data-mode="dark"] #cat-detail .cd-card { background: #1c1c22; color: #e4e4e7; border: 1px solid rgba(255,255,255,.12); }
+        html[data-mode="dark"] #cat-detail .cd-muted { color: #a1a1aa; }
+        html[data-mode="dark"] #cat-detail .cd-box { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.12); }
+        html[data-mode="dark"] .cat-card .price-tag { background: rgba(20,20,26,.9); color: #6ee7b7; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -953,7 +986,7 @@
             function renderClientAuth() {
                 const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="h-16 w-auto rounded-xl object-contain mx-auto mb-4 border shadow-sm">` : `<div class="w-16 h-16 rounded-xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-2xl">O</div>`;
                 return `
-                    <div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full m-auto fade-in z-10 my-8">
+                    <div class="m-auto w-full max-w-md p-4"><div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-xl border border-slate-100 w-full fade-in z-10">
                         <div class="text-center mb-6">${logoHtml}<h1 class="text-2xl font-bold text-slate-900">${esc(t.name)}</h1><p class="text-sm text-slate-500 mt-1">Área do Cliente</p></div>
                         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
                             <button onclick="clientAuthMode='login';render()" class="flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg ${clientAuthMode==='login'?'bg-white text-theme-primary font-bold shadow-sm':'text-slate-600'}">Entrar</button>
@@ -981,7 +1014,7 @@
                                 <span>Entrar com o Google</span>
                             </button>
                         </div>
-                    </div>`;
+                    </div></div>`;
             }
 
             // Se já existe cadastro nesta organização (ex.: criado pelo painel) só vincula o login (uid). NUNCA cria cadastro sozinho.
@@ -1090,7 +1123,7 @@
                 const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="h-16 w-auto rounded-xl object-contain mx-auto mb-4 border shadow-sm">` : `<div class="w-16 h-16 rounded-xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-2xl">O</div>`;
                 const guessName = u.displayName || '';
                 return `
-                    <div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full m-auto fade-in z-10 my-8">
+                    <div class="m-auto w-full max-w-md p-4"><div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-xl border border-slate-100 w-full fade-in z-10">
                         <div class="text-center mb-6">${logoHtml}<h1 class="text-2xl font-bold text-slate-900">${esc(t.name)}</h1><p class="text-sm text-slate-500 mt-1">Complete seu cadastro</p></div>
                         <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 text-xs text-amber-900">Você está conectado como <b>${esc(u.email || '')}</b>, mas ainda não tem cadastro de cliente em <b>${esc(t.name)}</b>. Informe seus dados para continuar.</div>
                         <form onsubmit="handleClientComplete(event)" class="space-y-3">
@@ -1099,7 +1132,7 @@
                             <button type="submit" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-2">Concluir cadastro</button>
                             <button type="button" onclick="clientLogout()" class="w-full text-xs font-bold text-slate-500 hover:text-slate-800 py-2">Sair e usar outra conta</button>
                         </form>
-                    </div>`;
+                    </div></div>`;
             }
 
             window.handleClientComplete = async function(e) {
@@ -1149,6 +1182,16 @@
                                     <span class="text-[10px] font-semibold mt-0.5 md:hidden">Meus horários</span>
                                 </button>
 
+                                <button onclick="clientActiveTab='company';render()" class="flex flex-col items-center p-1.5 sm:p-2 md:p-3 rounded-2xl transition-all ${clientActiveTab==='company'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Sobre a Empresa">
+                                    <i data-lucide="building-2" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                                    <span class="text-[10px] font-semibold mt-0.5 md:hidden">Empresa</span>
+                                </button>
+
+                                <button onclick="clientActiveTab='catalog';render()" class="flex flex-col items-center p-1.5 sm:p-2 md:p-3 rounded-2xl transition-all ${clientActiveTab==='catalog'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Catálogo">
+                                    <i data-lucide="gem" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                                    <span class="text-[10px] font-semibold mt-0.5 md:hidden">Catálogo</span>
+                                </button>
+
                                 <button onclick="clientLogout()" class="flex flex-col items-center p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all md:hidden" title="Sair">
                                     <i data-lucide="log-out" class="w-5 h-5"></i>
                                     <span class="text-[10px] font-semibold mt-0.5">Sair</span>
@@ -1169,13 +1212,200 @@
                             </div>
 
                             <div class="w-full flex-1">
-                                ${clientActiveTab === 'profile' ? renderClientProfileTab() : (clientActiveTab === 'appointments' ? renderClientAppointments() : renderClientBookingWizard())}
+                                ${clientActiveTab === 'profile' ? renderClientProfileTab() : (clientActiveTab === 'appointments' ? renderClientAppointments() : (clientActiveTab === 'company' ? renderClientCompanyTab() : (clientActiveTab === 'catalog' ? renderClientCatalogTab() : renderClientBookingWizard())))}
                             </div>
 
                             <div class="h-28 sm:h-32 md:h-8 w-full shrink-0"></div>
                         </main>
                     </div>`;
             }
+
+            // ===== EMPRESA + CATÁLOGO =====
+            // Campos lidos do cadastro da empresa (preenchidos pelo painel):
+            //   t.companyPhoto, t.companyAbout, t.companyAddress, t.companyPhone  |  procedimento: p.photo, p.description, p.category
+            function coPhoto() { return t.companyPhoto || t.coverImage || t.companyImage || ''; }
+            function coAbout() { return t.companyAbout || t.about || t.description || ''; }
+            function coAddress() { return t.companyAddress || t.address || t.location || ''; }
+            function coPhone() { return t.companyPhone || t.phone || t.whatsapp || ''; }
+            function procPhoto(p) { return p.photo || p.image || p.catalogPhoto || p.img || ''; }
+            function procDesc(p) { return p.description || p.desc || p.details || ''; }
+            function procCat(p) { return (p.category || p.categoria || '').toString().trim(); }
+            function brl(v) { return 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ','); }
+            function fmtDur(m) { m = Number(m) || 0; if (m < 60) return m + ' min'; const h = Math.floor(m / 60), r = m % 60; return h + 'h' + (r ? String(r).padStart(2, '0') : ''); }
+
+            function renderClientCompanyTab() {
+                const photo = coPhoto(), about = coAbout(), addr = coAddress(), phone = coPhone();
+                const nProcs = (t.procedures || []).length;
+                const nTeam = (t.employees || []).length;
+                const openToday = (function () { try { return isCompanyOpenOnDate(localDateStr()); } catch (e) { return false; } })();
+                const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                const wh = (t.admin && t.admin.workingHours) || getDefWH();
+                const todayIdx = new Date().getDay();
+                const hoursRows = [1, 2, 3, 4, 5, 6, 0].map(i => {
+                    const d = wh[i] || {};
+                    return `<div class="flex items-center justify-between py-2 ${i === todayIdx ? 'font-black text-theme-primary' : 'text-slate-600'} text-sm border-b border-slate-100 last:border-0">
+                        <span class="flex items-center gap-2">${i === todayIdx ? '<span class="co-open-dot"></span>' : '<span class="w-2"></span>'}${days[i]}</span>
+                        <span>${d.active ? esc(d.start) + ' – ' + esc(d.end) : '<span class="text-slate-400 font-medium">Fechado</span>'}</span></div>`;
+                }).join('');
+                const mapQuery = encodeURIComponent(addr);
+                const waDigits = cleanPhone(phone);
+                const waHref = waDigits ? 'https://wa.me/' + (waDigits.length <= 11 ? '55' + waDigits : waDigits) : '';
+                const team = (t.employees || []).slice(0, 8).map(e => `
+                    <div class="flex flex-col items-center w-20 shrink-0">
+                        <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-white shadow-md btn-theme-primary flex items-center justify-center font-black">${(e.avatar || e.photo) ? `<img src="${esc(e.avatar || e.photo)}" class="w-full h-full object-cover">` : esc((e.name || '?').charAt(0).toUpperCase())}</div>
+                        <span class="text-[11px] font-bold text-slate-700 mt-1.5 text-center leading-tight">${esc((e.name || '').split(' ')[0])}</span>
+                    </div>`).join('');
+
+                return `
+                <div class="max-w-3xl mx-auto fade-in space-y-5">
+                    <div class="co-hero rise flex items-end">
+                        ${photo ? `<img class="cover" src="${esc(photo)}" alt="${esc(t.name)}">` : `<div class="orb" style="width:140px;height:140px;top:-30px;right:-20px"></div><div class="orb" style="width:80px;height:80px;bottom:60px;left:30px;animation-delay:-2s"></div><div class="orb" style="width:50px;height:50px;top:70px;left:45%;animation-delay:-4s"></div><div class="absolute inset-0 flex items-center justify-center text-white/25"><i data-lucide="camera" class="w-16 h-16"></i></div>`}
+                        <div class="relative z-10 p-5 sm:p-7 w-full text-white">
+                            <span class="inline-flex items-center gap-2 text-[11px] font-bold bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1 rounded-full mb-3">
+                                ${openToday ? '<span class="co-open-dot"></span> Atendendo hoje' : '<span class="w-2 h-2 rounded-full bg-rose-400"></span> Fechado hoje'}
+                            </span>
+                            <h2 class="text-3xl sm:text-4xl font-black tracking-tight leading-none drop-shadow">${esc(t.name)}</h2>
+                            <p class="text-sm text-white/80 mt-2 font-medium">Conheça nosso espaço</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="co-stat rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-2xl p-4 text-center shadow-lg" style="animation-delay:.1s"><i data-lucide="sparkles" class="w-5 h-5 mx-auto text-theme-primary mb-1"></i><p class="text-2xl font-black text-slate-900">${nProcs}</p><p class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Serviços</p></div>
+                        <div class="co-stat rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-2xl p-4 text-center shadow-lg" style="animation-delay:.18s"><i data-lucide="users" class="w-5 h-5 mx-auto text-theme-primary mb-1"></i><p class="text-2xl font-black text-slate-900">${nTeam || 1}</p><p class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">${(nTeam || 1) > 1 ? 'Profissionais' : 'Profissional'}</p></div>
+                        <div class="co-stat rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-2xl p-4 text-center shadow-lg" style="animation-delay:.26s"><i data-lucide="heart" class="w-5 h-5 mx-auto text-theme-primary mb-1"></i><p class="text-2xl font-black text-slate-900">${(t.clients || []).length}</p><p class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Clientes</p></div>
+                    </div>
+
+                    <div class="rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-3xl p-5 sm:p-7 shadow-xl" style="animation-delay:.3s">
+                        <h3 class="text-lg font-black text-slate-900 flex items-center gap-2 mb-3"><span class="w-9 h-9 rounded-xl bg-theme-secondary text-theme-primary flex items-center justify-center"><i data-lucide="book-heart" class="w-5 h-5"></i></span>Sobre a empresa</h3>
+                        ${about ? `<p class="text-sm sm:text-[15px] text-slate-600 leading-relaxed whitespace-pre-line">${esc(about)}</p>` : `<p class="text-sm text-slate-400 italic">A empresa ainda não escreveu a sua história. Volte em breve! ✨</p>`}
+                    </div>
+
+                    ${team ? `<div class="rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-3xl p-5 shadow-xl" style="animation-delay:.36s">
+                        <h3 class="text-lg font-black text-slate-900 flex items-center gap-2 mb-4"><span class="w-9 h-9 rounded-xl bg-theme-secondary text-theme-primary flex items-center justify-center"><i data-lucide="users" class="w-5 h-5"></i></span>Nossa equipe</h3>
+                        <div class="flex gap-4 overflow-x-auto custom-scrollbar pb-2">${team}</div></div>` : ''}
+
+                    <div class="grid md:grid-cols-2 gap-5">
+                        <div class="rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-3xl p-5 shadow-xl" style="animation-delay:.42s">
+                            <h3 class="text-lg font-black text-slate-900 flex items-center gap-2 mb-2"><span class="w-9 h-9 rounded-xl bg-theme-secondary text-theme-primary flex items-center justify-center"><i data-lucide="clock" class="w-5 h-5"></i></span>Horários</h3>
+                            <div>${hoursRows}</div>
+                        </div>
+                        <div class="rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-3xl p-5 shadow-xl flex flex-col" style="animation-delay:.48s">
+                            <h3 class="text-lg font-black text-slate-900 flex items-center gap-2 mb-3"><span class="w-9 h-9 rounded-xl bg-theme-secondary text-theme-primary flex items-center justify-center"><i data-lucide="map-pin" class="w-5 h-5"></i></span>Localização</h3>
+                            ${addr ? `
+                                <p class="text-sm text-slate-600 font-medium mb-3">${esc(addr)}</p>
+                                <div class="rounded-2xl overflow-hidden border border-slate-200 flex-1 min-h-[160px] bg-slate-100">
+                                    <iframe title="Mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade" class="w-full h-full min-h-[160px] border-0" src="https://maps.google.com/maps?q=${mapQuery}&z=15&output=embed"></iframe>
+                                </div>
+                                <a href="https://www.google.com/maps/search/?api=1&query=${mapQuery}" target="_blank" rel="noopener noreferrer" class="mt-3 w-full btn-theme-primary font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2"><i data-lucide="navigation" class="w-4 h-4"></i>Como chegar</a>
+                            ` : `<p class="text-sm text-slate-400 italic">Endereço ainda não informado.</p>`}
+                        </div>
+                    </div>
+
+                    <div class="rise grid ${waHref ? 'sm:grid-cols-2' : ''} gap-3" style="animation-delay:.54s">
+                        <button onclick="openBookTab()" class="w-full btn-theme-primary font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2"><i data-lucide="calendar-plus" class="w-5 h-5"></i>Agendar um horário</button>
+                        ${waHref ? `<a href="${esc(waHref)}" target="_blank" rel="noopener noreferrer" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-colors"><i data-lucide="message-circle" class="w-5 h-5"></i>Falar no WhatsApp</a>` : ''}
+                    </div>
+                </div>`;
+            }
+
+            window.catFilter = 'Todos';
+            window.catApplyFilter = function () {
+                const q = ((document.getElementById('cat-search') || {}).value || '').toLowerCase().trim();
+                let shown = 0;
+                document.querySelectorAll('.cat-item').forEach(el => {
+                    const okCat = catFilter === 'Todos' || el.dataset.cat === catFilter;
+                    const okQ = !q || el.dataset.name.indexOf(q) !== -1;
+                    el.style.display = (okCat && okQ) ? '' : 'none';
+                    if (okCat && okQ) shown++;
+                });
+                const empty = document.getElementById('cat-empty'); if (empty) empty.classList.toggle('hidden', shown !== 0);
+                document.querySelectorAll('.cat-chip').forEach(c => {
+                    const on = c.dataset.cat === catFilter;
+                    c.classList.toggle('btn-theme-primary', on); c.classList.toggle('bg-white/90', !on); c.classList.toggle('text-slate-600', !on);
+                });
+            };
+            window.catSetFilter = function (c) { catFilter = c; catApplyFilter(); };
+
+            function renderClientCatalogTab() {
+                const list = t.procedures || [];
+                const cats = Array.from(new Set(list.map(procCat).filter(Boolean)));
+                if (catFilter !== 'Todos' && !cats.includes(catFilter)) catFilter = 'Todos';
+                const chips = cats.length ? ['Todos'].concat(cats).map(c => `<button onclick="catSetFilter(this.dataset.cat)" data-cat="${esc(c)}" class="cat-chip text-xs font-bold px-4 py-2 rounded-full border shadow-sm ${c === catFilter ? 'btn-theme-primary' : 'bg-white/90 text-slate-600'}">${esc(c)}</button>`).join('') : '';
+                const cards = list.map((p, i) => {
+                    const ph = procPhoto(p);
+                    return `
+                    <div class="cat-item rise" data-name="${esc((p.name || '').toLowerCase())}" data-cat="${esc(procCat(p))}" style="animation-delay:${Math.min(i, 12) * 60}ms">
+                        <button class="cat-card" onclick="openCatalogItem('${esc(String(p.id))}')">
+                            ${ph ? `<img loading="lazy" src="${esc(ph)}" alt="${esc(p.name)}">` : `<div class="absolute inset-0 flex items-center justify-center"><span class="text-6xl font-black text-theme-primary opacity-30">${esc((p.name || '?').charAt(0).toUpperCase())}</span></div>`}
+                            <span class="shade"></span>
+                            <span class="price-tag">${brl(p.price)}</span>
+                            <span class="info">
+                                <span class="block text-[10px] font-bold uppercase tracking-widest text-white/70 mb-0.5">${procCat(p) ? esc(procCat(p)) : 'Procedimento'}</span>
+                                <span class="block font-black text-base leading-tight">${esc(p.name)}</span>
+                                <span class="flex items-center gap-1 text-[11px] text-white/80 font-semibold mt-1"><i data-lucide="clock" class="w-3 h-3"></i>${fmtDur(p.duration)}</span>
+                            </span>
+                        </button>
+                    </div>`;
+                }).join('');
+
+                return `
+                <div class="max-w-4xl mx-auto fade-in">
+                    <div class="text-center mb-5 rise">
+                        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Nosso Catálogo</h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-1">Toque em um procedimento para ver os detalhes e agendar</p>
+                    </div>
+                    ${list.length ? `
+                    <div class="relative max-w-md mx-auto mb-4 rise" style="animation-delay:.05s">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
+                        <input id="cat-search" oninput="catApplyFilter()" type="text" placeholder="Buscar procedimento..." class="w-full pl-11 pr-4 py-3 bg-white/95 border rounded-2xl text-sm outline-none focus:border-indigo-500 font-medium shadow-sm">
+                    </div>
+                    ${chips ? `<div class="flex gap-2 overflow-x-auto custom-scrollbar pb-3 mb-3 justify-start sm:justify-center rise" style="animation-delay:.1s">${chips}</div>` : ''}
+                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">${cards}</div>
+                    <div id="cat-empty" class="hidden text-center py-12 text-slate-400 text-sm font-medium">Nenhum procedimento encontrado 🔍</div>
+                    ` : `<div class="bg-white/95 backdrop-blur-md border border-slate-100 rounded-3xl p-10 text-center shadow-xl"><i data-lucide="gem" class="w-10 h-10 mx-auto text-slate-300 mb-3"></i><p class="text-sm text-slate-500 font-medium">O catálogo ainda está sendo montado. Volte em breve!</p></div>`}
+                </div>`;
+            }
+
+            window.closeCatalogItem = function () { const el = document.getElementById('cat-detail'); if (el) el.remove(); document.removeEventListener('keydown', window._catEsc); };
+            window.openCatalogItem = function (id) {
+                const p = (t.procedures || []).find(x => String(x.id) === String(id));
+                if (!p) return;
+                closeCatalogItem();
+                const ph = procPhoto(p), desc = procDesc(p), dep = getDepositInfo([p]);
+                const el = document.createElement('div');
+                el.id = 'cat-detail';
+                el.onclick = (e) => { if (e.target === el) closeCatalogItem(); };
+                el.innerHTML = `
+                    <div class="cd-card custom-scrollbar">
+                        <div class="relative h-64 sm:h-72 overflow-hidden" style="background:linear-gradient(135deg,var(--theme-secondary),color-mix(in srgb,var(--theme-primary) 40%,#fff))">
+                            ${ph ? `<img src="${esc(ph)}" class="w-full h-full object-cover" alt="${esc(p.name)}">` : `<div class="w-full h-full flex items-center justify-center"><span class="text-8xl font-black text-theme-primary opacity-30">${esc((p.name || '?').charAt(0).toUpperCase())}</span></div>`}
+                            <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(0,0,0,.55),transparent 55%)"></div>
+                            <button onclick="closeCatalogItem()" class="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center backdrop-blur-md transition-colors" aria-label="Fechar"><i data-lucide="x" class="w-5 h-5"></i></button>
+                            ${procCat(p) ? `<span class="absolute bottom-3 left-4 text-[10px] font-bold uppercase tracking-widest text-white bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1 rounded-full">${esc(procCat(p))}</span>` : ''}
+                        </div>
+                        <div class="p-5 sm:p-6">
+                            <h3 class="text-2xl font-black leading-tight">${esc(p.name)}</h3>
+                            <div class="grid grid-cols-2 gap-3 mt-4">
+                                <div class="cd-box border rounded-2xl p-3 text-center bg-slate-50"><p class="cd-muted text-[10px] font-bold uppercase tracking-wide text-slate-500">Duração</p><p class="font-black text-lg mt-0.5">${fmtDur(p.duration)}</p></div>
+                                <div class="cd-box border rounded-2xl p-3 text-center bg-slate-50"><p class="cd-muted text-[10px] font-bold uppercase tracking-wide text-slate-500">Valor</p><p class="font-black text-lg mt-0.5 text-emerald-600">${brl(p.price)}</p></div>
+                            </div>
+                            ${dep ? `<p class="mt-3 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-center">Sinal para reservar: R$ ${dep.amount.toFixed(2).replace('.', ',')}</p>` : ''}
+                            ${desc ? `<p class="cd-muted text-sm text-slate-600 leading-relaxed mt-4 whitespace-pre-line">${esc(desc)}</p>` : ''}
+                            <button onclick="catBookItem('${esc(String(p.id))}')" class="w-full btn-theme-primary font-black py-4 rounded-2xl shadow-lg mt-5 flex items-center justify-center gap-2"><i data-lucide="calendar-plus" class="w-5 h-5"></i>Agendar este procedimento</button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(el);
+                window._catEsc = (e) => { if (e.key === 'Escape') closeCatalogItem(); };
+                document.addEventListener('keydown', window._catEsc);
+                if (window.lucide) lucide.createIcons();
+            };
+            window.catBookItem = function (id) {
+                closeCatalogItem();
+                resetBooking();
+                const pr = (t.procedures || []).find(x => String(x.id) === String(id));
+                clientBooking.procedures = pr ? [pr.id] : [];
+                openBookTab();
+            };
 
             function renderClientProfileTab() {
                 const isPasswordUser = auth.currentUser && auth.currentUser.providerData.some(p => p.providerId === 'password');
