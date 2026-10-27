@@ -122,6 +122,11 @@
         html[data-mode="dark"] :is(.btn-theme-primary, .bg-indigo-600) { box-shadow: 0 0 0 1px rgba(255,255,255,.22), 0 8px 22px -8px color-mix(in srgb, var(--theme-primary) 70%, #fff); }
         html[data-mode="dark"] #custom-modal .bg-white { background-color: #1c1c22 !important; border: 1px solid rgba(255,255,255,.12); }
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+
+        /* ===== Calendário (modo noturno): dias fechados apagados, dias disponíveis em destaque. Só cores ===== */
+        html[data-mode="dark"] #app .grid-cols-7 > div.select-none { background: transparent !important; border: 1px dashed rgba(255,255,255,.08); color: #4a4a55 !important; }
+        html[data-mode="dark"] #app .grid-cols-7 > button:not(.btn-theme-primary) { background-color: rgba(255,255,255,.12) !important; border-color: color-mix(in srgb, var(--theme-primary) 60%, transparent) !important; color: #fff !important; font-weight: 800; box-shadow: 0 0 14px -6px color-mix(in srgb, var(--theme-primary) 70%, transparent); transition: background-color .15s, transform .15s; }
+        html[data-mode="dark"] #app .grid-cols-7 > button:not(.btn-theme-primary):hover { background-color: color-mix(in srgb, var(--theme-primary) 30%, transparent) !important; transform: translateY(-1px); }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
