@@ -67,6 +67,8 @@
             #box-google > div { margin-bottom:.5rem; }
             #btn-google { padding-top:.6rem; padding-bottom:.6rem; }
         }
+        #nasc-box select { padding-left:.65rem; padding-right:.4rem; text-overflow:ellipsis; }
+        #app-container select option { background:#18181b; color:#fff; }
         @keyframes spn { to { transform:rotate(360deg); } }
         .eye { position:absolute; right:.5rem; top:42px; transform:translateY(-50%); width:2.25rem; height:2.25rem; display:flex; align-items:center; justify-content:center; color:#a1a1aa; border-radius:.6rem; }
         .eye:hover { color:#fff; background:rgba(255,255,255,.08); }
@@ -338,6 +340,12 @@
         function cnpjOk(c) { if (c.length !== 14 || /^(\d)\1+$/.test(c)) return false; for (let t = 12; t < 14; t++) { let s = 0, w = t - 7; for (let i = 0; i < t; i++) { s += c[i] * w--; if (w < 2) w = 9; } if ((s % 11 < 2 ? 0 : 11 - s % 11) != c[t]) return false; } return true; }
         function docOk(d) { return d.length === 11 ? cpfOk(d) : d.length === 14 ? cnpjOk(d) : false; }
 
+        const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        const nascBox = () => {
+            const ya = new Date().getFullYear() - 18; let anos = '<option value="">Ano</option>'; for (let y = ya; y >= 1920; y--) anos += `<option>${y}</option>`;
+            const meses = '<option value="">Mês</option>' + MESES.map((n, i) => `<option value="${i + 1}">${n}</option>`).join('');
+            return `<div id="nasc-box" class="relative"><label class="block text-xs font-semibold mb-1 text-slate-700">Data de nascimento</label><div class="grid gap-2" style="grid-template-columns:1fr 1.5fr 1.1fr"><select id="n-d" class="${IN}" aria-label="Dia"><option value="">Dia</option></select><select id="n-m" class="${IN}" aria-label="Mês">${meses}</select><select id="n-a" class="${IN}" aria-label="Ano">${anos}</select></div><input type="hidden" id="w-nasc"><p class="text-[11px] text-slate-400 mt-1">É preciso ter 18 anos ou mais.</p></div>`;
+        };
         function falha(id, msg) { const e = new Error(msg); e.wid = id; throw e; }
         function erroW(err) {
             try { _erroW(err); } catch (x) { console.error(x); showError('Não foi possível concluir. Tente novamente.'); }
@@ -352,7 +360,7 @@
         $('wizard').addEventListener('input', e => e.target.classList && e.target.classList.remove('border-rose-400', 'bg-rose-50'));
         $('w1').innerHTML = `<form id="w-form" class="space-y-4" novalidate>${fld('w-empresa', 'Nome da Empresa')}${fld('w-nome', 'Seu nome completo')}${fld('w-email', 'E-mail', 'email')}
             <div>${fld('w-doc', 'CPF ou CNPJ', 'text', 'inputmode="numeric" placeholder="Somente números"')}<p id="w-doc-hint" class="text-[11px] mt-1 h-4"></p></div>
-            ${fld('w-nasc', 'Data de nascimento', 'date', 'max="' + new Date().toISOString().slice(0, 10) + '"')}${fld('w-pass', 'Senha', 'password')}${fld('w-pass2', 'Repetir senha', 'password')}
+            ${nascBox()}${fld('w-pass', 'Senha', 'password')}${fld('w-pass2', 'Repetir senha', 'password')}
             <p class="text-[11px] text-slate-400 -mt-2">Mínimo de 6 caracteres. Com e-mail e senha você pode entrar sem usar o Google.</p>
             <button id="w-go" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md">Continuar</button>
             <p class="text-center text-[11px] text-slate-400">1 mês grátis. Sem cobrança agora.</p></form>`;
@@ -361,6 +369,14 @@
             if (d.length === 11 || d.length === 14) { const ok = docOk(d), t = d.length === 11 ? 'CPF' : 'CNPJ'; h.textContent = ok ? t + ' válido' : t + ' inválido, confira os números'; h.className = 'text-[11px] mt-1 h-4 font-semibold ' + (ok ? 'text-emerald-600' : 'text-rose-600'); }
             else { h.textContent = d.length ? 'Digitando ' + (d.length < 11 ? 'CPF' : 'CNPJ') + '…' : ''; h.className = 'text-[11px] mt-1 h-4 text-slate-400'; }
         });
+
+        (function () {
+            const d = $('n-d'), m = $('n-m'), a = $('n-a'), h = $('w-nasc'), pad = x => String(x).padStart(2, '0');
+            function dias() { const n = new Date(+a.value || 2000, +m.value || 1, 0).getDate(), cur = d.value; let o = '<option value="">Dia</option>'; for (let i = 1; i <= n; i++) o += `<option>${i}</option>`; d.innerHTML = o; if (cur && +cur <= n) d.value = cur; }
+            function sync() { h.value = (d.value && m.value && a.value) ? `${a.value}-${pad(m.value)}-${pad(d.value)}` : ''; [d, m, a].forEach(x => x.classList.remove('border-rose-400', 'bg-rose-50')); }
+            dias(); [m, a].forEach(x => x.addEventListener('change', () => { dias(); sync(); })); d.addEventListener('change', sync);
+            new MutationObserver(() => { if (h.classList.contains('border-rose-400')) { [d, m, a].forEach(x => x.classList.add('border-rose-400')); (!d.value ? d : !m.value ? m : !a.value ? a : d).focus(); h.classList.remove('border-rose-400', 'bg-rose-50'); } }).observe(h, { attributes: true, attributeFilter: ['class'] });
+        })();
 
         function mostrar(n) {
             $('stepper').innerHTML = ['Conta', 'Plano', 'Pagamento'].map((t, i) => { const on = i + 1 <= n; return `<div class="flex flex-col items-center"><div class="w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center ${on ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-500'}">${i + 1 < n ? '✓' : i + 1}</div><span class="mt-1 text-[11px] font-semibold ${on ? 'text-amber-700' : 'text-slate-400'}">${t}</span></div>`; }).join('<div class="flex-1 h-0.5 bg-slate-200 mt-4 mx-2"></div>');
