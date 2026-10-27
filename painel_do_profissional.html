@@ -189,6 +189,14 @@
         html[data-mode="dark"] .date-field { background-color: color-mix(in srgb, var(--theme-primary) 10%, #131317) !important; border-color: color-mix(in srgb, var(--theme-primary) 35%, rgba(255,255,255,.15)) !important; color: #fff; color-scheme: dark; }
         html[data-mode="dark"] .date-field::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .8; cursor: pointer; }
 
+
+        /* contador de agendamentos no topo de cada dia (só PC): número em pílula; ponto âmbar pulsando = tem pendente */
+        .day-count { display: inline-flex; align-items: center; gap: 5px; min-width: 22px; height: 20px; padding: 0 8px; justify-content: center; border-radius: 999px; font-size: 11px; font-weight: 800; line-height: 1; color: var(--theme-primary); background: color-mix(in srgb, var(--theme-primary) 14%, transparent); border: 1px solid color-mix(in srgb, var(--theme-primary) 30%, transparent); }
+        .day-count-dot { position: relative; width: 6px; height: 6px; border-radius: 999px; background: #f59e0b; flex-shrink: 0; }
+        .day-count-dot::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: #f59e0b; animation: dayPing 1.6s ease-out infinite; }
+        @keyframes dayPing { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.8); opacity: 0; } }
+        html[data-mode="dark"] .day-count { color: color-mix(in srgb, var(--theme-primary) 40%, #fff); background: color-mix(in srgb, var(--theme-primary) 28%, transparent); border-color: color-mix(in srgb, var(--theme-primary) 55%, transparent); }
+
         /* barra de rolagem */
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
@@ -2519,7 +2527,11 @@
                             ${weekDays.map(d => {
                                 const dateStr = localDateStr(d);
                                 const isWorking = doesEmployeeWorkOnDate(currentProfile, dateStr);
-                                return `<div class="calendar-header-cell border-b border-r sticky top-0 ${isWorking?'':'bg-slate-200/50'} z-20"><p class="text-xs text-slate-500 uppercase font-bold">${d.toLocaleDateString('pt-BR', {weekday:'short'})}</p><p class="text-xl font-bold ${dateStr === todayStrNow ? 'text-theme-primary' : 'text-slate-800'}">${d.getDate()}</p>${!isWorking ? `<span class="text-[9px] bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded uppercase">Folga</span>` : ''}</div>`;
+                                const dayApps = weekApps.filter(a => a.date === dateStr);
+                                const dayPend = dayApps.filter(a => a.status === 'pendente').length;
+                                const dayTitle = dayApps.length + (dayApps.length === 1 ? ' agendamento' : ' agendamentos') + (dayPend ? ' · ' + dayPend + (dayPend === 1 ? ' pendente' : ' pendentes') : '');
+                                const dayCount = `<div class="hidden md:flex justify-center h-5 mb-0.5">${dayApps.length ? `<span class="day-count${dayPend ? ' has-pending' : ''}" title="${dayTitle}">${dayPend ? '<i class="day-count-dot"></i>' : ''}${dayApps.length}</span>` : ''}</div>`;
+                                return `<div class="calendar-header-cell border-b border-r sticky top-0 ${isWorking?'':'bg-slate-200/50'} z-20">${dayCount}<p class="text-xs text-slate-500 uppercase font-bold">${d.toLocaleDateString('pt-BR', {weekday:'short'})}</p><p class="text-xl font-bold ${dateStr === todayStrNow ? 'text-theme-primary' : 'text-slate-800'}">${d.getDate()}</p>${!isWorking ? `<span class="text-[9px] bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded uppercase">Folga</span>` : ''}</div>`;
                             }).join('')}
                             
                             <div class="flex flex-col border-r bg-slate-50">
