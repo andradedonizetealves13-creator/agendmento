@@ -16,6 +16,11 @@
         #app-container { display:flex; flex-direction:column; max-height:calc(100vh - 2rem); max-height:calc(100dvh - 2rem); }
         #app-container > * { flex-shrink:0; }
         #scroll-area { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:4px; margin:0 -4px; -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.25) transparent; }
+        #scroll-area { overflow-x:hidden; touch-action:pan-y pinch-zoom; }
+        #app-container { overflow-x:hidden; }
+        html, body { overscroll-behavior:none; }
+        /* botão principal sempre visível: acompanha o rodapé da área que rola */
+        #btn-submit, #w-go { position:sticky; bottom:0; z-index:5; box-shadow:0 -14px 14px -8px rgba(12,12,14,.95), 0 6px 14px -4px rgba(0,0,0,.35); }
         #scroll-area::-webkit-scrollbar { width:6px; } #scroll-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,.25); border-radius:6px; }
         body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
             background:
@@ -48,6 +53,20 @@
         #btn-submit:not(:disabled):hover { transform:translateY(-1px); }
         #btn-submit:disabled, #w-go:disabled { opacity:.85; cursor:wait; }
         #btn-submit:disabled::before, #w-go:disabled::before { content:''; display:inline-block; width:1em; height:1em; margin-right:.55em; vertical-align:-.15em; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spn .7s linear infinite; }
+        @media (max-width:640px) {
+            #app-container { padding:1rem; }
+            #app-container > .text-center { margin-bottom:.5rem; }
+            #app-container img[alt="Logo Primstav"] { height:3rem; margin-bottom:.25rem; }
+            #app-container > .text-center p { font-size:.7rem; }
+            #tabs { margin-bottom:.75rem; }
+            #auth-form > * + *, #w-form > * + * { margin-top:.6rem; }
+            #app-container input, #app-container select { padding-top:.6rem; padding-bottom:.6rem; }
+            .eye { top:40px; }
+            #btn-submit, #w-go { padding-top:.8rem; padding-bottom:.8rem; }
+            #box-google { margin-top:.5rem; }
+            #box-google > div { margin-bottom:.5rem; }
+            #btn-google { padding-top:.6rem; padding-bottom:.6rem; }
+        }
         @keyframes spn { to { transform:rotate(360deg); } }
         .eye { position:absolute; right:.5rem; top:42px; transform:translateY(-50%); width:2.25rem; height:2.25rem; display:flex; align-items:center; justify-content:center; color:#a1a1aa; border-radius:.6rem; }
         .eye:hover { color:#fff; background:rgba(255,255,255,.08); }
