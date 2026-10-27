@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>var _m=null;try{_m=localStorage.getItem("cliente_mode")}catch(e){}if(_m!=="light")document.documentElement.setAttribute("data-mode","dark")</script>
+    <script>var _m=null,_d=null;try{_m=localStorage.getItem("cliente_mode");_d=localStorage.getItem("cliente_pal_default")}catch(e){}if(_m==="dark"||(_m!=="light"&&_d!=="0"))document.documentElement.setAttribute("data-mode","dark")</script>
     <style>
         :root {
             --theme-bg: #f8fafc;
@@ -87,45 +87,15 @@
         .cropper-mask {
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
         }
-    
-        /* ===== Acabamento padrão Primstav (as cores continuam vindo do tema da empresa) ===== */
-        html, body { height: 100vh; height: 100dvh; overscroll-behavior: none; }
-        #app { height: 100vh; height: 100dvh; overflow-x: hidden; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
-        /* cartões de vidro */
-        #app .bg-white:not(.bk-wizard .bg-white) { background-color: rgba(255,255,255,.72) !important; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
-        #app .bg-white:not(.bk-wizard .bg-white).rounded-2xl, #app .bg-white:not(.bk-wizard .bg-white).rounded-3xl { border-color: rgba(255,255,255,.65) !important; box-shadow: 0 10px 30px -14px color-mix(in srgb, var(--theme-primary) 40%, transparent); }
-        /* botões com degradê da cor do tema */
-        .btn-theme-primary, .bg-indigo-600 { background-image: linear-gradient(135deg, color-mix(in srgb, var(--theme-primary) 82%, #fff), var(--theme-primary) 55%, color-mix(in srgb, var(--theme-primary) 78%, #000)); }
-        .btn-theme-primary { transition: transform .15s, filter .15s, box-shadow .15s; }
-        .btn-theme-primary:not(:disabled):hover { filter: brightness(1.06); transform: translateY(-1px); }
-        .btn-theme-primary:not(:disabled):active { transform: none; }
-        .btn-theme-primary:disabled { opacity: .85; cursor: wait; }
-        .btn-theme-primary:disabled::before { content: ''; display: inline-block; width: 1em; height: 1em; margin-right: .5em; vertical-align: -.15em; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: pspin .7s linear infinite; }
-        @keyframes pspin { to { transform: rotate(360deg); } }
-        /* botão principal (Continuar) sempre visível */
-        main button.btn-theme-primary.w-full:not(.bk-wizard button) { position: sticky; bottom: 4.75rem; z-index: 20; box-shadow: 0 -14px 16px -10px var(--theme-bg), 0 8px 20px -6px color-mix(in srgb, var(--theme-primary) 55%, transparent); }
-        @media (min-width: 768px) { main button.btn-theme-primary.w-full:not(.bk-wizard button) { bottom: 1rem; } }
-        /* cabeçalho da empresa congelado e compacto no celular */
-        @media (max-width: 767px) {
-            main > .max-w-3xl.items-center.text-center:first-child { position: sticky; top: 0; z-index: 30; margin: -1rem -1rem .75rem; padding: .5rem 1rem; width: auto; max-width: none; flex-direction: row; gap: .6rem; justify-content: center; background: color-mix(in srgb, var(--theme-bg) 78%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(0,0,0,.06); }
-            main > .max-w-3xl.items-center.text-center:first-child > * { margin: 0 !important; }
-            main > .max-w-3xl.items-center.text-center:first-child img { height: 2.25rem; width: auto; max-height: 2.25rem; }
-            main > .max-w-3xl.items-center.text-center:first-child h1 { font-size: 1rem; }
-            main > .max-w-3xl.items-center.text-center:first-child span { display: none; }
-        }
-        @media (min-width: 640px) and (max-width: 767px) { main > .max-w-3xl.items-center.text-center:first-child { margin: -1.5rem -1.5rem .75rem; padding: .5rem 1.5rem; } }
-        .eye-btn { position: absolute; width: 2.25rem; height: 2.25rem; display: flex; align-items: center; justify-content: center; color: #64748b; border-radius: .6rem; z-index: 2; }
-        .eye-btn:hover { color: var(--theme-primary); background: rgba(0,0,0,.05); }
-        @media (prefers-reduced-motion: reduce) { .btn-theme-primary { transition: none; } }
 
-        /* ===== Modo claro / escuro (botão sol/lua). As cores do tema da empresa continuam valendo ===== */
+        /* ===== Modo noturno / claro (só cores; não muda posição de nada). Vale sobre qualquer tema ===== */
         #mode-toggle { position: fixed; top: .75rem; right: .75rem; z-index: 60; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background: rgba(255,255,255,.75); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.7); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 45%, transparent); transition: transform .2s; }
         #mode-toggle:hover { transform: scale(1.08) rotate(-8deg); }
-        @media (max-width: 767px) { main > .max-w-3xl.items-center.text-center:first-child { padding-right: 3.5rem; } }
         html[data-mode="dark"] { color-scheme: dark; --dk-bg: color-mix(in srgb, var(--theme-primary) 8%, #07070a); }
         html[data-mode="dark"] #mode-toggle { color: #fcd34d; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); box-shadow: 0 6px 18px -6px rgba(0,0,0,.6); }
         html[data-mode="dark"], html[data-mode="dark"] body { background-color: var(--dk-bg) !important; }
         html[data-mode="dark"] body { color: #e4e4e7; }
+        html[data-mode="dark"] body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--theme-primary) 40%, transparent), transparent 70%), radial-gradient(50% 45% at 10% 95%, color-mix(in srgb, var(--theme-primary) 28%, transparent), transparent 70%); }
         html[data-mode="dark"] :is(.text-slate-900, .text-slate-800, .text-slate-700) { color: #f4f4f5; }
         html[data-mode="dark"] :is(.text-slate-600, .text-slate-500) { color: #a1a1aa; }
         html[data-mode="dark"] .text-slate-400 { color: #8b8b94; }
@@ -133,8 +103,9 @@
         html[data-mode="dark"] :is(.text-rose-600, .text-rose-700, .text-red-600, .text-red-700, .text-red-500) { color: #fda4af; }
         html[data-mode="dark"] :is(.text-emerald-600, .text-emerald-700, .text-green-600, .text-green-700) { color: #6ee7b7; }
         html[data-mode="dark"] :is(.text-amber-600, .text-amber-700, .text-yellow-700) { color: #fcd34d; }
-        html[data-mode="dark"] #app .bg-white:not(.bk-wizard .bg-white) { background-color: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.12) !important; box-shadow: 0 10px 30px -14px rgba(0,0,0,.7); }
-        html[data-mode="dark"] :is(.bg-white\/80, .bg-white\/95, .bg-white\/90) { background-color: rgba(20,20,26,.78) !important; }
+        html[data-mode="dark"] #app .bg-white { background-color: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.12) !important; -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+        html[data-mode="dark"] #app .bg-white.rounded-2xl, html[data-mode="dark"] #app .bg-white.rounded-3xl { box-shadow: 0 30px 90px -25px color-mix(in srgb, var(--theme-primary) 45%, transparent), 0 10px 30px rgba(0,0,0,.5); }
+        html[data-mode="dark"] :is(.bg-white\/80, .bg-white\/95, .bg-white\/90) { background-color: rgba(20,20,26,.8) !important; }
         html[data-mode="dark"] aside { background-color: rgba(12,12,16,.84) !important; border-color: rgba(255,255,255,.1) !important; }
         html[data-mode="dark"] .bg-slate-50 { background-color: rgba(255,255,255,.05); }
         html[data-mode="dark"] .bg-slate-100 { background-color: rgba(255,255,255,.08); }
@@ -143,30 +114,14 @@
         html[data-mode="dark"] :is(.bg-emerald-50, .bg-green-50) { background-color: rgba(16,185,129,.14); }
         html[data-mode="dark"] :is(.bg-amber-50, .bg-yellow-50) { background-color: rgba(245,158,11,.14); }
         html[data-mode="dark"] .bg-blue-50 { background-color: rgba(59,130,246,.14); }
-        html[data-mode="dark"] .bg-theme-secondary { background-color: color-mix(in srgb, var(--theme-primary) 30%, #0b0b0f) !important; }
-        html[data-mode="dark"] .bg-indigo-50, html[data-mode="dark"] .bg-indigo-100 { background-color: color-mix(in srgb, var(--theme-primary) 30%, #0b0b0f) !important; }
+        html[data-mode="dark"] :is(.bg-theme-secondary, .bg-indigo-50, .bg-indigo-100) { background-color: color-mix(in srgb, var(--theme-primary) 30%, #0b0b0f) !important; }
         html[data-mode="dark"] :is(.border, .border-slate-100, .border-slate-200, .border-slate-300) { border-color: rgba(255,255,255,.12); }
         html[data-mode="dark"] :is(input, select, textarea) { background-color: rgba(255,255,255,.07); color: #fff; border-color: rgba(255,255,255,.15); }
         html[data-mode="dark"] :is(input, textarea)::placeholder { color: #71717a; }
         html[data-mode="dark"] select option { background: #18181b; color: #fff; }
-        html[data-mode="dark"] .btn-theme-primary, html[data-mode="dark"] .bg-indigo-600 { box-shadow: 0 0 0 1px rgba(255,255,255,.22), 0 8px 22px -8px color-mix(in srgb, var(--theme-primary) 70%, #fff); }
-        html[data-mode="dark"] main button.btn-theme-primary.w-full:not(.bk-wizard button) { box-shadow: 0 -14px 16px -10px var(--dk-bg), 0 0 0 1px rgba(255,255,255,.22), 0 8px 22px -8px color-mix(in srgb, var(--theme-primary) 70%, #fff); }
+        html[data-mode="dark"] :is(.btn-theme-primary, .bg-indigo-600) { box-shadow: 0 0 0 1px rgba(255,255,255,.22), 0 8px 22px -8px color-mix(in srgb, var(--theme-primary) 70%, #fff); }
         html[data-mode="dark"] #custom-modal .bg-white { background-color: #1c1c22 !important; border: 1px solid rgba(255,255,255,.12); }
-        html[data-mode="dark"] .eye-btn { color: #a1a1aa; } html[data-mode="dark"] .eye-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
-        @media (max-width: 767px) { html[data-mode="dark"] main > .max-w-3xl.items-center.text-center:first-child { background: color-mix(in srgb, var(--dk-bg) 78%, transparent); border-bottom-color: rgba(255,255,255,.08); } }
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
-
-        /* ===== Mesmo padrão do index/entrar: fundo escuro com brilho da cor do tema, vidro forte e logo em destaque ===== */
-        html[data-mode="dark"] body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-            background: radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--theme-primary) 40%, transparent), transparent 70%),
-                        radial-gradient(50% 45% at 10% 95%, color-mix(in srgb, var(--theme-primary) 28%, transparent), transparent 70%); }
-        html[data-mode="dark"] #app .bg-white:not(.bk-wizard .bg-white) { -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
-        html[data-mode="dark"] #app .bg-white:not(.bk-wizard .bg-white).rounded-2xl, html[data-mode="dark"] #app .bg-white:not(.bk-wizard .bg-white).rounded-3xl { box-shadow: 0 30px 90px -25px color-mix(in srgb, var(--theme-primary) 45%, transparent), 0 10px 30px rgba(0,0,0,.5); }
-        html[data-mode="dark"] main > .max-w-3xl.items-center.text-center:first-child img { background: rgba(255,255,255,.92); padding: .3rem .6rem; border-radius: .9rem; box-shadow: 0 0 24px color-mix(in srgb, var(--theme-primary) 55%, transparent); object-fit: contain; }
-
-        /* ===== Assistente de agendamento: layout original (sem vidro, sem botão fixo) ===== */
-        html[data-mode="dark"] .bk-wizard .bg-white { background-color: #1c1c22 !important; border-color: rgba(255,255,255,.12) !important; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
-        html[data-mode="dark"] .bk-wizard > [class*="bg-white/90"] { background-color: rgba(24,24,30,.96) !important; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -255,7 +210,8 @@
             { id: 'lime_garden',   bg: '#f7fee7', primary: '#4d7c0f', primaryHover: '#3f6212', secondary: '#d9f99d', dark: '#1a2e05' },
             { id: 'coffee_mocha',  bg: '#f5ebe0', primary: '#6f4e37', primaryHover: '#5a3e2b', secondary: '#d6ccc2', dark: '#3b2a1e' },
             { id: 'midnight_navy', bg: '#e2e8f0', primary: '#1e3a8a', primaryHover: '#172554', secondary: '#bfdbfe', dark: '#0b1437' },
-            { id: 'cherry_red',    bg: '#fef2f2', primary: '#dc2626', primaryHover: '#b91c1c', secondary: '#fecaca', dark: '#7f1d1d' }
+            { id: 'cherry_red',    bg: '#fef2f2', primary: '#dc2626', primaryHover: '#b91c1c', secondary: '#fecaca', dark: '#7f1d1d' },
+            { id: 'primstav',       bg: '#fffbeb', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f' }
         ];
 
         function getDefWH() {
@@ -366,7 +322,7 @@
                     if (!e.exceptions) e.exceptions = {};
                 });
                 
-                applyThemeCSS(t.themePalette || 'indigo_classic');
+                applyThemeCSS(t.themePalette || 'primstav');
                 applyBgImageSettings();
                 if (window.checkPaymentConfirmed) window.checkPaymentConfirmed();
                 
@@ -396,6 +352,8 @@
                 document.documentElement.style.setProperty('--theme-primary-hover', palette.primaryHover);
                 document.documentElement.style.setProperty('--theme-secondary', palette.secondary);
                 document.documentElement.style.setProperty('--theme-text-primary', palette.dark);
+                document.documentElement.setAttribute('data-palette', palette.id);
+                if (window.__autoMode) window.__autoMode(palette.id === 'primstav' && !(window.t && window.t.themePalette));
             }
 
             function applyBgImageSettings() {
@@ -1204,7 +1162,7 @@
                             </div>
 
                             <div class="w-full flex-1">
-                                ${clientActiveTab === 'profile' ? renderClientProfileTab() : (clientActiveTab === 'appointments' ? renderClientAppointments() : '<div class="bk-wizard">' + renderClientBookingWizard() + '</div>')}
+                                ${clientActiveTab === 'profile' ? renderClientProfileTab() : (clientActiveTab === 'appointments' ? renderClientAppointments() : renderClientBookingWizard())}
                             </div>
 
                             <div class="h-28 sm:h-32 md:h-8 w-full shrink-0"></div>
@@ -1880,36 +1838,22 @@
         }
     </script>
 <script>
-/* mostrar/ocultar senha — decora os campos de senha a cada renderização, sem alterar a lógica */
-(function () {
-    var OPEN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-    var SHUT = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></svg>';
-    function deco() {
-        document.querySelectorAll('#app input[type="password"]:not([data-eye])').forEach(function (i) {
-            i.setAttribute('data-eye', '1');
-            var p = i.offsetParent || i.parentElement; if (!p) return;
-            if (getComputedStyle(p).position === 'static') p.style.position = 'relative';
-            i.style.paddingRight = '2.75rem';
-            var b = document.createElement('button'); b.type = 'button'; b.className = 'eye-btn'; b.innerHTML = OPEN; b.setAttribute('aria-label', 'Mostrar senha');
-            b.style.top = (i.offsetTop + i.offsetHeight / 2 - 18) + 'px'; b.style.left = (i.offsetLeft + i.offsetWidth - 40) + 'px';
-            b.onclick = function () { var show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? SHUT : OPEN; b.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha'); };
-            i.insertAdjacentElement('afterend', b);
-        });
-    }
-    var app = document.getElementById('app'), t;
-    if (app) new MutationObserver(function () { cancelAnimationFrame(t); t = requestAnimationFrame(deco); }).observe(app, { childList: true, subtree: true });
-    deco();
-})();
-</script>
-<script>
-/* alternar claro/escuro: lua (vai para o escuro) e sol (volta para o claro) */
+/* modo noturno/claro: lua (vai para o escuro) e sol (volta para o claro). Escolha manual fica salva no aparelho */
 (function () {
     var H = document.documentElement, b = document.createElement('button'); b.id = 'mode-toggle'; b.type = 'button';
     var A = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
     var MOON = A + '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
     var SUN = A + '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
-    function paint() { var d = H.getAttribute('data-mode') === 'dark'; b.innerHTML = d ? SUN : MOON; b.title = b.ariaLabel = d ? 'Modo claro' : 'Modo escuro'; b.setAttribute('aria-label', b.title); }
+    function saved() { try { return localStorage.getItem('cliente_mode'); } catch (e) { return null; } }
+    function paint() { var d = H.getAttribute('data-mode') === 'dark'; b.innerHTML = d ? SUN : MOON; b.title = d ? 'Modo claro' : 'Modo noturno'; b.setAttribute('aria-label', b.title); }
     b.onclick = function () { var d = H.getAttribute('data-mode') === 'dark'; if (d) H.removeAttribute('data-mode'); else H.setAttribute('data-mode', 'dark'); try { localStorage.setItem('cliente_mode', d ? 'light' : 'dark'); } catch (e) {} paint(); };
+    /* chamado ao aplicar o tema: sem tema próprio => noturno (padrão Primstav); com tema próprio => claro, o tema da empresa como está */
+    window.__autoMode = function (isDefault) {
+        try { localStorage.setItem('cliente_pal_default', isDefault ? '1' : '0'); } catch (e) {}
+        if (saved()) return;
+        if (isDefault) H.setAttribute('data-mode', 'dark'); else H.removeAttribute('data-mode');
+        paint();
+    };
     document.body.appendChild(b); paint();
 })();
 </script>
