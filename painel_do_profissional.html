@@ -2,6 +2,7 @@
 <html lang="pt-BR" class="h-full">
 <head>
     <meta charset="UTF-8">
+    <script>var _m=null;try{_m=localStorage.getItem("painel_mode")}catch(e){}if(_m!=="light")document.documentElement.setAttribute("data-mode","dark")</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Primstav - Painel de Controle</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -97,6 +98,76 @@
         .peer:checked ~ .peer-checked\:bg-indigo-600 { background-color: var(--theme-primary) !important; }
         .border-t-transparent { border-top-color: transparent !important; }
         .toast-item { animation: fadeIn 0.25s ease-in-out; }
+        /* ===== Modo noturno (só cores; não muda posição, tamanho nem configuração de nada) =====
+           Visual padrão Primstav (igual ao index e ao entrar): fundo #07070a, brilho âmbar e cartões de vidro.
+           Os dados e o tema salvo da empresa não são alterados: o modo claro continua exatamente como era. */
+        #mode-toggle { position: fixed; right: .75rem; bottom: .75rem; z-index: 90; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background: rgba(255,255,255,.85); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid rgba(15,23,42,.12); box-shadow: 0 6px 18px -6px rgba(15,23,42,.35); transition: transform .2s; cursor: pointer; }
+        #mode-toggle:hover { transform: scale(1.08) rotate(-8deg); }
+        html[data-mode="dark"] { color-scheme: dark; --theme-bg: #07070a !important; --theme-primary: #d97706 !important; --theme-primary-hover: #b45309 !important; --theme-secondary: rgba(245,158,11,.18) !important; --theme-text-primary: #fde68a !important; --a1: #f0b90b; --a2: #d97706; --a3: #b45309; }
+        html[data-mode="dark"] #mode-toggle { color: #fcd34d; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); box-shadow: 0 6px 18px -6px rgba(0,0,0,.6); }
+        html[data-mode="dark"], html[data-mode="dark"] body { background-color: #07070a !important; }
+        html[data-mode="dark"] body { color: #e4e4e7; }
+        html[data-mode="dark"] body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--a2) 38%, transparent), transparent 70%), radial-gradient(50% 45% at 10% 95%, color-mix(in srgb, var(--a3) 28%, transparent), transparent 70%); }
+
+        /* textos */
+        html[data-mode="dark"] :is(.text-slate-900, .text-slate-800, .text-slate-700) { color: #f4f4f5; }
+        html[data-mode="dark"] :is(.text-slate-600, .text-slate-500) { color: #a1a1aa; }
+        html[data-mode="dark"] .text-slate-400 { color: #8b8b94; }
+        html[data-mode="dark"] .text-slate-300 { color: #71717a; }
+        html[data-mode="dark"] :is(.hover\:text-slate-900:hover, .hover\:text-slate-800:hover, .hover\:text-slate-700:hover, .hover\:text-slate-600:hover) { color: #fff; }
+        html[data-mode="dark"] :is(.text-theme-primary, .text-indigo-600, .text-indigo-700) { color: #fbbf24 !important; }
+        html[data-mode="dark"] :is(.text-rose-500, .text-rose-600, .text-rose-700, .text-rose-800, .text-rose-900, .hover\:text-rose-600:hover) { color: #fda4af; }
+        html[data-mode="dark"] :is(.text-emerald-600, .text-emerald-700, .text-emerald-800) { color: #6ee7b7; }
+        html[data-mode="dark"] :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900, .text-yellow-700) { color: #fde68a; }
+        html[data-mode="dark"] :is(.text-sky-600, .text-sky-700, .text-sky-800) { color: #7dd3fc; }
+
+        /* superfícies: cartões de vidro */
+        html[data-mode="dark"] #app .bg-white { background-color: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); }
+        html[data-mode="dark"] :is(#create-modal, #custom-modal, #toast-container) .bg-white { background-color: #1c1c22; border: 1px solid rgba(255,255,255,.12); }
+        html[data-mode="dark"] :is(.bg-white\/80, .bg-white\/90, .bg-white\/95) { background-color: rgba(20,20,26,.8) !important; }
+        html[data-mode="dark"] aside { background-color: rgba(12,12,16,.84) !important; border-color: rgba(255,255,255,.1) !important; }
+        html[data-mode="dark"] :is(.bg-slate-50, .bg-slate-100\/50) { background-color: rgba(255,255,255,.05); }
+        html[data-mode="dark"] .bg-slate-100 { background-color: rgba(255,255,255,.08); }
+        html[data-mode="dark"] .bg-slate-200 { background-color: rgba(255,255,255,.14); }
+        html[data-mode="dark"] .bg-slate-800 { background-color: #3f3f46; }
+        html[data-mode="dark"] :is(.hover\:bg-slate-50:hover, .hover\:bg-slate-50\/80:hover, .hover\:bg-white:hover) { background-color: rgba(255,255,255,.1); }
+        html[data-mode="dark"] :is(.hover\:bg-slate-100:hover, .hover\:bg-slate-100\/80:hover, .hover\:bg-slate-200:hover) { background-color: rgba(255,255,255,.16); }
+        html[data-mode="dark"] .hover\:bg-slate-900:hover { background-color: #52525b; }
+        html[data-mode="dark"] :is(.bg-rose-50, .hover\:bg-rose-50:hover) { background-color: rgba(244,63,94,.14); }
+        html[data-mode="dark"] :is(.bg-rose-100, .hover\:bg-rose-100:hover) { background-color: rgba(244,63,94,.22); }
+        html[data-mode="dark"] .bg-emerald-50 { background-color: rgba(16,185,129,.14); }
+        html[data-mode="dark"] .bg-emerald-100 { background-color: rgba(16,185,129,.22); }
+        html[data-mode="dark"] :is(.bg-amber-50, .bg-yellow-50) { background-color: rgba(245,158,11,.14); }
+        html[data-mode="dark"] :is(.bg-amber-100, .hover\:bg-amber-100:hover) { background-color: rgba(245,158,11,.22); }
+        html[data-mode="dark"] .bg-sky-50 { background-color: rgba(56,189,248,.14); }
+        html[data-mode="dark"] .bg-sky-100 { background-color: rgba(56,189,248,.22); }
+        html[data-mode="dark"] :is(.btn-theme-primary, .bg-indigo-600) { background: linear-gradient(135deg, #f0b90b, #d97706 60%, #b45309) !important; box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 8px 22px -8px rgba(217,119,6,.7); }
+        html[data-mode="dark"] :is(.btn-theme-primary, .bg-indigo-600):hover { filter: brightness(1.1); }
+
+        /* bordas */
+        html[data-mode="dark"] :is(.border, .border-t, .border-b, .border-l, .border-r, .border-x, .border-y):not([class*="border-rose"]):not([class*="border-amber"]):not([class*="border-emerald"]):not([class*="border-sky"]):not([class*="border-indigo"]):not([class*="border-white"]) { border-color: rgba(255,255,255,.12); }
+        html[data-mode="dark"] :is(.border-slate-100, .border-slate-100\/80, .border-slate-200, .border-slate-300, .hover\:border-slate-400:hover) { border-color: rgba(255,255,255,.14); }
+        html[data-mode="dark"] :is(.border-rose-100, .border-rose-200, .border-rose-300, .hover\:border-rose-200:hover) { border-color: rgba(244,63,94,.35); }
+        html[data-mode="dark"] :is(.border-emerald-100, .border-emerald-200, .border-emerald-300) { border-color: rgba(16,185,129,.35); }
+        html[data-mode="dark"] :is(.border-amber-200, .border-amber-300, .border-amber-400) { border-color: rgba(252,211,77,.45); }
+        html[data-mode="dark"] :is(.border-sky-200) { border-color: rgba(56,189,248,.35); }
+
+        /* campos de formulário */
+        html[data-mode="dark"] :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]) { background-color: rgba(255,255,255,.07); color: #fff; border-color: rgba(255,255,255,.15); }
+        html[data-mode="dark"] :is(input, textarea)::placeholder { color: #71717a; }
+        html[data-mode="dark"] select option { background: #18181b; color: #fff; }
+
+        /* agenda (calendário) */
+        html[data-mode="dark"] .calendar-grid { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.12); }
+        html[data-mode="dark"] .calendar-header-cell { background: rgba(255,255,255,.05); }
+        html[data-mode="dark"] .calendar-time-col { background: rgba(255,255,255,.05); color: #a1a1aa; }
+        html[data-mode="dark"] #app .calendar-day-column { background-color: rgba(255,255,255,.02); }
+        html[data-mode="dark"] .calendar-fullscreen { background: #07070a; }
+        html[data-mode="dark"] .pending-chip { background: rgba(252,211,77,.2); color: #fde68a; }
+
+        /* barra de rolagem */
+        html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
     </style>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ffffff">
@@ -2857,6 +2928,18 @@
     </script>
 <script>
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+</script>
+<script>
+/* modo noturno/claro: lua (vai para o escuro) e sol (volta para o claro). A escolha fica salva neste aparelho; o padrão é o noturno Primstav */
+(function () {
+    var H = document.documentElement, b = document.createElement('button'); b.id = 'mode-toggle'; b.type = 'button';
+    var A = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+    var MOON = A + '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    var SUN = A + '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+    function paint() { var d = H.getAttribute('data-mode') === 'dark'; b.innerHTML = d ? SUN : MOON; b.title = d ? 'Modo claro' : 'Modo noturno'; b.setAttribute('aria-label', b.title); }
+    b.onclick = function () { var d = H.getAttribute('data-mode') === 'dark'; if (d) H.removeAttribute('data-mode'); else H.setAttribute('data-mode', 'dark'); try { localStorage.setItem('painel_mode', d ? 'light' : 'dark'); } catch (e) {} paint(); };
+    document.body.appendChild(b); paint();
+})();
 </script>
 </body>
 </html>
