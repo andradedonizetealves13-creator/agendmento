@@ -86,6 +86,36 @@
         .cropper-mask {
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
         }
+    
+        /* ===== Acabamento padrão Primstav (as cores continuam vindo do tema da empresa) ===== */
+        html, body { height: 100vh; height: 100dvh; overscroll-behavior: none; }
+        #app { height: 100vh; height: 100dvh; overflow-x: hidden; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
+        /* cartões de vidro */
+        #app .bg-white { background-color: rgba(255,255,255,.72) !important; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+        #app .bg-white.rounded-2xl, #app .bg-white.rounded-3xl { border-color: rgba(255,255,255,.65) !important; box-shadow: 0 10px 30px -14px color-mix(in srgb, var(--theme-primary) 40%, transparent); }
+        /* botões com degradê da cor do tema */
+        .btn-theme-primary, .bg-indigo-600 { background-image: linear-gradient(135deg, color-mix(in srgb, var(--theme-primary) 82%, #fff), var(--theme-primary) 55%, color-mix(in srgb, var(--theme-primary) 78%, #000)); }
+        .btn-theme-primary { transition: transform .15s, filter .15s, box-shadow .15s; }
+        .btn-theme-primary:not(:disabled):hover { filter: brightness(1.06); transform: translateY(-1px); }
+        .btn-theme-primary:not(:disabled):active { transform: none; }
+        .btn-theme-primary:disabled { opacity: .85; cursor: wait; }
+        .btn-theme-primary:disabled::before { content: ''; display: inline-block; width: 1em; height: 1em; margin-right: .5em; vertical-align: -.15em; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: pspin .7s linear infinite; }
+        @keyframes pspin { to { transform: rotate(360deg); } }
+        /* botão principal (Continuar) sempre visível */
+        main button.btn-theme-primary.w-full { position: sticky; bottom: 4.75rem; z-index: 20; box-shadow: 0 -14px 16px -10px var(--theme-bg), 0 8px 20px -6px color-mix(in srgb, var(--theme-primary) 55%, transparent); }
+        @media (min-width: 768px) { main button.btn-theme-primary.w-full { bottom: 1rem; } }
+        /* cabeçalho da empresa congelado e compacto no celular */
+        @media (max-width: 767px) {
+            main > .max-w-3xl.items-center.text-center:first-child { position: sticky; top: 0; z-index: 30; margin: -1rem -1rem .75rem; padding: .5rem 1rem; width: auto; max-width: none; flex-direction: row; gap: .6rem; justify-content: center; background: color-mix(in srgb, var(--theme-bg) 78%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(0,0,0,.06); }
+            main > .max-w-3xl.items-center.text-center:first-child > * { margin: 0 !important; }
+            main > .max-w-3xl.items-center.text-center:first-child img { height: 2.25rem; width: auto; max-height: 2.25rem; }
+            main > .max-w-3xl.items-center.text-center:first-child h1 { font-size: 1rem; }
+            main > .max-w-3xl.items-center.text-center:first-child span { display: none; }
+        }
+        @media (min-width: 640px) and (max-width: 767px) { main > .max-w-3xl.items-center.text-center:first-child { margin: -1.5rem -1.5rem .75rem; padding: .5rem 1.5rem; } }
+        .eye-btn { position: absolute; width: 2.25rem; height: 2.25rem; display: flex; align-items: center; justify-content: center; color: #64748b; border-radius: .6rem; z-index: 2; }
+        .eye-btn:hover { color: var(--theme-primary); background: rgba(0,0,0,.05); }
+        @media (prefers-reduced-motion: reduce) { .btn-theme-primary { transition: none; } }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -1798,5 +1828,27 @@
             window.showModal = function() { _showModalBase.apply(this, arguments); setTimeout(window.drawPixQr, 0); };
         }
     </script>
+<script>
+/* mostrar/ocultar senha — decora os campos de senha a cada renderização, sem alterar a lógica */
+(function () {
+    var OPEN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    var SHUT = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></svg>';
+    function deco() {
+        document.querySelectorAll('#app input[type="password"]:not([data-eye])').forEach(function (i) {
+            i.setAttribute('data-eye', '1');
+            var p = i.offsetParent || i.parentElement; if (!p) return;
+            if (getComputedStyle(p).position === 'static') p.style.position = 'relative';
+            i.style.paddingRight = '2.75rem';
+            var b = document.createElement('button'); b.type = 'button'; b.className = 'eye-btn'; b.innerHTML = OPEN; b.setAttribute('aria-label', 'Mostrar senha');
+            b.style.top = (i.offsetTop + i.offsetHeight / 2 - 18) + 'px'; b.style.left = (i.offsetLeft + i.offsetWidth - 40) + 'px';
+            b.onclick = function () { var show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? SHUT : OPEN; b.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha'); };
+            i.insertAdjacentElement('afterend', b);
+        });
+    }
+    var app = document.getElementById('app'), t;
+    if (app) new MutationObserver(function () { cancelAnimationFrame(t); t = requestAnimationFrame(deco); }).observe(app, { childList: true, subtree: true });
+    deco();
+})();
+</script>
 </body>
 </html>
