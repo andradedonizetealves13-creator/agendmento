@@ -8,7 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
                 :root { --a1:#f0b90b; --a2:#d97706; --a3:#b45309; }
-        body { font-family: 'Inter', sans-serif; background-color: #07070a; position: relative; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #07070a; position: relative; }
+        html { background:#07070a; overflow-x:hidden; }
+        /* altura = área visível real (dvh acompanha a barra do navegador no celular): só rola se o conteúdo passar da tela */
+        body.min-h-screen { min-height:100vh; min-height:100dvh; }
         body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
             background:
               radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--a2) 38%, transparent), transparent 70%),
@@ -38,7 +41,7 @@
         .bg-amber-600, .bg-amber-700 { background:linear-gradient(135deg,var(--a1),var(--a2) 60%,var(--a3)); }
         .bg-amber-600:hover, .bg-amber-700:hover { filter:brightness(1.1); }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#d97706">
