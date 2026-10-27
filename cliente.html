@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>try{if(localStorage.getItem("cliente_mode")==="dark")document.documentElement.setAttribute("data-mode","dark")}catch(e){}</script>
+    <script>var _m=null;try{_m=localStorage.getItem("cliente_mode")}catch(e){}if(_m!=="light")document.documentElement.setAttribute("data-mode","dark")</script>
     <style>
         :root {
             --theme-bg: #f8fafc;
@@ -122,7 +122,7 @@
         #mode-toggle { position: fixed; top: .75rem; right: .75rem; z-index: 60; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background: rgba(255,255,255,.75); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.7); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 45%, transparent); transition: transform .2s; }
         #mode-toggle:hover { transform: scale(1.08) rotate(-8deg); }
         @media (max-width: 767px) { main > .max-w-3xl.items-center.text-center:first-child { padding-right: 3.5rem; } }
-        html[data-mode="dark"] { color-scheme: dark; --dk-bg: color-mix(in srgb, var(--theme-primary) 14%, #09090c); }
+        html[data-mode="dark"] { color-scheme: dark; --dk-bg: color-mix(in srgb, var(--theme-primary) 8%, #07070a); }
         html[data-mode="dark"] #mode-toggle { color: #fcd34d; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); box-shadow: 0 6px 18px -6px rgba(0,0,0,.6); }
         html[data-mode="dark"], html[data-mode="dark"] body { background-color: var(--dk-bg) !important; }
         html[data-mode="dark"] body { color: #e4e4e7; }
@@ -155,6 +155,14 @@
         html[data-mode="dark"] .eye-btn { color: #a1a1aa; } html[data-mode="dark"] .eye-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
         @media (max-width: 767px) { html[data-mode="dark"] main > .max-w-3xl.items-center.text-center:first-child { background: color-mix(in srgb, var(--dk-bg) 78%, transparent); border-bottom-color: rgba(255,255,255,.08); } }
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+
+        /* ===== Mesmo padrão do index/entrar: fundo escuro com brilho da cor do tema, vidro forte e logo em destaque ===== */
+        html[data-mode="dark"] body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+            background: radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--theme-primary) 40%, transparent), transparent 70%),
+                        radial-gradient(50% 45% at 10% 95%, color-mix(in srgb, var(--theme-primary) 28%, transparent), transparent 70%); }
+        html[data-mode="dark"] #app .bg-white { -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+        html[data-mode="dark"] #app .bg-white.rounded-2xl, html[data-mode="dark"] #app .bg-white.rounded-3xl { box-shadow: 0 30px 90px -25px color-mix(in srgb, var(--theme-primary) 45%, transparent), 0 10px 30px rgba(0,0,0,.5); }
+        html[data-mode="dark"] main > .max-w-3xl.items-center.text-center:first-child img { background: rgba(255,255,255,.92); padding: .3rem .6rem; border-radius: .9rem; box-shadow: 0 0 24px color-mix(in srgb, var(--theme-primary) 55%, transparent); object-fit: contain; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
