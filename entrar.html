@@ -7,7 +7,36 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+                :root { --a1:#f0b90b; --a2:#d97706; --a3:#b45309; }
+        body { font-family: 'Inter', sans-serif; background-color: #07070a; position: relative; overflow-x: hidden; }
+        body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+            background:
+              radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--a2) 38%, transparent), transparent 70%),
+              radial-gradient(50% 45% at 10% 95%, color-mix(in srgb, var(--a3) 28%, transparent), transparent 70%); }
+        /* cartão de vidro escuro */
+        #app-container { z-index:1; color:#e4e4e7; background:rgba(255,255,255,.06); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+            border:1px solid rgba(255,255,255,.12);
+            box-shadow:0 30px 90px -25px color-mix(in srgb, var(--a2) 45%, transparent), 0 10px 30px rgba(0,0,0,.5); }
+        #app-container img[alt="Logo Primstav"] { filter:brightness(0) invert(1) drop-shadow(0 0 18px color-mix(in srgb, var(--a2) 60%, transparent)); }
+        #app-container .text-slate-400, #app-container .text-slate-500 { color:#a1a1aa; }
+        #app-container .text-slate-600, #app-container .text-slate-700 { color:#d4d4d8; }
+        #app-container .hover\:text-slate-800:hover, #app-container .hover\:text-slate-700:hover { color:#fff; }
+        #app-container .text-amber-700 { color:#fbbf24; }
+        #app-container input, #app-container select, #app-container textarea { background:rgba(255,255,255,.07); color:#fff; }
+        #app-container input:not(.border-rose-400), #app-container select, #app-container textarea { border-color:rgba(255,255,255,.15); }
+        #app-container input::placeholder, #app-container textarea::placeholder { color:#71717a; }
+        #app-container input:focus, #app-container select:focus { border-color:var(--a1); box-shadow:0 0 0 3px color-mix(in srgb, var(--a2) 30%, transparent); }
+        #app-container .bg-slate-50 { background:rgba(255,255,255,.07); }
+        #app-container .hover\:bg-slate-50:hover { background:rgba(255,255,255,.12); }
+        #app-container .bg-slate-100 { background:rgba(255,255,255,.08); }
+        #app-container .bg-slate-200 { background:rgba(255,255,255,.15); }
+        #app-container .bg-white { background:#fff; color:#0f172a; }
+        #app-container .border-slate-100, #app-container .border-slate-200 { border-color:rgba(255,255,255,.12); }
+        #app-container .bg-rose-50 { background:rgba(244,63,94,.14); } #app-container .border-rose-100 { border-color:rgba(244,63,94,.3); } #app-container .text-rose-600 { color:#fda4af; }
+        #app-container .bg-emerald-50 { background:rgba(16,185,129,.14); } #app-container .border-emerald-100 { border-color:rgba(16,185,129,.3); } #app-container .text-emerald-700, #app-container .text-emerald-600 { color:#6ee7b7; }
+        #app-container .bg-amber-50 { background:rgba(245,158,11,.14); }
+        .bg-amber-600, .bg-amber-700 { background:linear-gradient(135deg,var(--a1),var(--a2) 60%,var(--a3)); }
+        .bg-amber-600:hover, .bg-amber-700:hover { filter:brightness(1.1); }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
