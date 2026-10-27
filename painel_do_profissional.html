@@ -75,6 +75,44 @@
         }
         @keyframes pendingPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,.75); } 50% { box-shadow: 0 0 0 6px rgba(245,158,11,0); } }
         .pending-chip { margin-left: 4px; background: #fef3c7; color: #92400e; font-weight: 800; font-size: 8px; padding: 1px 5px; border-radius: 999px; flex-shrink: 0; letter-spacing: .04em; }
+
+        /* ----- Selo pulsante de pendentes (ao lado do título da agenda) + lista de pendentes ----- */
+        .pend-pill { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px; border: 0; cursor: pointer; overflow: hidden; font-size: 12px; font-weight: 800; letter-spacing: .01em; color: #2b1700; background: linear-gradient(120deg,#fbbf24,#f59e0b 55%,#f97316); box-shadow: 0 0 0 0 rgba(245,158,11,.65), 0 6px 16px -6px rgba(245,158,11,.9); animation: pendRing 2s ease-out infinite; transition: transform .15s ease; }
+        .pend-pill:hover { transform: translateY(-1px) scale(1.04); }
+        .pend-pill:active { transform: scale(.97); }
+        .pend-pill::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.6) 50%, transparent 70%); transform: translateX(-120%); animation: pendShine 3.2s ease-in-out infinite; pointer-events: none; }
+        .pend-pill-ico { width: 26px; height: 26px; border-radius: 999px; background: #2b1700; color: #fde68a; display: grid; place-items: center; flex-shrink: 0; transform-origin: 50% 20%; animation: pendSwing 2.4s ease-in-out infinite; }
+        @keyframes pendRing { 0% { box-shadow: 0 0 0 0 rgba(245,158,11,.65), 0 6px 16px -6px rgba(245,158,11,.9); } 70%,100% { box-shadow: 0 0 0 12px rgba(245,158,11,0), 0 6px 16px -6px rgba(245,158,11,.9); } }
+        @keyframes pendShine { 0%,55% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+        @keyframes pendSwing { 0%,55%,100% { transform: rotate(0); } 10% { transform: rotate(-18deg); } 20% { transform: rotate(16deg); } 30% { transform: rotate(-12deg); } 40% { transform: rotate(8deg); } 50% { transform: rotate(-4deg); } }
+        @keyframes pmPop { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+        @media (prefers-reduced-motion: reduce) { .pend-pill, .pend-pill::after, .pend-pill-ico { animation: none; } }
+
+        .pm-back { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15,15,20,.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: fadeIn .2s ease-out; }
+        .pm-box { width: 100%; max-width: 440px; max-height: 80vh; display: flex; flex-direction: column; border-radius: 20px; background: #fff; color: #1e293b; box-shadow: 0 30px 80px -20px rgba(0,0,0,.6); overflow: hidden; animation: pmPop .28s cubic-bezier(.2,.9,.3,1.15); }
+        .pm-head { display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px; background: linear-gradient(135deg, rgba(251,191,36,.28), rgba(249,115,22,.08)); border-bottom: 1px solid rgba(245,158,11,.28); }
+        .pm-head-ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; background: linear-gradient(135deg,#fbbf24,#f97316); color: #2b1700; }
+        .pm-title { font-size: 15px; font-weight: 900; line-height: 1.2; }
+        .pm-sub { font-size: 11.5px; opacity: .65; margin-top: 2px; }
+        .pm-x { margin-left: auto; width: 32px; height: 32px; border-radius: 10px; border: 0; background: rgba(0,0,0,.06); color: inherit; cursor: pointer; display: grid; place-items: center; flex-shrink: 0; }
+        .pm-x:hover { background: rgba(0,0,0,.12); }
+        .pm-list { overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .pm-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 12px 10px 10px; border-radius: 14px; border: 1px dashed rgba(245,158,11,.7); background: rgba(245,158,11,.09); color: inherit; cursor: pointer; transition: background .15s, transform .15s; }
+        .pm-item:hover { background: rgba(245,158,11,.2); transform: translateX(2px); }
+        .pm-when { flex-shrink: 0; width: 52px; padding: 6px 0; border-radius: 10px; text-align: center; background: #2b1700; color: #fde68a; line-height: 1.1; }
+        .pm-when b { display: block; font-size: 15px; font-weight: 900; }
+        .pm-when span { font-size: 10px; font-weight: 700; opacity: .85; }
+        .pm-name { font-size: 13.5px; font-weight: 800; }
+        .pm-meta { font-size: 11px; opacity: .65; margin-top: 1px; }
+        .pm-exp { font-size: 11px; font-weight: 800; margin-top: 3px; color: #b45309; }
+        .pm-val { font-size: 12.5px; font-weight: 900; color: #b45309; white-space: nowrap; }
+        html[data-mode="dark"] .pm-box { background: #1c1c22; color: #f4f4f5; border: 1px solid rgba(255,255,255,.12); }
+        html[data-mode="dark"] .pm-x { background: rgba(255,255,255,.08); }
+        html[data-mode="dark"] .pm-x:hover { background: rgba(255,255,255,.16); }
+        html[data-mode="dark"] .pm-exp, html[data-mode="dark"] .pm-val { color: #fcd34d; }
+        html[data-mode="dark"] .pm-item { background: rgba(245,158,11,.12); border-color: rgba(252,211,77,.5); }
+        html[data-mode="dark"] .pm-item:hover { background: rgba(245,158,11,.24); }
+        html[data-mode="dark"] .pm-when { background: rgba(252,211,77,.16); color: #fde68a; }
         /* ----- Regras: ordem das etapas (arrastar) ----- */
         .flow-item { position: relative; transition: box-shadow .15s ease; }
         .flow-dragging { z-index: 20; box-shadow: 0 14px 30px rgba(15,23,42,.25) !important; opacity: .95; cursor: grabbing; }
@@ -1478,22 +1516,52 @@
                     </div>
                 </div>`;
         }
-        function pendingBannerHtml(role, user) { return payAlertBannerHtml(role, user) + pendingOnlyBannerHtml(role, user); }
-        function pendingOnlyBannerHtml(role, user) {
-            const list = pendingList(role, user);
-            if (!list.length) return '';
-            return `
-                <div class="mb-4 rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50/95 p-4 fade-in">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="bg-amber-100 text-amber-700 p-2 rounded-xl"><i data-lucide="hourglass" class="w-5 h-5"></i></div>
-                        <div><p class="text-sm font-black text-amber-900">${list.length} ${list.length === 1 ? 'agendamento aguardando' : 'agendamentos aguardando'} confirmação do sinal</p><p class="text-[11px] text-amber-800">Toque em um deles para conferir o Pix e confirmar.</p></div>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        ${list.slice(0, 12).map(a => `<button onclick="showAppDetails('${a.id}')" class="text-[11px] font-bold bg-white border border-dashed border-amber-400 text-amber-900 rounded-full px-3 py-1.5 hover:bg-amber-100">⏳ ${formatDateBR(a.date)} ${a.time} · ${esc(a.clientName)}</button>`).join('')}
-                        ${list.length > 12 ? `<span class="text-[11px] font-bold text-amber-800 py-1.5">+${list.length - 12}</span>` : ''}
-                    </div>
-                </div>`;
+        function pendingBannerHtml(role, user) { return payAlertBannerHtml(role, user); }
+        // selo pulsante ao lado do título da agenda; ao clicar abre a lista de pendentes
+        function pendingPillHtml(role, user) {
+            window.__pendCtx = { role, user };
+            const n = pendingList(role, user).length;
+            if (!n) return '';
+            return `<button onclick="openPendingList()" class="pend-pill" title="Ver agendamentos aguardando confirmação do sinal"><span class="pend-pill-ico"><i data-lucide="bell-ring" class="w-3.5 h-3.5"></i></span><span>${n} ${n === 1 ? 'pendente' : 'pendentes'}<span class="hidden sm:inline"> de confirmação</span></span><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>`;
         }
+        function pendingExpiryText(a) {
+            if (!a.depositDeadline) return '';
+            const ms = new Date(a.depositDeadline) - new Date(); if (!(ms > 0)) return '';
+            const m = Math.floor(ms / 60000), h = Math.floor(m / 60);
+            return 'expira em ' + (h >= 24 ? Math.floor(h / 24) + 'd ' + (h % 24) + 'h' : (h ? h + 'h ' + (m % 60) + 'min' : m + 'min'));
+        }
+        window.openPendingList = function() {
+            const ctx = window.__pendCtx || {}; const list = pendingList(ctx.role, ctx.user);
+            if (!list.length) return;
+            closePendingList();
+            const people = [t.admin, ...t.employees];
+            const showEmp = ctx.role === 'admin' && t.employees.length > 0;
+            const items = list.map(a => {
+                const emp = showEmp ? people.find(p => p.id === a.employeeId) : null;
+                const exp = pendingExpiryText(a);
+                const meta = esc((a.proceduresNames || []).join(', ')) + (emp ? ' · ' + esc(emp.name) : '');
+                return `<button class="pm-item" onclick="closePendingList(); showAppDetails('${a.id}')">
+                    <div class="pm-when"><b>${a.time}</b><span>${formatDateBR(a.date).slice(0, 5)}</span></div>
+                    <div class="min-w-0 flex-1"><p class="pm-name truncate">${esc(a.clientName)}</p><p class="pm-meta truncate">${meta}</p>${exp ? `<p class="pm-exp">⏳ ${exp}</p>` : ''}</div>
+                    <div class="flex items-center gap-1 shrink-0">${a.depositAmount ? `<span class="pm-val">${brl(a.depositAmount)}</span>` : ''}<i data-lucide="chevron-right" class="w-4 h-4" style="opacity:.5"></i></div>
+                </button>`;
+            }).join('');
+            const el = document.createElement('div');
+            el.id = 'pending-modal'; el.className = 'pm-back';
+            el.onclick = e => { if (e.target === el) closePendingList(); };
+            el.innerHTML = `<div class="pm-box" role="dialog" aria-label="Aguardando confirmação do sinal">
+                <div class="pm-head">
+                    <div class="pm-head-ico"><i data-lucide="hourglass" class="w-5 h-5"></i></div>
+                    <div><p class="pm-title">Aguardando confirmação do sinal</p><p class="pm-sub">Toque em um para conferir o Pix e confirmar.</p></div>
+                    <button class="pm-x" onclick="closePendingList()" aria-label="Fechar"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div class="pm-list custom-scrollbar">${items}</div>
+            </div>`;
+            document.body.appendChild(el);
+            if (window.lucide) lucide.createIcons();
+        };
+        window.closePendingList = function() { const el = document.getElementById('pending-modal'); if (el) el.remove(); };
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closePendingList(); });
 
         // ---- arrastar as etapas (mouse e toque) ----
         let stepDrag = null;
@@ -1536,7 +1604,7 @@
                 return `
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
                         <div>
-                            <h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2>
+                            <div class="flex items-center flex-wrap gap-x-3 gap-y-2"><h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2>${pendingPillHtml(role, user)}</div>
                             <p class="text-xs text-slate-500 mt-0.5">${agendaSummary(role, user)}</p>
                         </div>
                         <div class="flex space-x-2 bg-white/90 rounded-lg p-1 border shadow-sm self-start">
