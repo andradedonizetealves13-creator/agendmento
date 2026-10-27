@@ -1604,15 +1604,15 @@
                 return `
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
                         <div>
-                            <div class="flex items-center flex-wrap gap-x-3 gap-y-2"><h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2><span class="hidden sm:inline-flex">${pendingPillHtml(role, user)}</span></div>
+                            <div class="flex items-center flex-wrap gap-x-3 gap-y-2"><h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2></div>
                             <p class="text-xs text-slate-500 mt-0.5">${agendaSummary(role, user)}</p>
                         </div>
-                        <div class="flex items-center gap-3 flex-wrap sm:self-start">
-                        <div class="flex space-x-2 bg-white/90 rounded-lg p-1 border shadow-sm self-start">
+                        <div class="flex items-center gap-3 flex-wrap self-start sm:flex-col sm:items-end sm:gap-2.5 sm:self-auto">
+                        <div class="flex space-x-2 bg-white/90 rounded-lg p-1 border shadow-sm">
                             <button onclick="dashboardViewMode='calendar'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='calendar'?'bg-theme-secondary text-theme-primary':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="layout-grid" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Calendário</span></button>
                             <button onclick="dashboardViewMode='list'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='list'?'bg-theme-secondary text-theme-primary':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="list" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Lista</span></button>
                         </div>
-                        <span class="sm:hidden inline-flex">${pendingPillHtml(role, user)}</span>
+                        <span class="inline-flex">${pendingPillHtml(role, user)}</span>
                         </div>
                     </div>
                     ${role === 'admin' && t.employees.length > 0 ? agendaLegend() : ''}
