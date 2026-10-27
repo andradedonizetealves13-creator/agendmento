@@ -1238,7 +1238,8 @@
                         <span class="flex items-center gap-2">${i === todayIdx ? '<span class="co-open-dot"></span>' : '<span class="w-2"></span>'}${days[i]}</span>
                         <span>${d.active ? esc(d.start) + ' – ' + esc(d.end) : '<span class="text-slate-400 font-medium">Fechado</span>'}</span></div>`;
                 }).join('');
-                const mapQuery = encodeURIComponent(addr);
+                const hasPin = t.companyLat !== null && t.companyLat !== undefined && t.companyLat !== '' && t.companyLng !== null && t.companyLng !== undefined && t.companyLng !== '' && isFinite(Number(t.companyLat)) && isFinite(Number(t.companyLng));
+                const mapQuery = hasPin ? (Number(t.companyLat) + ',' + Number(t.companyLng)) : encodeURIComponent(addr);
                 const waDigits = cleanPhone(phone);
                 const waHref = waDigits ? 'https://wa.me/' + (waDigits.length <= 11 ? '55' + waDigits : waDigits) : '';
                 const team = (t.employees || []).slice(0, 8).map(e => `
@@ -1282,12 +1283,12 @@
                         </div>
                         <div class="rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-3xl p-5 shadow-xl flex flex-col" style="animation-delay:.48s">
                             <h3 class="text-lg font-black text-slate-900 flex items-center gap-2 mb-3"><span class="w-9 h-9 rounded-xl bg-theme-secondary text-theme-primary flex items-center justify-center"><i data-lucide="map-pin" class="w-5 h-5"></i></span>Localização</h3>
-                            ${addr ? `
-                                <p class="text-sm text-slate-600 font-medium mb-3">${esc(addr)}</p>
+                            ${(addr || hasPin) ? `
+                                ${addr ? `<p class="text-sm text-slate-600 font-medium mb-3">${esc(addr)}</p>` : ''}
                                 <div class="rounded-2xl overflow-hidden border border-slate-200 flex-1 min-h-[160px] bg-slate-100">
-                                    <iframe title="Mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade" class="w-full h-full min-h-[160px] border-0" src="https://maps.google.com/maps?q=${mapQuery}&z=15&output=embed"></iframe>
+                                    <iframe title="Mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade" class="w-full h-full min-h-[160px] border-0" src="https://maps.google.com/maps?q=${mapQuery}&z=${hasPin ? 17 : 15}&output=embed"></iframe>
                                 </div>
-                                <a href="https://www.google.com/maps/search/?api=1&query=${mapQuery}" target="_blank" rel="noopener noreferrer" class="mt-3 w-full btn-theme-primary font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2"><i data-lucide="navigation" class="w-4 h-4"></i>Como chegar</a>
+                                <a href="${hasPin ? 'https://www.google.com/maps/dir/?api=1&destination=' + mapQuery : 'https://www.google.com/maps/search/?api=1&query=' + mapQuery}" target="_blank" rel="noopener noreferrer" class="mt-3 w-full btn-theme-primary font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2"><i data-lucide="navigation" class="w-4 h-4"></i>Como chegar</a>
                             ` : `<p class="text-sm text-slate-400 italic">Endereço ainda não informado.</p>`}
                         </div>
                     </div>
