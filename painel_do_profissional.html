@@ -177,6 +177,18 @@
         html[data-mode="dark"] #app .bg-white.rounded-2xl, html[data-mode="dark"] #app .bg-white.rounded-3xl { box-shadow: 0 30px 90px -25px color-mix(in srgb, var(--theme-primary) 45%, transparent), 0 10px 30px rgba(0,0,0,.5); }
         html[data-mode="dark"] #mode-toggle { box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 45%, transparent); }
 
+
+        /* ===== Seletores e campos de data: mesmo visual em todo o painel, fundo sólido (sem ver o que está atrás) ===== */
+        .date-pop { background-color: #ffffff; }
+        .date-field { border-radius: 12px; font-weight: 600; transition: border-color .15s, box-shadow .15s; }
+        .date-field:focus { border-color: var(--theme-primary) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 22%, transparent); }
+        html[data-mode="dark"] #app .date-pop, html[data-mode="dark"] .date-pop { background-color: color-mix(in srgb, var(--theme-primary) 12%, #0e0e12) !important; border: 1px solid color-mix(in srgb, var(--theme-primary) 40%, rgba(255,255,255,.12)) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: 0 24px 60px -12px rgba(0,0,0,.85), 0 0 0 1px rgba(0,0,0,.4), 0 14px 40px -18px color-mix(in srgb, var(--theme-primary) 55%, transparent) !important; }
+        html[data-mode="dark"] .date-pop .bg-slate-50 { background-color: rgba(255,255,255,.09); border-color: rgba(255,255,255,.14); }
+        html[data-mode="dark"] .date-pop .bg-slate-50:hover { background-color: color-mix(in srgb, var(--theme-primary) 35%, #15151a); }
+        html[data-mode="dark"] .date-pop .btn-theme-primary { box-shadow: 0 0 0 1px rgba(255,255,255,.28), 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 75%, #fff); }
+        html[data-mode="dark"] .date-field { background-color: color-mix(in srgb, var(--theme-primary) 10%, #131317) !important; border-color: color-mix(in srgb, var(--theme-primary) 35%, rgba(255,255,255,.15)) !important; color: #fff; color-scheme: dark; }
+        html[data-mode="dark"] .date-field::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .8; cursor: pointer; }
+
         /* barra de rolagem */
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
@@ -221,7 +233,7 @@
                 <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Data *</label>
-                        <input type="date" id="manual-date" required class="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none">
+                        <input type="date" id="manual-date" required class="date-field w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Início *</label>
@@ -1592,7 +1604,7 @@
                                     <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
                                         <h3 class="font-bold text-lg mb-2">Plantão / Folga Geral (Empresa)</h3>
                                         <div class="space-y-4 mt-4">
-                                            <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
+                                            <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="exc-date" class="date-field w-full px-4 py-2.5 border rounded-xl text-sm bg-white"></div>
                                             <div><label class="block text-xs font-bold mb-1.5">Tipo</label>
                                                 <select id="exc-type" onchange="document.getElementById('exc-times').style.display = this.value==='plantao'?'flex':'none'" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-medium">
                                                     <option value="folga">Ausência / Folga Geral</option>
@@ -1638,7 +1650,7 @@
                                             <option value="plantao">Solicitar Hora a Mais (Plantão)</option>
                                         </select>
                                     </div>
-                                    <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="req-date" required class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div>
+                                    <div><label class="block text-xs font-bold mb-1.5">Data</label><input type="date" id="req-date" required class="date-field w-full px-4 py-3 border rounded-xl text-sm bg-white"></div>
                                     <div id="req-times" class="hidden flex items-center space-x-4"><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Início</label><input type="time" id="req-start" value="08:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div><div class="flex-1"><label class="block text-xs font-bold mb-1.5">Fim</label><input type="time" id="req-end" value="20:00" class="w-full px-4 py-3 border rounded-xl text-sm bg-white"></div></div>
                                     <button type="submit" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-2">Enviar Solicitação</button>
                                 </form>
@@ -1695,7 +1707,7 @@
                                 <span class="flex items-center gap-3">${themeSwatches(curPalette)}<span class="font-bold text-sm text-slate-800">${esc(curPalette.name)}</span></span>
                                 <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
                             </button>
-                            <div id="theme-menu" class="custom-dropdown-menu hidden absolute z-40 mt-2 w-full bg-white border rounded-2xl shadow-xl max-h-80 overflow-y-auto custom-scrollbar p-2">
+                            <div id="theme-menu" class="custom-dropdown-menu date-pop hidden absolute z-40 mt-2 w-full border rounded-2xl shadow-xl max-h-80 overflow-y-auto custom-scrollbar p-2">
                                 ${THEME_PALETTES.map(p => `
                                     <button type="button" onclick="selectThemePalette('${p.id}')" class="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-slate-50 ${currentPalette === p.id ? 'bg-slate-100' : ''}">
                                         <span class="flex items-center gap-3">${themeSwatches(p)}<span class="text-sm font-semibold text-slate-800">${esc(p.name)}</span></span>
@@ -2335,7 +2347,7 @@
                                 ${meses.map(m => `<option value="${m.v}" ${listFilterMonth===m.v?'selected':''}>${m.n}</option>`).join('')}
                             </select>
                         </div>
-                        <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Data Específica</label><input type="date" value="${listFilterDate}" onchange="listFilterDate=this.value; listFilterMonth=''; render()" class="w-full px-4 py-2 bg-white border rounded-xl text-sm font-semibold outline-none"></div>
+                        <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Data Específica</label><input type="date" value="${listFilterDate}" onchange="listFilterDate=this.value; listFilterMonth=''; render()" class="date-field w-full px-4 py-2 bg-white border rounded-xl text-sm font-semibold outline-none"></div>
                         <div class="flex items-end w-full md:w-auto"><button onclick="listFilterDate=''; listFilterMonth=''; render()" class="w-full px-4 py-2 bg-white border text-slate-600 hover:bg-rose-50 hover:text-rose-600 rounded-xl text-sm font-bold">Limpar</button></div>
                     </div>
                     <div class="space-y-4">
@@ -2398,7 +2410,7 @@
             const currentProfile = role === 'admin' ? (filteredProfile || t.admin) : user;
             const pickerYear = calPickerYear !== null ? calPickerYear : viewYear;
             const monthPicker = calPickerOpen ? `
-                <div class="absolute top-full left-0 mt-2 w-64 bg-white border rounded-2xl shadow-xl p-3 z-40 fade-in">
+                <div class="date-pop absolute top-full left-0 mt-2 w-64 border rounded-2xl shadow-xl p-3 z-[70] fade-in">
                     <div class="flex items-center justify-between mb-3">
                         <button onclick="changePickerYear(-1)" class="p-2 bg-slate-50 border rounded-lg hover:bg-slate-100"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
                         <span class="font-bold text-sm text-slate-800">${pickerYear}</span>
