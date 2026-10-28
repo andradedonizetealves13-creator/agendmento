@@ -2,7 +2,7 @@
 <html lang="pt-BR" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Primstav - Agendamento do Cliente</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -32,6 +32,21 @@
             background-color: var(--theme-bg) !important; 
             transition: background-color 0.3s ease; 
             overflow: hidden; 
+        }
+        /* ===== RESPONSIVIDADE: adapta a qualquer tamanho de tela ===== */
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+            /* telas pequenas escalam a fonte base (tudo em rem encolhe junto, sem aparência de "zoom") */
+            font-size: clamp(13px, 4.1vw, 16px);
+        }
+        @media (min-width: 390px) { html { font-size: 16px; } }
+        /* acompanha a barra do navegador no celular */
+        @supports (height: 100dvh) { html, body { height: 100dvh; } }
+        #app { overflow-x: hidden; overflow-wrap: break-word; }
+        img, svg, video, iframe, canvas { max-width: 100%; }
+        @media (max-width: 380px) {
+            #mode-toggle { width: 2.1rem; height: 2.1rem; top: .5rem; right: .5rem; }
         }
         #custom-bg-layer {
             position: fixed;
@@ -283,7 +298,7 @@
         const slugInvalid = !orgSlug || /[.$#\[\]\/]/.test(orgSlug);
 
         if (slugInvalid) {
-            document.getElementById('app').innerHTML = `<div class="bg-white p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Link Inválido</h2><p class="text-slate-500 text-sm">Nenhuma organização válida foi especificada no link de agendamento.</p></div>`;
+            document.getElementById('app').innerHTML = `<div class="bg-white p-5 sm:p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Link Inválido</h2><p class="text-slate-500 text-sm">Nenhuma organização válida foi especificada no link de agendamento.</p></div>`;
         } else {
             const basePath = 'agendapro_saas/tenants/' + orgSlug;
             const tenantRef = ref(rtdb, basePath);
@@ -346,7 +361,7 @@
             onValue(tenantRef, (snapshot) => {
                 const data = snapshot.val();
                 if (!data) {
-                    document.getElementById('app').innerHTML = `<div class="bg-white p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Empresa não encontrada</h2><p class="text-slate-500 text-sm">A empresa informada não existe no sistema.</p></div>`;
+                    document.getElementById('app').innerHTML = `<div class="bg-white p-5 sm:p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Empresa não encontrada</h2><p class="text-slate-500 text-sm">A empresa informada não existe no sistema.</p></div>`;
                     return;
                 }
                 window.t = data;
@@ -378,7 +393,7 @@
 
                 safeRender();
             }, (error) => {
-                document.getElementById('app').innerHTML = `<div class="bg-white p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Não foi possível carregar</h2><p class="text-slate-500 text-sm mb-4">Verifique sua conexão e tente novamente.</p><button onclick="location.reload()" class="btn-theme-primary font-bold px-6 py-3 rounded-xl">Tentar novamente</button></div>`;
+                document.getElementById('app').innerHTML = `<div class="bg-white p-5 sm:p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Não foi possível carregar</h2><p class="text-slate-500 text-sm mb-4">Verifique sua conexão e tente novamente.</p><button onclick="location.reload()" class="btn-theme-primary font-bold px-6 py-3 rounded-xl">Tentar novamente</button></div>`;
             });
 
             window.addEventListener('resize', () => {
@@ -986,7 +1001,7 @@
             function renderClientAuth() {
                 const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="h-16 w-auto rounded-xl object-contain mx-auto mb-4 border shadow-sm">` : `<div class="w-16 h-16 rounded-xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-2xl">O</div>`;
                 return `
-                    <div class="m-auto w-full max-w-md p-4"><div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-xl border border-slate-100 w-full fade-in z-10">
+                    <div class="m-auto w-full max-w-md p-3 sm:p-4"><div class="bg-white/95 backdrop-blur-md p-5 sm:p-8 rounded-3xl shadow-xl border border-slate-100 w-full fade-in z-10">
                         <div class="text-center mb-6">${logoHtml}<h1 class="text-2xl font-bold text-slate-900">${esc(t.name)}</h1><p class="text-sm text-slate-500 mt-1">Área do Cliente</p></div>
                         <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
                             <button onclick="clientAuthMode='login';render()" class="flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg ${clientAuthMode==='login'?'bg-white text-theme-primary font-bold shadow-sm':'text-slate-600'}">Entrar</button>
@@ -1123,7 +1138,7 @@
                 const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="h-16 w-auto rounded-xl object-contain mx-auto mb-4 border shadow-sm">` : `<div class="w-16 h-16 rounded-xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-2xl">O</div>`;
                 const guessName = u.displayName || '';
                 return `
-                    <div class="m-auto w-full max-w-md p-4"><div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-xl border border-slate-100 w-full fade-in z-10">
+                    <div class="m-auto w-full max-w-md p-3 sm:p-4"><div class="bg-white/95 backdrop-blur-md p-5 sm:p-8 rounded-3xl shadow-xl border border-slate-100 w-full fade-in z-10">
                         <div class="text-center mb-6">${logoHtml}<h1 class="text-2xl font-bold text-slate-900">${esc(t.name)}</h1><p class="text-sm text-slate-500 mt-1">Complete seu cadastro</p></div>
                         <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 text-xs text-amber-900">Você está conectado como <b>${esc(u.email || '')}</b>, mas ainda não tem cadastro de cliente em <b>${esc(t.name)}</b>. Informe seus dados para continuar.</div>
                         <form onsubmit="handleClientComplete(event)" class="space-y-3">
@@ -1334,15 +1349,15 @@
                         ${photo ? `<img class="cover" src="${esc(photo)}" alt="${esc(t.name)}">` : `<div class="orb" style="width:140px;height:140px;top:-30px;right:-20px"></div><div class="orb" style="width:80px;height:80px;bottom:60px;left:30px;animation-delay:-2s"></div><div class="orb" style="width:50px;height:50px;top:70px;left:45%;animation-delay:-4s"></div><div class="absolute inset-0 flex items-center justify-center text-white/25"><i data-lucide="camera" class="w-16 h-16"></i></div>`}
                         <div class="relative z-10 p-5 sm:p-7 w-full text-white">
                             <span id="co-status" class="inline-flex items-center gap-2 text-[11px] font-bold bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1 rounded-full mb-3">${coStatusHtml()}</span>
-                            <h2 class="text-3xl sm:text-4xl font-black tracking-tight leading-none drop-shadow">${esc(t.name)}</h2>
+                            <h2 class="text-2xl sm:text-4xl font-black tracking-tight leading-none drop-shadow">${esc(t.name)}</h2>
                             <p class="text-sm text-white/80 mt-2 font-medium">Conheça nosso espaço</p>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="co-stat rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-2xl p-4 text-center shadow-lg" style="animation-delay:.1s"><i data-lucide="sparkles" class="w-5 h-5 mx-auto text-theme-primary mb-1"></i><p class="text-2xl font-black text-slate-900">${nProcs}</p><p class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Serviços</p></div>
-                        <div class="co-stat rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-2xl p-4 text-center shadow-lg" style="animation-delay:.18s"><i data-lucide="users" class="w-5 h-5 mx-auto text-theme-primary mb-1"></i><p class="text-2xl font-black text-slate-900">${nTeam || 1}</p><p class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">${(nTeam || 1) > 1 ? 'Profissionais' : 'Profissional'}</p></div>
-                        <div class="co-stat rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-2xl p-4 text-center shadow-lg" style="animation-delay:.26s"><i data-lucide="heart" class="w-5 h-5 mx-auto text-theme-primary mb-1"></i><p class="text-2xl font-black text-slate-900">${(t.clients || []).length}</p><p class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Clientes</p></div>
+                    <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                        <div class="co-stat rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-2xl p-2.5 sm:p-4 text-center shadow-lg" style="animation-delay:.1s"><i data-lucide="sparkles" class="w-5 h-5 mx-auto text-theme-primary mb-1"></i><p class="text-2xl font-black text-slate-900">${nProcs}</p><p class="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wide">Serviços</p></div>
+                        <div class="co-stat rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-2xl p-2.5 sm:p-4 text-center shadow-lg" style="animation-delay:.18s"><i data-lucide="users" class="w-5 h-5 mx-auto text-theme-primary mb-1"></i><p class="text-2xl font-black text-slate-900">${nTeam || 1}</p><p class="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wide">${(nTeam || 1) > 1 ? 'Profissionais' : 'Profissional'}</p></div>
+                        <div class="co-stat rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-2xl p-2.5 sm:p-4 text-center shadow-lg" style="animation-delay:.26s"><i data-lucide="heart" class="w-5 h-5 mx-auto text-theme-primary mb-1"></i><p class="text-2xl font-black text-slate-900">${(t.clients || []).length}</p><p class="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wide">Clientes</p></div>
                     </div>
 
                     <div class="rise bg-white/95 backdrop-blur-md border border-slate-100 rounded-3xl p-5 sm:p-7 shadow-xl" style="animation-delay:.3s">
@@ -1432,7 +1447,7 @@
                     ${chips ? `<div class="flex gap-2 overflow-x-auto custom-scrollbar pb-3 mb-3 justify-start sm:justify-center rise" style="animation-delay:.1s">${chips}</div>` : ''}
                     <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">${cards}</div>
                     <div id="cat-empty" class="hidden text-center py-12 text-slate-400 text-sm font-medium">Nenhum procedimento encontrado 🔍</div>
-                    ` : `<div class="bg-white/95 backdrop-blur-md border border-slate-100 rounded-3xl p-10 text-center shadow-xl"><i data-lucide="gem" class="w-10 h-10 mx-auto text-slate-300 mb-3"></i><p class="text-sm text-slate-500 font-medium">O catálogo ainda está sendo montado. Volte em breve!</p></div>`}
+                    ` : `<div class="bg-white/95 backdrop-blur-md border border-slate-100 rounded-3xl p-6 sm:p-10 text-center shadow-xl"><i data-lucide="gem" class="w-10 h-10 mx-auto text-slate-300 mb-3"></i><p class="text-sm text-slate-500 font-medium">O catálogo ainda está sendo montado. Volte em breve!</p></div>`}
                 </div>`;
             }
 
