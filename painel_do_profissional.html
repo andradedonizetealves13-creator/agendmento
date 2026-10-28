@@ -3092,7 +3092,7 @@
         function whFormHtml() {
             const d = window.whDraft, editing = !!d.id;
             return `
-                <div class="rounded-2xl border-2 border-theme-primary/40 bg-slate-50/60 p-4 space-y-4">
+                <div class="rounded-2xl border-2 border-slate-300 bg-slate-50 p-4 space-y-4">
                     <p class="text-sm font-black text-slate-900">${editing ? 'Editar webhook' : 'Novo webhook'}</p>
                     <div><label class="block text-xs font-bold text-slate-700 mb-1">Nome</label>
                         <input type="text" id="wh-name" value="${esc(d.name)}" placeholder="Ex: Aviso de Pix no WhatsApp" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white"></div>
