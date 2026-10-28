@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Primstav - Painel de Controle</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // mostra a URL sem ".html" na barra de endereço
+        (function () { try { var p = location.pathname; if (/\.html$/i.test(p)) history.replaceState(null, '', p.replace(/\.html$/i, '') + location.search + location.hash); } catch (_) {} })();
+    </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -382,7 +386,7 @@
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'entrar.html';
+                window.location.href = 'entrar';
             } else {
                 ensureStaffClaims(user);
             }
@@ -401,7 +405,7 @@
         }
 
         const sessionStr = localStorage.getItem('agendaProSession');
-        if (!sessionStr) { window.location.href = 'entrar.html'; }
+        if (!sessionStr) { window.location.href = 'entrar'; }
         const session = JSON.parse(sessionStr || '{}');
 
         const basePath = 'agendapro_saas/tenants/' + (session.slug || 'demo');
@@ -490,7 +494,7 @@
             const data = snapshot.val();
             if (!data) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'entrar.html';
+                window.location.href = 'entrar';
                 return;
             }
             window.t = data;
@@ -714,7 +718,7 @@
             document.querySelectorAll('.custom-dropdown-menu').forEach(m => m.classList.add('hidden'));
         });
         
-        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'entrar.html'; };
+        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'entrar'; };
 
         window.render = function() {
             if(!window.t) return;
@@ -1907,16 +1911,17 @@
                         ${coPhotoShown ? `<button type="button" onclick="removeCompanyPhoto()" class="px-4 py-2.5 rounded-lg text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100">Remover</button>` : ''}
                     </div>
                     <div><label class="block text-xs font-semibold mb-1">Sobre a empresa</label><textarea id="co-about" rows="5" maxlength="1200" placeholder="Conte a história, o diferencial e o que o cliente pode esperar..." class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500">${esc(coAboutShown)}</textarea></div>
-                    <div><label class="block text-xs font-semibold mb-1">Endereço (localização)</label><input type="text" id="co-addr" value="${esc(coAddrShown)}" placeholder="Rua, número, bairro, cidade - UF" class="w-full px-4 py-3 border rounded-xl text-sm mb-3 outline-none focus:border-indigo-500"></div>
+                    <div><label class="block text-xs font-semibold mb-1">Endereço (localização)</label><input type="text" id="co-addr" value="${esc(coAddrShown)}" autocomplete="off" oninput="coAddrType(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();coMapSearch();}" placeholder="Rua, número, bairro, cidade - UF" class="w-full px-4 py-3 border rounded-xl text-sm mb-1 outline-none focus:border-indigo-500"><div id="co-suggest" class="hidden border border-slate-200 rounded-xl bg-white shadow-sm max-h-60 overflow-y-auto mb-3"></div><div class="mb-3"></div></div>
                     <div class="mb-4">
                         <label class="block text-xs font-semibold mb-1">Local exato no mapa (pino)</label>
-                        <p class="text-[11px] text-slate-500 mb-2">Toque no mapa ou arraste o pino até o local exato. É esse ponto que o cliente vê.</p>
+                        <p class="text-[11px] text-slate-500 mb-2">Digite o endereço e escolha na lista (inclua a cidade). Depois toque no mapa ou arraste o pino para o ponto exato. Use <b>Satélite</b> para ver o prédio.</p>
                         <div class="flex gap-2 mb-2">
                             <button type="button" onclick="coMapSearch()" class="flex-1 text-xs font-bold text-theme-primary bg-theme-secondary px-3 py-2.5 rounded-lg flex items-center justify-center gap-1.5"><i data-lucide="search" class="w-4 h-4"></i> Achar pelo endereço</button>
                             <button type="button" onclick="coMapLocate()" class="flex-1 text-xs font-bold text-theme-primary bg-theme-secondary px-3 py-2.5 rounded-lg flex items-center justify-center gap-1.5"><i data-lucide="crosshair" class="w-4 h-4"></i> Estou aqui</button>
                         </div>
                         <div id="co-map" class="w-full h-64 rounded-2xl border border-slate-200 bg-slate-100 overflow-hidden relative z-0" data-lat="${coPinShown ? coPinShown[0] : ''}" data-lng="${coPinShown ? coPinShown[1] : ''}"></div>
                         <input type="text" id="co-maplink" onchange="coMapFromLink(this.value)" placeholder="Ou cole aqui o link completo do Google Maps" class="w-full px-4 py-2.5 border rounded-xl text-xs mt-2 outline-none focus:border-indigo-500">
+                        <div id="co-revaddr" class="hidden mt-2 p-2.5 rounded-xl bg-slate-50 border text-[11px] text-slate-600"></div>
                         <div class="flex items-center justify-between mt-2 text-[11px]">
                             <span id="co-coords" class="font-semibold text-slate-500">${coPinShown ? 'Pino: ' + coPinShown[0].toFixed(5) + ', ' + coPinShown[1].toFixed(5) : 'Nenhum pino definido'}</span>
                             <button type="button" onclick="coMapClear()" class="font-bold text-rose-600">Remover pino</button>
@@ -3000,7 +3005,7 @@
             sc.onerror = () => { const el = document.getElementById('co-map'); if (el) el.innerHTML = '<p class="p-4 text-xs text-slate-500 text-center">Não foi possível carregar o mapa. Verifique a conexão.</p>'; };
             document.head.appendChild(sc);
         }
-        function coSetPin(lat, lng, fly) {
+        function coSetPin(lat, lng, fly, noReverse) {
             lat = Math.round(lat * 1e6) / 1e6; lng = Math.round(lng * 1e6) / 1e6;
             draft.companyLat = lat; draft.companyLng = lng;
             const c = document.getElementById('co-coords'); if (c) c.textContent = 'Pino: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
@@ -3010,7 +3015,38 @@
                 window._coMarker = L.marker([lat, lng], { draggable: true }).addTo(window._coMap);
                 window._coMarker.on('dragend', () => { const p = window._coMarker.getLatLng(); coSetPin(p.lat, p.lng, false); });
             }
-            if (fly) window._coMap.setView([lat, lng], Math.max(window._coMap.getZoom(), 17));
+            if (fly) window._coMap.setView([lat, lng], Math.max(window._coMap.getZoom(), 18));
+            if (!noReverse) coReverse(lat, lng);
+        }
+        // endereço do ponto marcado (geocodificação reversa) + botão para usar no campo de endereço
+        let _coRevT = null;
+        function coReverse(lat, lng) {
+            clearTimeout(_coRevT);
+            _coRevT = setTimeout(async () => {
+                const box = document.getElementById('co-revaddr'); if (!box) return;
+                try {
+                    const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=pt-BR&lat=' + lat + '&lon=' + lng);
+                    const j = await r.json();
+                    if (!j || !j.address) { box.classList.add('hidden'); return; }
+                    window._coRevText = coFormatAddr(j);
+                    box.innerHTML = '<span class="block font-bold text-slate-700 mb-1">Endereço deste ponto:</span>' + esc(window._coRevText) + '<button type="button" onclick="coUseRevAddr()" class="block mt-1.5 font-bold text-theme-primary">Usar este endereço no campo acima</button>';
+                    box.classList.remove('hidden');
+                } catch (_) { box.classList.add('hidden'); }
+            }, 600);
+        }
+        window.coUseRevAddr = function() {
+            const i = document.getElementById('co-addr'); if (i && window._coRevText) { i.value = window._coRevText; draft.companyAddress = window._coRevText; }
+        };
+        function coFormatAddr(j) {
+            const a = j.address || {};
+            const rua = a.road || a.pedestrian || a.footway || a.path || '';
+            const num = a.house_number || '';
+            const bairro = a.suburb || a.neighbourhood || a.quarter || a.city_district || '';
+            const cidade = a.city || a.town || a.village || a.municipality || '';
+            const uf = (a['ISO3166-2-lvl4'] || '').replace('BR-', '') || a.state || '';
+            const p1 = [rua, num].filter(Boolean).join(', ');
+            const out = [p1, bairro, [cidade, uf].filter(Boolean).join(' - ')].filter(Boolean).join(', ');
+            return out || (j.display_name || '').split(',').slice(0, 4).join(',').trim();
         }
         window.initCompanyMap = function() {
             const el = document.getElementById('co-map');
@@ -3020,22 +3056,72 @@
                 const el2 = document.getElementById('co-map'); if (!el2 || el2._leaflet_id) return;
                 const la = parseFloat(el2.dataset.lat), ln = parseFloat(el2.dataset.lng);
                 const has = isFinite(la) && isFinite(ln);
-                window._coMap = L.map(el2).setView(has ? [la, ln] : [-14.235, -51.925], has ? 17 : 4);
-                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(window._coMap);
-                if (has) coSetPin(la, ln, false);
+                const ruas = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 20, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO' });
+                const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
+                const sat = L.layerGroup([
+                    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagens &copy; Esri' }),
+                    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, opacity: 0.9 }),
+                    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+                ]);
+                window._coMap = L.map(el2, { zoomControl: true, layers: [ruas] }).setView(has ? [la, ln] : [-22.725, -47.649], has ? 18 : 13);
+                L.control.layers({ 'Ruas': ruas, 'Satélite': sat, 'OpenStreetMap': osm }, null, { position: 'topright', collapsed: false }).addTo(window._coMap);
+                L.control.scale({ imperial: false }).addTo(window._coMap);
+                if (has) coSetPin(la, ln, false, true);
                 window._coMap.on('click', (e) => coSetPin(e.latlng.lat, e.latlng.lng, false));
                 setTimeout(() => { if (window._coMap) window._coMap.invalidateSize(); }, 200);
             });
         };
-        window.coMapSearch = async function() {
+        // ---- busca de endereço com lista de sugestões (Brasil) ----
+        window._coResults = []; let _coTypeT = null, _coSeq = 0;
+        window.coAddrType = function(v) {
+            clearTimeout(_coTypeT);
+            const box = document.getElementById('co-suggest');
+            if (String(v || '').trim().length < 5) { if (box) { box.classList.add('hidden'); box.innerHTML = ''; } return; }
+            _coTypeT = setTimeout(() => coSearchList(v, true), 700);
+        };
+        async function coSearchList(q, silent) {
+            q = String(q || '').trim();
+            const box = document.getElementById('co-suggest'); if (!box) return;
+            const seq = ++_coSeq;
+            box.classList.remove('hidden'); box.innerHTML = '<p class="p-3 text-xs text-slate-400">Buscando...</p>';
+            const base = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=br&accept-language=pt-BR&dedupe=1';
+            // dá preferência (sem restringir) à região em que o mapa/pino já está
+            let bias = '';
+            if (window._coMap) { const b = window._coMap.getBounds(); const z = window._coMap.getZoom(); if (z >= 11) bias = '&viewbox=' + [b.getWest(), b.getNorth(), b.getEast(), b.getSouth()].join(','); }
+            const tryQ = async (text, extra) => { const r = await fetch(base + (extra || '') + '&q=' + encodeURIComponent(text)); return r.json(); };
+            try {
+                let j = await tryQ(q, bias);
+                if (!j.length && /\d/.test(q)) {           // número não existe no mapa: busca só a rua
+                    const semNum = q.replace(/[,\s-]*\b\d{1,5}\b/, '').trim();
+                    if (semNum) { j = await tryQ(semNum, bias); j.forEach(x => x._semNumero = true); }
+                }
+                if (seq !== _coSeq) return;
+                window._coResults = j;
+                if (!j.length) { box.innerHTML = '<p class="p-3 text-xs text-slate-500">Nenhum endereço encontrado. Confira o nome e inclua a <b>cidade</b> (ex.: Rua Governador Pedro de Toledo, 500, Piracicaba). Você também pode tocar direto no mapa.</p>'; return; }
+                box.innerHTML = j.map((x, i) => {
+                    const main = coFormatAddr(x);
+                    const sub = (x.display_name || '').split(',').slice(-4).join(',').trim();
+                    return '<button type="button" onclick="coPick(' + i + ')" class="w-full text-left px-3 py-2.5 border-b last:border-b-0 hover:bg-slate-50 flex items-start gap-2"><span class="text-base leading-none mt-0.5">📍</span><span class="min-w-0"><span class="block text-xs font-bold text-slate-800">' + esc(main) + '</span><span class="block text-[11px] text-slate-400 truncate">' + esc(sub) + (x._semNumero ? ' • número não encontrado, ajuste o pino' : '') + '</span></span></button>';
+                }).join('');
+            } catch (_) {
+                if (seq !== _coSeq) return;
+                box.innerHTML = '<p class="p-3 text-xs text-rose-600">Não foi possível buscar agora. Toque direto no mapa para marcar o local.</p>';
+            }
+        }
+        window.coPick = function(i) {
+            const x = (window._coResults || [])[i]; if (!x) return;
+            const box = document.getElementById('co-suggest'); if (box) { box.classList.add('hidden'); box.innerHTML = ''; }
+            const inp = document.getElementById('co-addr');
+            const txt = coFormatAddr(x);
+            if (inp && txt) { inp.value = txt; draft.companyAddress = txt; }
+            coSetPin(parseFloat(x.lat), parseFloat(x.lon), true, true);
+            window._coRevText = txt;
+            const rb = document.getElementById('co-revaddr'); if (rb) rb.classList.add('hidden');
+        };
+        window.coMapSearch = function() {
             const q = ((document.getElementById('co-addr') || {}).value || '').trim();
             if (!q) return showModal('Aviso', 'Digite o endereço no campo acima e toque novamente.', 'info');
-            try {
-                const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
-                const j = await r.json();
-                if (!j.length) return showModal('Não encontrado', 'Não achei esse endereço. Toque direto no mapa para marcar o local exato.', 'info');
-                coSetPin(parseFloat(j[0].lat), parseFloat(j[0].lon), true);
-            } catch (_) { showModal('Erro', 'Não foi possível buscar o endereço agora. Toque direto no mapa para marcar o local.', 'error'); }
+            coSearchList(q, false);
         };
         window.coMapLocate = function() {
             if (!navigator.geolocation) return showModal('Aviso', 'Seu navegador não permite obter a localização.', 'info');
