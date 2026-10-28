@@ -2700,6 +2700,12 @@
             const app = t.appointments.find(a => a.id === appId); if(!app) return;
             const emp = app.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === app.employeeId);
             const reschedInfo = app.rescheduledAt ? (() => { const d = new Date(app.rescheduledAt); return `<div class="flex items-center space-x-3 bg-sky-50 border border-sky-200 rounded-xl p-3"><div class="bg-sky-100 p-2 rounded-lg text-sky-700"><i data-lucide="refresh-cw" class="w-5 h-5"></i></div><span class="text-xs font-bold text-sky-800">Reagendado pelo cliente em ${formatDateBR(localDateStr(d))} às ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</span></div>`; })() : '';
+            const phoneRaw = String(app.clientPhone || ((t.clients || []).find(c => c.id === app.clientId) || {}).phone || '').trim();
+            const phoneDigits = cleanPhone(phoneRaw);
+            const phoneWaNum = phoneDigits.length >= 10 && phoneDigits.length <= 11 ? '55' + phoneDigits : phoneDigits;
+            const phoneRow = phoneDigits
+                ? `<div class="flex items-center justify-between gap-3 border-b pb-3"><div class="flex items-center space-x-3 min-w-0"><div class="bg-theme-secondary p-2 rounded-lg text-theme-primary"><i data-lucide="phone" class="w-5 h-5"></i></div><div class="min-w-0"><p class="text-xs text-slate-400 font-bold uppercase">Telefone / WhatsApp</p><a href="tel:+${phoneWaNum}" class="font-bold text-slate-800 text-sm">${esc(phoneRaw)}</a></div></div><a href="https://wa.me/${phoneWaNum}" target="_blank" rel="noopener" class="shrink-0 bg-[#25D366] text-white text-xs font-bold px-3 py-2 rounded-xl">WhatsApp</a></div>`
+                : `<div class="flex items-center space-x-3 border-b pb-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="phone-off" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Telefone / WhatsApp</p><span class="text-sm text-slate-500">Sem telefone cadastrado</span></div></div>`;
             const depRule = normalizeRules(t.rules).deposit;
             const depVal = app.depositAmount != null ? Number(app.depositAmount) : (Number(app.totalPrice) || 0) * depRule.percent / 100;
             const depPixType = (PIX_TYPES.find(p => p[0] === (app.pixKeyType || depRule.pixKeyType)) || PIX_TYPES[0])[1];
@@ -2726,6 +2732,7 @@
                     ${expiredInfo}
                     ${reschedInfo}
                     <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-theme-secondary p-2 rounded-lg text-theme-primary"><i data-lucide="user" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Cliente</p><span class="font-bold text-slate-800 text-base">${esc(app.clientName)}</span> ${app.beneficiaryName && app.beneficiaryName !== app.clientName ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded ml-2">Para: ${esc(app.beneficiaryName)}</span>` : ''}</div></div>
+                    ${phoneRow}
                     <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-theme-secondary p-2 rounded-lg text-theme-primary"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${esc(emp?emp.name:'Profissional')}</span></div></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${esc(app.proceduresNames.join(', '))}</span></div>
