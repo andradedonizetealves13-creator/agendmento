@@ -103,15 +103,20 @@ exports.whatsappPixGerado = onValueCreated(
     const phone = onlyDigits(a.clientPhone);
     if (phone.length < 10) return console.warn('Agendamento sem telefone válido', event.params.key);
 
-    const prazo = a.depositDeadline
-      ? new Date(a.depositDeadline).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })
-      : '';
+    const nome = String(a.clientName || '').trim().split(' ')[0];
+    const tenantName = (await db().ref(`agendapro_saas/tenants/${org}/name`).get()).val() || 'nosso estúdio';
+    const dataCurta = String(a.date || '').split('-').reverse().slice(0, 2).join('/'); // 2026-11-20 -> 20/11
+    const procedimento = (a.proceduresNames || []).join(' + ');
+
     const message =
-      `Olá, ${String(a.clientName || '').split(' ')[0]}! 💜\n\n` +
-      `Seu horário está reservado:\n📅 ${dateBR(a.date)} às ${a.time}\n💅 ${(a.proceduresNames || []).join(', ')}\n\n` +
-      `Para confirmar, pague o sinal de *${money(a.depositAmount)}* por Pix.\n` +
-      (prazo ? `⏰ Pague até ${prazo}.\n` : '') +
-      `\nCopie o código que vou enviar na próxima mensagem e cole no app do seu banco (Pix copia e cola) 👇`;
+      `Oii, Tudo bem, ${nome}?\n\n` +
+      `Passando para confirmar seu agendamento aqui no ${tenantName}! ✨\n\n` +
+      `📅 Data: ${dataCurta}\n` +
+      `⏰ Horário: ${a.time}\n` +
+      `🖊️ Procedimento: ${procedimento}\n\n` +
+      `Para confirmar e garantir a reserva do seu horário, é necessário realizar o pagamento do sinal. \n` +
+      `Assim que realizar o pagamento, peço que me envie o comprovante por aqui, combinado? \n\n` +
+      `Qualquer dúvida, estou à disposição! Será um prazer te receber no ${tenantName}!`;
 
     await postWebhook(cfg, {
       event: 'pix.generated',
