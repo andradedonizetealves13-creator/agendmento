@@ -44,6 +44,7 @@
         @media (min-width: 390px) { html { font-size: 16px; } }
         /* acompanha a barra do navegador no celular */
         @supports (height: 100dvh) { html, body { height: 100dvh; } }
+        @supports (height: 100lvh) { #custom-bg-layer { height: calc(100lvh + var(--bg-blur) * 4 + 4px); } }
         html, body { overscroll-behavior: none; }
         /* respeita notch / barra de início sem deixar faixas vazias: o fundo continua por baixo */
         #app {
@@ -65,18 +66,18 @@
         }
         #custom-bg-layer {
             position: fixed;
-            /* sangra bem além da tela (topo, base e laterais) para cobrir status bar, notch e barra do navegador */
-            --bleed: calc(var(--bg-blur) * 2 + 160px);
-            top: calc(var(--bleed) * -1);
-            bottom: calc(var(--bleed) * -1);
-            left: calc(var(--bleed) * -1);
-            right: calc(var(--bleed) * -1);
+            /* vai além das bordas (blur esmaece as pontas) e cobre notch + barras do navegador */
+            left: calc(var(--bg-blur) * -2 - 2px);
+            right: calc(var(--bg-blur) * -2 - 2px);
+            top: calc(var(--bg-blur) * -2 - 2px);
+            bottom: auto;
+            width: auto;
+            height: calc(100vh + var(--bg-blur) * 4 + 4px);
             background-image: var(--bg-image);
             background-repeat: no-repeat;
             background-size: cover;
             background-position: var(--bg-pos);
-            /* nunca deixa o zoom ficar abaixo de 1 (evita bordas aparecendo) */
-            transform: scale(max(var(--bg-zoom), 1));
+            transform: scale(var(--bg-zoom));
             transform-origin: var(--bg-pos);
             opacity: var(--bg-opacity);
             filter: blur(var(--bg-blur));
@@ -207,7 +208,7 @@
     <script>
     (function(){
         var meta = document.querySelector('meta[name="theme-color"]'), tm = null;
-        function sync(){ try { var hasImg = (getComputedStyle(document.documentElement).getPropertyValue('--bg-image')||'').trim() !== 'none'; if (hasImg) { if (meta && meta.parentNode) { meta.parentNode.removeChild(meta); } return; } if (meta && !meta.parentNode) document.head.appendChild(meta); var c = getComputedStyle(document.body).backgroundColor; if (c && meta) meta.setAttribute('content', c); } catch(e){} }
+        function sync(){ try { var c = getComputedStyle(document.body).backgroundColor; if (c && meta) meta.setAttribute('content', c); } catch(e){} }
         new MutationObserver(function(){ clearTimeout(tm); tm = setTimeout(sync, 60); }).observe(document.documentElement, { attributes: true, attributeFilter: ['style','data-mode'] });
         window.addEventListener('load', sync); sync();
     })();
@@ -1028,7 +1029,7 @@
             };
 
             function renderClientAuth() {
-                const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="h-32 sm:h-40 w-auto max-w-full rounded-2xl object-contain mx-auto mb-5 border-2 border-white shadow-lg">` : `<div class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-5 shadow-lg text-5xl">O</div>`;
+                const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="w-24 h-24 rounded-2xl object-cover mx-auto mb-4 border-2 border-white shadow-md">` : `<div class="w-24 h-24 rounded-2xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-4xl">O</div>`;
                 return `
                     <div class="m-auto w-full max-w-md p-3 sm:p-4"><div class="bg-white/95 backdrop-blur-md p-5 sm:p-8 rounded-3xl shadow-xl border border-slate-100 w-full fade-in z-10">
                         <div class="text-center mb-6">${logoHtml}<h1 class="text-2xl font-bold text-slate-900">${esc(t.name)}</h1><p class="text-sm text-slate-500 mt-1">Área do Cliente</p></div>
@@ -1164,7 +1165,7 @@
             // usuário já logado (ex.: administrador de outra organização) que ainda não tem cadastro aqui
             function renderClientComplete() {
                 const u = auth.currentUser || {};
-                const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="h-32 sm:h-40 w-auto max-w-full rounded-2xl object-contain mx-auto mb-5 border-2 border-white shadow-lg">` : `<div class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-5 shadow-lg text-5xl">O</div>`;
+                const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="w-24 h-24 rounded-2xl object-cover mx-auto mb-4 border-2 border-white shadow-md">` : `<div class="w-24 h-24 rounded-2xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-4xl">O</div>`;
                 const guessName = u.displayName || '';
                 return `
                     <div class="m-auto w-full max-w-md p-3 sm:p-4"><div class="bg-white/95 backdrop-blur-md p-5 sm:p-8 rounded-3xl shadow-xl border border-slate-100 w-full fade-in z-10">
