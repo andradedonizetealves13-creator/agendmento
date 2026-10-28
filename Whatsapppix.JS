@@ -35,15 +35,29 @@ async function assertAdmin(request) {
   return slug;
 }
 
-async function postWebhook(cfg, payload) {
+const isZapi = (url) => /(^|\.)z-api\.io$/i.test(new URL(url).hostname);
+
+async function postJson(cfg, body) {
   const headers = { 'Content-Type': 'application/json' };
-  if (cfg.token) headers.Authorization = 'Bearer ' + cfg.token;
+  if (cfg.token) { if (isZapi(cfg.url)) headers['Client-Token'] = cfg.token; else headers.Authorization = 'Bearer ' + cfg.token; }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 10000);
   try {
-    const res = await fetch(cfg.url, { method: 'POST', headers, body: JSON.stringify(payload), signal: ctrl.signal });
-    if (!res.ok) throw new Error('O endpoint respondeu ' + res.status);
+    const res = await fetch(cfg.url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
+    if (!res.ok) throw new Error('O endpoint respondeu ' + res.status + ' ' + (await res.text()).slice(0, 200));
   } finally { clearTimeout(timer); }
+}
+
+// Z-API: envia direto no formato dela ({phone, message}), em 2 mensagens (texto + código Pix).
+// Qualquer outro endpoint (n8n, Make...): envia o JSON completo uma vez.
+async function postWebhook(cfg, payload) {
+  if (isZapi(cfg.url)) {
+    if (!payload.phone) throw new Error('Sem telefone para enviar.');
+    await postJson(cfg, { phone: payload.phone, message: payload.message });
+    if (payload.messagePix) await postJson(cfg, { phone: payload.phone, message: payload.messagePix });
+    return;
+  }
+  await postJson(cfg, payload);
 }
 
 // ---------- chamadas do painel ----------
@@ -71,11 +85,15 @@ exports.waTest = onCall(async (request) => {
   const snap = await db().ref(`agendapro_saas/providerSecrets/${slug}/wa`).get();
   const cfg = snap.val();
   if (!cfg || !cfg.url) throw new HttpsError('failed-precondition', 'Configure o endpoint primeiro.');
+  const tn = (await db().ref(`agendapro_saas/tenants/${slug}`).get()).val() || {};
+  const ph = onlyDigits(tn.companyPhone || tn.phone || tn.whatsapp);
+  if (isZapi(cfg.url) && ph.length < 10) throw new HttpsError('failed-precondition', 'Cadastre o telefone/WhatsApp da empresa para receber o teste.');
   try {
     await postWebhook(cfg, {
-      event: 'pix.test', org: slug, phone: '', clientName: 'Teste',
-      message: '✅ Teste do aviso de Pix: se você recebeu isto, o webhook está funcionando.',
-      pixCode: '00020126TESTE',
+      event: 'pix.test', org: slug, phone: ph ? toBR(ph) : '', clientName: 'Teste',
+      message: '✅ Teste do aviso de Pix: se você recebeu isto, a integração está funcionando.',
+      messagePix: '00020126TESTE-NAO-PAGUE',
+      pixCode: '00020126TESTE-NAO-PAGUE',
     });
   } catch (e) { throw new HttpsError('unavailable', 'Não foi possível chamar o endpoint: ' + e.message); }
   return { ok: true };
