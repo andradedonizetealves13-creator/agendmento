@@ -1357,49 +1357,6 @@
         }
 
 
-        function waCardHtml() {
-            const wa = (window.providerInfo && window.providerInfo.wa) || null, on = !!(wa && wa.active), isAdm = session.role === 'admin';
-            const u = auth.currentUser;
-            const isPwd = !!(u && u.providerData.some(x => x.providerId === 'password'));
-            return `
-                <div class="rounded-2xl border-2 ${on ? 'border-emerald-300 bg-emerald-50/60' : 'border-dashed border-slate-300 bg-white'} p-4 space-y-3">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="flex items-start gap-3">
-                            <div class="bg-theme-secondary text-theme-primary p-2 rounded-xl shrink-0"><i data-lucide="message-circle" class="w-4 h-4"></i></div>
-                            <div>
-                                <p class="text-sm font-black text-slate-900">Aviso do Pix no WhatsApp (webhook)</p>
-                                <p class="text-[11px] text-slate-500">Quando o Pix é gerado, enviamos os dados para o endereço abaixo e o seu WhatsApp avisa o cliente.</p>
-                            </div>
-                        </div>
-                        <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 ${on ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}">${on ? 'Ativo' : 'Desativado'}</span>
-                    </div>
-                    ${on ? `<p class="text-xs text-slate-700">Endpoint: <b class="font-mono break-all">${esc(wa.host || '')}/•••</b>${wa.hasToken ? ' • com chave de acesso' : ''}</p>` : ''}
-                    ${!isAdm ? `<p class="text-xs font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-xl p-3">Só o administrador pode configurar a integração com o WhatsApp.</p>` : `
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">${on ? 'Novo endpoint (para trocar)' : 'Endpoint (URL do webhook)'}</label>
-                            <input type="password" id="wa-url" autocomplete="new-password" placeholder="https://..." class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500 font-mono">
-                            <p class="text-[11px] text-slate-400 mt-1">Z-API: cole o link do envio de texto (https://api.z-api.io/instances/…/token/…/send-text). Também funciona com n8n, Make etc. O endereço fica guardado só no servidor e não aparece de novo aqui.</p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Chave de acesso (Client-Token da Z-API, opcional)</label>
-                            <input type="password" id="wa-token" autocomplete="new-password" placeholder="Token de segurança da conta" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500 font-mono">
-                        </div>
-                        ${isPwd ? `
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Senha do seu login (obrigatória para salvar, testar ou desativar)</label>
-                            <input type="password" id="wa-pass" autocomplete="current-password" placeholder="Digite a senha do seu login" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500">
-                        </div>` : `<p class="text-[11px] text-slate-500">Seu login é pelo Google: ao clicar, vamos pedir para você entrar com o Google de novo para confirmar que é você.</p>`}
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <button type="button" onclick="waConnectClick()" class="flex-1 btn-theme-primary text-xs font-bold py-3 rounded-xl">${on ? 'Trocar endpoint' : 'Salvar e ativar'}</button>
-                            ${on ? `<button type="button" onclick="waTestClick()" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold py-3 rounded-xl">Enviar teste</button>
-                            <button type="button" onclick="waDisconnectClick()" class="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold py-3 rounded-xl">Desativar</button>` : ''}
-                        </div>
-                        <p class="text-[11px] text-slate-400">É gravado na hora (não precisa clicar em "Salvar Regras").</p>
-                    </div>`}
-                </div>`;
-        }
-
         function depositBodyHtml(d) {
             const procs = t.procedures || [];
             const dep = d.deposit;
@@ -1436,8 +1393,16 @@
                     </div>
                 </div>
                 <p class="text-[11px] text-slate-400 -mt-2">Se o sinal não for confirmado dentro do prazo, o horário é liberado automaticamente para outros clientes. ${provOn ? 'Com o pagamento automático, 0 vira 24 horas (o Pix gerado precisa de validade).' : 'Use 0 para não ter prazo.'}</p>
-                ${providerCardHtml()}
-                ${waCardHtml()}
+                <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-4 flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-theme-secondary text-theme-primary p-2 rounded-xl shrink-0"><i data-lucide="terminal" class="w-4 h-4"></i></div>
+                        <div>
+                            <p class="text-sm font-black text-slate-900">Pagamento automático e webhooks</p>
+                            <p class="text-[11px] text-slate-500">Mercado Pago ${provOn ? '(<b class="text-emerald-700">conectado</b>)' : '(não conectado)'}, avisos no WhatsApp e outras integrações ficam no Portal do Desenvolvedor.</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="profileTab='dev'; render()" class="shrink-0 btn-theme-primary text-xs font-bold px-4 py-2.5 rounded-xl">Abrir portal</button>
+                </div>
                 ${provOn ? '' : `
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div>
@@ -1820,11 +1785,11 @@
 
                 if (role !== 'admin') profileTab = 'perfil';
                 const tabs = role === 'admin'
-                    ? [['aparencia', 'palette', 'Aparência'], ['empresa', 'building-2', 'Empresa'], ['regras', 'shield-check', 'Regras'], ['perfil', 'user', 'Meu Perfil']]
+                    ? [['aparencia', 'palette', 'Aparência'], ['empresa', 'building-2', 'Empresa'], ['regras', 'shield-check', 'Regras'], ['dev', 'terminal', 'Desenvolvedor'], ['perfil', 'user', 'Meu Perfil']]
                     : [['perfil', 'user', 'Meu Perfil']];
                 const tabsHtml = `
                     <div class="flex flex-wrap gap-2 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl border shadow-sm w-fit">
-                        ${tabs.map(([id, icon, label]) => `<button onclick="profileTab='${id}'; render()" class="px-4 py-2.5 rounded-xl text-sm font-bold flex items-center transition-all ${profileTab === id ? 'bg-theme-secondary text-theme-primary' : 'text-slate-500 hover:text-slate-900'}"><i data-lucide="${icon}" class="w-4 h-4 mr-2"></i>${label}</button>`).join('')}
+                        ${tabs.map(([id, icon, label]) => `<button onclick="${id === 'dev' ? '' : 'devLock();'}profileTab='${id}'; render()" class="px-4 py-2.5 rounded-xl text-sm font-bold flex items-center transition-all ${profileTab === id ? 'bg-theme-secondary text-theme-primary' : 'text-slate-500 hover:text-slate-900'}"><i data-lucide="${icon}" class="w-4 h-4 mr-2"></i>${label}</button>`).join('')}
                     </div>`;
 
                 // OBS: o primeiro card tem "relative z-20" para o menu de temas ficar POR CIMA do card seguinte
@@ -1983,7 +1948,7 @@
                 return `
                     <div class="space-y-6 max-w-5xl mx-auto fade-in">
                         ${tabsHtml}
-                        ${profileTab === 'aparencia' ? aparenciaHtml : (profileTab === 'empresa' ? empresaHtml : (profileTab === 'regras' ? rulesPanelHtml() : perfilHtml))}
+                        ${profileTab === 'aparencia' ? aparenciaHtml : (profileTab === 'empresa' ? empresaHtml : (profileTab === 'regras' ? rulesPanelHtml() : (profileTab === 'dev' ? devPortalHtml() : perfilHtml)))}
                     </div>`;
             }
 
@@ -2007,7 +1972,7 @@
                         </div>
                     </div>` : '';
                 return `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Telefone / WhatsApp * (DDD + 9 dígitos)</label><input type="tel" id="e-phone" value="${esc(empToEdit?(empToEdit.phone||''):'')}" required placeholder="(00) 00000-0000" oninput="formatPhoneInput(this)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Repita a Senha</label><input type="password" id="e-pass2" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div>${whGrid}<div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}</p><p class="text-xs text-slate-500">${esc(e.email)}${e.phone ? ' • ' + esc(e.phone) : ' • <span class="text-rose-600 font-bold">sem telefone</span>'}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button></div>`).join('')}</div></div></div>`;
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Telefone / WhatsApp * (DDD + 9 dígitos)</label><input type="tel" id="e-phone" value="${esc(empToEdit?(empToEdit.phone||''):'')}" required placeholder="(00) 00000-0000" oninput="formatPhoneInput(this)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Repita a Senha</label><input type="password" id="e-pass2" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Perfil de acesso</label><select id="e-role" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white"><option value="employee" ${empToEdit&&empToEdit.isAdmin?'':'selected'}>Profissional (vê só a própria agenda)</option><option value="admin" ${empToEdit&&empToEdit.isAdmin?'selected':''}>Administrador (acesso total)</option></select><p class="text-[11px] text-slate-400 mt-1">O administrador vê todos os dados, regras e o Portal do Desenvolvedor. Marque só para pessoas de confiança.</p></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div>${whGrid}<div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}${e.isAdmin ? ' <span class="ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 align-middle">Administrador</span>' : ''}</p><p class="text-xs text-slate-500">${esc(e.email)}${e.phone ? ' • ' + esc(e.phone) : ' • <span class="text-rose-600 font-bold">sem telefone</span>'}</p></div></div><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button></div>`).join('')}</div></div></div>`;
             }
 
             if(role === 'admin' && activeTab === 'procedures') {
@@ -2984,50 +2949,220 @@
         };
 
 
-        // ---------- WHATSAPP (webhook do Pix): salvar / testar / desativar ----------
-        window.waConnectClick = async function() {
+
+        // ================= PORTAL DO DESENVOLVEDOR (só administrador, com senha) =================
+        window.devUnlockedAt = 0;
+        window.devOpen = window.devOpen || { mp: false, wh: true };
+        window.whDraft = null;
+        window.whLastTa = 'wh-msg';
+        window.devUnlocked = () => session.role === 'admin' && (Date.now() - window.devUnlockedAt) < 10 * 60 * 1000;
+        window.devLock = function () { window.devUnlockedAt = 0; window.whDraft = null; };
+        window.devUnlockClick = async function () {
             if (window.mpBusy) return;
-            if (session.role !== 'admin') return showModal('Atenção', 'Só o administrador pode configurar a integração com o WhatsApp.', 'error');
-            const url = (((document.getElementById('wa-url') || {}).value) || '').trim();
-            const token = (((document.getElementById('wa-token') || {}).value) || '').trim();
-            if (!/^https:\/\/[^\s]+$/i.test(url)) return showModal('Atenção', 'Cole o endereço completo do webhook, começando com https://', 'error');
+            if (session.role !== 'admin') return showModal('Acesso restrito', 'Só o administrador entra no Portal do Desenvolvedor.', 'error');
             window.mpBusy = true;
-            try {
-                await mpConfirmLogin('wa-pass');
-                await mpCall('waConnect', { url, token });
-                ['wa-url', 'wa-token'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-                showModal('Ativado!', 'Webhook salvo. Clique em <b>Enviar teste</b> para conferir se a mensagem chega.', 'success');
-            } catch (e) {
-                showModal('Não foi possível salvar', esc((e && e.message) || 'Tente novamente.'), 'error');
-            } finally { window.mpBusy = false; }
+            try { await mpConfirmLogin('dev-pass'); window.devUnlockedAt = Date.now(); render(); }
+            catch (e) { showModal('Não foi possível entrar', esc((e && e.message) || 'Tente novamente.'), 'error'); }
+            finally { window.mpBusy = false; }
         };
-        window.waTestClick = async function() {
-            if (window.mpBusy) return;
-            if (session.role !== 'admin') return showModal('Atenção', 'Só o administrador pode testar a integração.', 'error');
-            window.mpBusy = true;
-            try {
-                await mpConfirmLogin('wa-pass');
-                await mpCall('waTest');
-                showModal('Teste enviado', 'Mandamos um aviso de teste para o seu endpoint. Confira se a mensagem chegou no WhatsApp.', 'success');
-            } catch (e) {
-                showModal('O teste falhou', esc((e && e.message) || 'Tente novamente.'), 'error');
-            } finally { window.mpBusy = false; }
-        };
-        window.waDisconnectClick = function() {
-            if (session.role !== 'admin') return showModal('Atenção', 'Só o administrador pode alterar a integração.', 'error');
-            const needPass = !!(auth.currentUser && auth.currentUser.providerData.some(x => x.providerId === 'password'));
-            if (needPass && !(((document.getElementById('wa-pass') || {}).value) || '')) return showModal('Atenção', 'Digite a senha do seu login no campo "Senha do seu login" e clique em Desativar de novo.', 'error');
-            showModal('Desativar aviso no WhatsApp', 'Os próximos Pix gerados não enviarão mais mensagem.', 'error', async () => {
-                if (window.mpBusy) return;
-                window.mpBusy = true;
-                try {
-                    await mpConfirmLogin('wa-pass');
-                    await mpCall('waDisconnect');
-                    showModal('Desativado', 'O aviso no WhatsApp foi desligado.', 'success');
-                } catch (e) {
-                    showModal('Não foi possível desativar', esc((e && e.message) || 'Tente novamente.'), 'error');
-                } finally { window.mpBusy = false; }
+
+        // ações que disparam um webhook
+        const WH_EVENTS = [
+            ['pix_gerado', 'Pix gerado (cliente precisa pagar o sinal)'],
+            ['agendamento_criado', 'Novo agendamento criado'],
+            ['agendamento_confirmado', 'Agendamento confirmado (sinal pago ou confirmado)'],
+            ['agendamento_cancelado', 'Agendamento cancelado'],
+            ['agendamento_realizado', 'Atendimento realizado']
+        ];
+        // variáveis que podem ser usadas nas mensagens: {nome}, {data}...
+        const WH_VARS = [
+            ['nome', 'Nome completo do cliente', 'Maria Souza'],
+            ['primeiro_nome', 'Primeiro nome do cliente', 'Maria'],
+            ['telefone', 'Telefone do cliente', '(19) 98765-4321'],
+            ['empresa', 'Nome da empresa', 'Studio Aurora'],
+            ['data', 'Data completa', '20/11/2026'],
+            ['data_curta', 'Data sem o ano', '20/11'],
+            ['dia_semana', 'Dia da semana', 'sexta-feira'],
+            ['horario', 'Horário', '15:00'],
+            ['procedimentos', 'Serviços escolhidos', 'Design + Henna'],
+            ['profissional', 'Nome do profissional', 'Isabella Mendes'],
+            ['duracao', 'Duração total', '50 min'],
+            ['valor_total', 'Valor total', 'R$ 45,00'],
+            ['valor_sinal', 'Valor do sinal', 'R$ 15,75'],
+            ['prazo', 'Prazo para pagar o sinal', '20/11 às 12:00'],
+            ['pix_copia_cola', 'Código Pix copia e cola', '00020126...'],
+            ['id_agendamento', 'Código do agendamento', 'a1b2c3']
+        ];
+        const WH_KNOWN = {}; WH_VARS.forEach(v => { WH_KNOWN[v[0]] = v[2]; });
+        function whUnknownVars(text) {
+            const bad = []; String(text || '').replace(/\{\s*([^{}]*?)\s*\}/g, (m, n) => { if (!(n.toLowerCase() in WH_KNOWN) && !bad.includes(n)) bad.push(n); return m; });
+            return bad;
+        }
+        function whPreviewHtml(text) {
+            return esc(String(text || '')).replace(/\{\s*([^{}]*?)\s*\}/g, (m, n) => {
+                const k = n.toLowerCase();
+                return k in WH_KNOWN ? esc(WH_KNOWN[k]) : '<span class="bg-rose-100 text-rose-700 font-bold rounded px-1">{' + n + '}</span>';
+            }).replace(/\n/g, '<br>');
+        }
+        window.whRefreshPreview = function () {
+            [['wh-msg', 'wh-prev1'], ['wh-msg2', 'wh-prev2']].forEach(([i, o]) => {
+                const el = document.getElementById(i), out = document.getElementById(o); if (!el || !out) return;
+                out.innerHTML = el.value.trim() ? whPreviewHtml(el.value) : '<span class="text-slate-400">—</span>';
             });
+            const bad = whUnknownVars(((document.getElementById('wh-msg') || {}).value || '') + ' ' + ((document.getElementById('wh-msg2') || {}).value || ''));
+            const w = document.getElementById('wh-warn');
+            if (w) { w.classList.toggle('hidden', !bad.length); w.innerHTML = bad.length ? 'Variável não existe: <b>' + bad.map(b => '{' + esc(b) + '}').join(', ') + '</b>. Use os botões acima para inserir.' : ''; }
+        };
+        window.whInsertVar = function (name) {
+            const el = document.getElementById(window.whLastTa) || document.getElementById('wh-msg'); if (!el) return;
+            const st = el.selectionStart != null ? el.selectionStart : el.value.length, en = el.selectionEnd != null ? el.selectionEnd : st;
+            el.value = el.value.slice(0, st) + '{' + name + '}' + el.value.slice(en);
+            el.focus(); const pos = st + name.length + 2; el.setSelectionRange(pos, pos); whRefreshPreview();
+        };
+
+        window.whNew = function () { window.whDraft = { id: null, name: '', event: 'pix_gerado', message: '', message2: '', enabled: true }; window.devOpen.wh = true; render(); };
+        window.whEdit = function (id) {
+            const w = ((window.providerInfo || {}).webhooks || {})[id]; if (!w) return;
+            window.whDraft = { id, name: w.name || '', event: w.event || 'pix_gerado', message: w.message || '', message2: w.message2 || '', enabled: w.enabled !== false, host: w.host || '' };
+            window.devOpen.wh = true; render();
+        };
+        window.whCancel = function () { window.whDraft = null; render(); };
+
+        // chamadas ao servidor (sempre exigem login recente)
+        async function whCall(name, data) {
+            if (!devUnlocked()) { render(); throw new Error('Digite a senha do administrador de novo.'); }
+            try { return await mpCall(name, data); }
+            catch (e) {
+                if (e && /Confirme a senha/i.test(e.message || '')) { window.devUnlockedAt = 0; render(); throw new Error('Por segurança, digite a senha do administrador de novo. Seus campos foram mantidos.'); }
+                throw e;
+            }
+        }
+        window.whSave = async function () {
+            if (window.mpBusy) return;
+            const g = id => ((document.getElementById(id) || {}).value || '');
+            const d = window.whDraft; if (!d) return;
+            d.name = g('wh-name').trim(); d.event = g('wh-event'); d.message = g('wh-msg'); d.message2 = g('wh-msg2');
+            const url = g('wh-url').trim(), token = g('wh-token').trim();
+            if (!d.name) return showModal('Atenção', 'Dê um nome para este webhook.', 'error');
+            if (!d.id && !/^https:\/\/[^\s]+$/i.test(url)) return showModal('Atenção', 'Cole o endpoint completo, começando com https://', 'error');
+            if (d.id && url && !/^https:\/\/[^\s]+$/i.test(url)) return showModal('Atenção', 'O endpoint precisa começar com https://', 'error');
+            const bad = whUnknownVars(d.message + ' ' + d.message2);
+            if (bad.length) return showModal('Variável inválida', 'Estas variáveis não existem: <b>' + bad.map(b => '{' + esc(b) + '}').join(', ') + '</b>.', 'error');
+            window.mpBusy = true;
+            try {
+                await whCall('webhookSave', { id: d.id, name: d.name, event: d.event, url, token, message: d.message, message2: d.message2, enabled: d.enabled });
+                window.whDraft = null; render();
+                showModal('Salvo', 'Webhook salvo. Use o botão <b>Testar</b> para conferir.', 'success');
+            } catch (e) { showModal('Não foi possível salvar', esc((e && e.message) || 'Tente novamente.'), 'error'); }
+            finally { window.mpBusy = false; }
+        };
+        window.whToggle = async function (id, on) {
+            if (window.mpBusy) return; window.mpBusy = true;
+            try { await whCall('webhookToggle', { id, enabled: on }); } catch (e) { showModal('Não foi possível alterar', esc((e && e.message) || 'Tente novamente.'), 'error'); }
+            finally { window.mpBusy = false; }
+        };
+        window.whTest = async function (id) {
+            if (window.mpBusy) return; window.mpBusy = true;
+            try { await whCall('webhookTest', { id }); showModal('Teste enviado', 'Mandamos um teste com dados de exemplo para o telefone da empresa. Confira se chegou.', 'success'); }
+            catch (e) { showModal('O teste falhou', esc((e && e.message) || 'Tente novamente.'), 'error'); }
+            finally { window.mpBusy = false; }
+        };
+        window.whDelete = function (id) {
+            showModal('Excluir webhook', 'Este webhook deixa de ser chamado. Não dá para desfazer.', 'error', async () => {
+                if (window.mpBusy) return; window.mpBusy = true;
+                try { await whCall('webhookDelete', { id }); showModal('Excluído', 'Webhook removido.', 'success'); }
+                catch (e) { showModal('Não foi possível excluir', esc((e && e.message) || 'Tente novamente.'), 'error'); }
+                finally { window.mpBusy = false; }
+            });
+        };
+
+        function devSection(key, icon, title, desc, body) {
+            return `
+                <details ${window.devOpen[key] ? 'open' : ''} ontoggle="devOpen['${key}']=this.open" class="group bg-white/90 backdrop-blur-md rounded-3xl border shadow-sm overflow-hidden">
+                    <summary class="flex items-center justify-between gap-3 p-5 cursor-pointer list-none select-none">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="bg-theme-secondary text-theme-primary p-2.5 rounded-xl shrink-0"><i data-lucide="${icon}" class="w-5 h-5"></i></div>
+                            <div class="min-w-0"><h3 class="font-bold text-slate-900">${title}</h3><p class="text-xs text-slate-500">${desc}</p></div>
+                        </div>
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 shrink-0 transition-transform group-open:rotate-180"></i>
+                    </summary>
+                    <div class="px-5 pb-5 pt-1 space-y-4 border-t">${body}</div>
+                </details>`;
+        }
+        function whFormHtml() {
+            const d = window.whDraft, editing = !!d.id;
+            return `
+                <div class="rounded-2xl border-2 border-theme-primary/40 bg-slate-50/60 p-4 space-y-4">
+                    <p class="text-sm font-black text-slate-900">${editing ? 'Editar webhook' : 'Novo webhook'}</p>
+                    <div><label class="block text-xs font-bold text-slate-700 mb-1">Nome</label>
+                        <input type="text" id="wh-name" value="${esc(d.name)}" placeholder="Ex: Aviso de Pix no WhatsApp" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white"></div>
+                    <div><label class="block text-xs font-bold text-slate-700 mb-1">Ação que chama o endpoint</label>
+                        <select id="wh-event" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white">${WH_EVENTS.map(([v, l]) => `<option value="${v}" ${d.event === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+                    <div><label class="block text-xs font-bold text-slate-700 mb-1">${editing ? 'Novo endpoint (deixe vazio para manter o atual' + (d.host ? ': ' + esc(d.host) : '') + ')' : 'Endpoint (URL)'}</label>
+                        <input type="password" id="wh-url" autocomplete="new-password" placeholder="https://..." class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white font-mono">
+                        <p class="text-[11px] text-slate-400 mt-1">Z-API: use o link de envio de texto (…/send-text). Também serve n8n, Make etc. O endereço fica guardado só no servidor.</p></div>
+                    <div><label class="block text-xs font-bold text-slate-700 mb-1">Chave de acesso (opcional)</label>
+                        <input type="password" id="wh-token" autocomplete="new-password" placeholder="${editing ? 'Deixe vazio para manter a atual' : 'Client-Token da Z-API ou chave do seu serviço'}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white font-mono"></div>
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-slate-700">Mensagem a enviar (se este webhook envia mensagem)</label>
+                        <div class="flex flex-wrap gap-1.5">${WH_VARS.map(v => `<button type="button" title="${esc(v[1])}" onclick="whInsertVar('${v[0]}')" class="text-[11px] font-mono font-bold bg-white border rounded-lg px-2 py-1 hover:bg-theme-secondary">{${v[0]}}</button>`).join('')}</div>
+                        <textarea id="wh-msg" rows="9" oninput="whRefreshPreview()" onfocus="whLastTa='wh-msg'" placeholder="Oii, tudo bem, {primeiro_nome}?" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white">${esc(d.message)}</textarea>
+                        <p id="wh-warn" class="hidden text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-2.5"></p>
+                        <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Prévia com dados de exemplo</p><div id="wh-prev1" class="text-sm bg-white border rounded-xl p-3 min-h-[3rem]"></div></div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-slate-700">2ª mensagem (opcional, enviada logo depois)</label>
+                        <textarea id="wh-msg2" rows="2" oninput="whRefreshPreview()" onfocus="whLastTa='wh-msg2'" placeholder="Ex: {pix_copia_cola}" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white">${esc(d.message2)}</textarea>
+                        <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Prévia</p><div id="wh-prev2" class="text-sm bg-white border rounded-xl p-3 min-h-[3rem]"></div></div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <button type="button" onclick="whCancel()" class="flex-1 bg-slate-100 text-slate-700 text-xs font-bold py-3 rounded-xl">Cancelar</button>
+                        <button type="button" onclick="whSave()" class="flex-1 btn-theme-primary text-xs font-bold py-3 rounded-xl">Salvar webhook</button>
+                    </div>
+                    <p class="text-[11px] text-slate-400">Tudo que estiver entre chaves, como {nome}, é trocado pelos dados do agendamento. Variável que não existe é bloqueada ao salvar.</p>
+                </div>`;
+        }
+        function whBodyHtml() {
+            const list = Object.entries(((window.providerInfo || {}).webhooks) || {});
+            const evLabel = v => (WH_EVENTS.find(e => e[0] === v) || [0, v])[1];
+            const items = list.length ? list.map(([id, w]) => `
+                <div class="p-4 border rounded-2xl bg-white space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0"><p class="font-bold text-sm text-slate-900 truncate">${esc(w.name || 'Webhook')}</p>
+                            <p class="text-xs text-slate-500">Ação: <b>${esc(evLabel(w.event))}</b></p>
+                            <p class="text-[11px] text-slate-400 font-mono break-all">${esc(w.host || '')}/•••${w.hasToken ? ' • com chave' : ''}</p></div>
+                        <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 ${w.enabled !== false ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}">${w.enabled !== false ? 'Ativo' : 'Pausado'}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="whEdit('${esc(id)}')" class="text-xs font-bold text-theme-primary px-3 py-2 bg-theme-secondary rounded-lg">Editar</button>
+                        <button type="button" onclick="whTest('${esc(id)}')" class="text-xs font-bold text-slate-700 px-3 py-2 bg-white border rounded-lg">Testar</button>
+                        <button type="button" onclick="whToggle('${esc(id)}', ${w.enabled === false})" class="text-xs font-bold text-slate-700 px-3 py-2 bg-white border rounded-lg">${w.enabled !== false ? 'Pausar' : 'Ativar'}</button>
+                        <button type="button" onclick="whDelete('${esc(id)}')" class="text-xs font-bold text-rose-700 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg">Excluir</button>
+                    </div>
+                </div>`).join('') : `<p class="text-xs text-slate-500">Nenhum webhook cadastrado ainda.</p>`;
+            return `${items}${window.whDraft ? whFormHtml() : `<button type="button" onclick="whNew()" class="w-full btn-theme-primary text-sm font-bold py-3 rounded-xl flex items-center justify-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i>Novo webhook</button>`}`;
+        }
+        window.devPortalHtml = function () {
+            const isAdm = session.role === 'admin';
+            if (!isAdm) return `<div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm max-w-xl text-center"><div class="bg-theme-secondary text-theme-primary w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"><i data-lucide="lock" class="w-6 h-6"></i></div><h3 class="font-bold text-lg">Acesso restrito</h3><p class="text-sm text-slate-500 mt-1">Só o administrador entra no Portal do Desenvolvedor.</p></div>`;
+            if (!devUnlocked()) {
+                const u = auth.currentUser, isPwd = !!(u && u.providerData.some(x => x.providerId === 'password'));
+                return `<div class="bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm max-w-md space-y-4">
+                    <div class="text-center"><div class="bg-theme-secondary text-theme-primary w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"><i data-lucide="terminal" class="w-6 h-6"></i></div>
+                    <h3 class="font-bold text-lg">Portal do Desenvolvedor</h3><p class="text-xs text-slate-500 mt-1">Integrações, pagamentos e webhooks. Digite a senha do administrador para entrar.</p></div>
+                    ${isPwd ? `<input type="password" id="dev-pass" autocomplete="current-password" placeholder="Senha do administrador" onkeydown="if(event.key==='Enter')devUnlockClick()" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500">` : `<p class="text-[11px] text-slate-500 text-center">Seu login é pelo Google: vamos pedir para você entrar com o Google de novo.</p>`}
+                    <button type="button" onclick="devUnlockClick()" class="w-full btn-theme-primary text-sm font-bold py-3 rounded-xl">Entrar</button>
+                    ${window.whDraft ? '<p class="text-[11px] text-slate-400 text-center">Os campos do webhook que você estava editando foram mantidos.</p>' : ''}
+                </div>`;
+            }
+            return `<div class="space-y-4 max-w-3xl">
+                <div class="flex items-center justify-between gap-3 bg-white/90 backdrop-blur-md px-5 py-3 rounded-2xl border shadow-sm">
+                    <p class="text-xs text-slate-600"><b>Portal liberado.</b> Ele trava sozinho em 10 minutos ou quando você sair desta aba.</p>
+                    <button type="button" onclick="devLock(); render()" class="text-xs font-bold text-slate-700 px-3 py-2 bg-white border rounded-lg shrink-0">Bloquear</button>
+                </div>
+                ${devSection('mp', 'zap', 'Pagamentos (Mercado Pago)', 'Pix automático do sinal', providerCardHtml())}
+                ${devSection('wh', 'webhook', 'Webhooks', 'Endpoints chamados quando algo acontece, com mensagem personalizada', whBodyHtml())}
+            </div>`;
         };
 
         // ---------- AGENDAMENTO PENDENTE: confirmar sinal ----------
@@ -3326,7 +3461,7 @@
             }
             if (editEmployeeId) {
                 const emp = t.employees.find(x => x.id === editEmployeeId);
-                emp.name = name; emp.email = email; emp.phone = phoneRaw; emp.procedures = checks;
+                emp.name = name; emp.email = email; emp.phone = phoneRaw; emp.procedures = checks; emp.isAdmin = (document.getElementById('e-role') || {}).value === 'admin';
                 if (senhaHash) emp.password = senhaHash;
                 // horário de trabalho do profissional
                 if (document.getElementById('ewh-cb-0')) {
@@ -3342,7 +3477,7 @@
                 }
             } else {
                 const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length];
-                t.employees.push({ id: 'emp-' + Date.now(), uid: empUid, name, email: email.trim(), phone: phoneRaw, password: senhaHash, avatar: '', color: newColor, procedures: checks, workingHours: getDefWH(), exceptions: {} });
+                t.employees.push({ id: 'emp-' + Date.now(), uid: empUid, name, email: email.trim(), phone: phoneRaw, password: senhaHash, avatar: '', color: newColor, procedures: checks, isAdmin: (document.getElementById('e-role') || {}).value === 'admin', workingHours: getDefWH(), exceptions: {} });
             }
             editEmployeeId = null;
             saveDB(['employees']);
