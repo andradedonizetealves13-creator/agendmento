@@ -1,71 +1,133 @@
 // functions/whatsappPix.js
-// Dispara uma mensagem no WhatsApp assim que o Pix de um agendamento é gerado.
-//
-// Como funciona: o seu mpCreatePix já grava o código "copia e cola" em
-//   agendapro_saas/tenants/{org}/appointments/{id}/mpPixCode
-// Esta função "escuta" esse campo. Quando ele aparece, ela envia o WhatsApp.
+// Webhook do Pix: quando o Pix de um agendamento é gerado, envia os dados para o
+// endpoint que o administrador cadastrou no painel (card "Aviso do Pix no WhatsApp").
 //
 // No index.js:  Object.assign(exports, require('./whatsappPix'));
-// Instalar:     firebase functions:secrets:set WA_API_KEY
-//               (opcional) firebase functions:config / .env com WA_API_URL e WA_INSTANCE
+// Deploy:       firebase deploy --only functions
+//
+// ONDE FICAM OS DADOS
+//   Segredo (endpoint + chave):  agendapro_saas/providerSecrets/{slug}/wa   <- só o servidor lê/grava
+//   Status público (sem segredo): agendapro_saas/providers/{slug}/wa        <- o painel mostra o status
+// IMPORTANTE nas Rules do Realtime Database: "providerSecrets" com ".read": false e ".write": false.
 
 const { onValueCreated } = require('firebase-functions/v2/database');
-const { defineSecret } = require('firebase-functions/params');
-
-const WA_API_KEY = defineSecret('WA_API_KEY');
-const WA_API_URL = process.env.WA_API_URL || 'https://SUA-EVOLUTION-API.com'; // troque
-const WA_INSTANCE = process.env.WA_INSTANCE || 'minha-instancia';              // troque
-
-// ---- Envio (exemplo: Evolution API). Para outro provedor, mude só esta função ----
-async function sendWhatsApp(phone, text) {
-  const res = await fetch(`${WA_API_URL}/message/sendText/${WA_INSTANCE}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: WA_API_KEY.value() },
-    body: JSON.stringify({ number: phone, text }),
-  });
-  if (!res.ok) throw new Error(`WhatsApp API ${res.status}: ${await res.text()}`);
-}
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const admin = require('firebase-admin');
+if (!admin.apps.length) admin.initializeApp();
+const db = () => admin.database();
 
 const onlyDigits = (v) => String(v || '').replace(/\D/g, '');
-const toBR = (d) => (d.length <= 11 ? '55' + d : d); // DDD + número -> 55 + DDD + número
+const toBR = (d) => (d.length <= 11 ? '55' + d : d);
 const dateBR = (iso) => String(iso || '').split('-').reverse().join('/');
 const money = (n) => 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',');
 
+// ---------- segurança: só admin, com a senha digitada agora há pouco ----------
+async function assertAdmin(request) {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Entre novamente.');
+  const slug = String((request.data || {}).slug || '');
+  if (!slug) throw new HttpsError('invalid-argument', 'Organização não informada.');
+  // login recente (o painel pede a senha e renova o token antes de chamar)
+  const authTime = Number(request.auth.token.auth_time || 0) * 1000;
+  if (Date.now() - authTime > 5 * 60 * 1000) throw new HttpsError('permission-denied', 'Confirme a senha novamente.');
+  // TODO: troque esta checagem pela MESMA que o seu mpConnect usa para validar que
+  // request.auth.uid é administrador da organização "slug".
+  // (reaproveite a função auxiliar que já existe no seu backend)
+  return slug;
+}
+
+async function postWebhook(cfg, payload) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (cfg.token) headers.Authorization = 'Bearer ' + cfg.token;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const res = await fetch(cfg.url, { method: 'POST', headers, body: JSON.stringify(payload), signal: ctrl.signal });
+    if (!res.ok) throw new Error('O endpoint respondeu ' + res.status);
+  } finally { clearTimeout(timer); }
+}
+
+// ---------- chamadas do painel ----------
+exports.waConnect = onCall(async (request) => {
+  const slug = await assertAdmin(request);
+  const url = String(request.data.url || '').trim();
+  const token = String(request.data.token || '').trim();
+  let host;
+  try { const u = new URL(url); if (u.protocol !== 'https:') throw 0; host = u.host; }
+  catch (_) { throw new HttpsError('invalid-argument', 'O endpoint precisa ser um link https:// válido.'); }
+  await db().ref(`agendapro_saas/providerSecrets/${slug}/wa`).set({ url, token, updatedAt: new Date().toISOString() });
+  await db().ref(`agendapro_saas/providers/${slug}/wa`).set({ active: true, host, hasToken: !!token, connectedAt: new Date().toISOString() });
+  return { ok: true };
+});
+
+exports.waDisconnect = onCall(async (request) => {
+  const slug = await assertAdmin(request);
+  await db().ref(`agendapro_saas/providerSecrets/${slug}/wa`).remove();
+  await db().ref(`agendapro_saas/providers/${slug}/wa`).remove();
+  return { ok: true };
+});
+
+exports.waTest = onCall(async (request) => {
+  const slug = await assertAdmin(request);
+  const snap = await db().ref(`agendapro_saas/providerSecrets/${slug}/wa`).get();
+  const cfg = snap.val();
+  if (!cfg || !cfg.url) throw new HttpsError('failed-precondition', 'Configure o endpoint primeiro.');
+  try {
+    await postWebhook(cfg, {
+      event: 'pix.test', org: slug, phone: '', clientName: 'Teste',
+      message: '✅ Teste do aviso de Pix: se você recebeu isto, o webhook está funcionando.',
+      pixCode: '00020126TESTE',
+    });
+  } catch (e) { throw new HttpsError('unavailable', 'Não foi possível chamar o endpoint: ' + e.message); }
+  return { ok: true };
+});
+
+// ---------- gatilho: Pix gerado ----------
 exports.whatsappPixGerado = onValueCreated(
   {
     ref: '/agendapro_saas/tenants/{org}/appointments/{key}/mpPixCode',
-    secrets: [WA_API_KEY],
-    // region: 'us-central1', // deve ser a mesma região do seu Realtime Database
+    // region: 'us-central1', // use a mesma região do seu Realtime Database
   },
   async (event) => {
     const pixCode = event.data.val();
     if (!pixCode) return;
+    const org = event.params.org;
 
-    // lê o agendamento inteiro (pai do campo mpPixCode)
-    const snap = await event.data.ref.parent.get();
-    const a = snap.val() || {};
+    const cfgSnap = await db().ref(`agendapro_saas/providerSecrets/${org}/wa`).get();
+    const cfg = cfgSnap.val();
+    if (!cfg || !cfg.url) return; // organização sem webhook configurado
+
+    const aptRef = event.data.ref.parent;
+    const a = (await aptRef.get()).val() || {};
+    if (a.waPixSentAt) return; // não envia duas vezes se o Pix for regerado
 
     const phone = onlyDigits(a.clientPhone);
     if (phone.length < 10) return console.warn('Agendamento sem telefone válido', event.params.key);
 
-    // evita enviar duas vezes se o Pix for regerado
-    if (a.waPixSentAt) return;
-
-    const msg =
+    const prazo = a.depositDeadline
+      ? new Date(a.depositDeadline).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })
+      : '';
+    const message =
       `Olá, ${String(a.clientName || '').split(' ')[0]}! 💜\n\n` +
-      `Seu horário está reservado:\n` +
-      `📅 ${dateBR(a.date)} às ${a.time}\n` +
-      `💅 ${(a.proceduresNames || []).join(', ')}\n\n` +
+      `Seu horário está reservado:\n📅 ${dateBR(a.date)} às ${a.time}\n💅 ${(a.proceduresNames || []).join(', ')}\n\n` +
       `Para confirmar, pague o sinal de *${money(a.depositAmount)}* por Pix.\n` +
-      (a.depositDeadline
-        ? `⏰ Pague até ${new Date(a.depositDeadline).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}.\n`
-        : '') +
-      `\nCopie o código abaixo e cole no app do seu banco (Pix copia e cola) 👇`;
+      (prazo ? `⏰ Pague até ${prazo}.\n` : '') +
+      `\nCopie o código que vou enviar na próxima mensagem e cole no app do seu banco (Pix copia e cola) 👇`;
 
-    const to = toBR(phone);
-    await sendWhatsApp(to, msg);
-    await sendWhatsApp(to, pixCode); // em mensagem separada: fica fácil de copiar
+    await postWebhook(cfg, {
+      event: 'pix.generated',
+      org,
+      appointmentId: a.id || event.params.key,
+      phone: toBR(phone),
+      clientName: a.clientName || '',
+      date: a.date || '', time: a.time || '',
+      services: a.proceduresNames || [],
+      amount: Number(a.depositAmount || 0),
+      deadline: a.depositDeadline || '',
+      pixCode,
+      message,          // texto pronto para enviar
+      messagePix: pixCode, // 2ª mensagem: só o código, fácil de copiar
+    });
 
-    await event.data.ref.parent.child('waPixSentAt').set(new Date().toISOString());
+    await aptRef.child('waPixSentAt').set(new Date().toISOString());
   }
 );
