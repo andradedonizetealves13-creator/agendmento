@@ -2,7 +2,6 @@
 // 1) syncRole: confere no servidor se o login é admin/profissional da organização e grava o papel
 //    no próprio login (custom claims: { staff: { "<slug>": "admin" | "employee" } }).
 // 2) sendReminders: todo dia, avisa por e-mail os clientes que têm horário confirmado amanhã.
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 
@@ -13,44 +12,9 @@ const TZ = 'America/Sao_Paulo';
 const toList = (v) => (Array.isArray(v) ? v.filter(Boolean) : (v ? Object.values(v) : []));
 const lower = (v) => String(v || '').toLowerCase().trim();
 
-function roleInTenant(t, uid, email) {
-  if (!t) return null;
-  const a = t.admin || {};
-  if (a.id === uid || (a.email && lower(a.email) === email && email)) return { role: 'admin', id: a.id || uid };
-  const emp = toList(t.employees).find((e) => e.uid === uid || e.id === uid || (e.email && lower(e.email) === email && email));
-  if (emp) return { role: 'employee', id: emp.id };
-  return null;
-}
-
-exports.syncRole = onCall(async (req) => {
-  if (!req.auth) throw new HttpsError('unauthenticated', 'Faça login primeiro.');
-  const uid = req.auth.uid;
-  const email = lower(req.auth.token.email);
-  const db = admin.database();
-  let slug = req.data && typeof req.data.slug === 'string' ? req.data.slug : null;
-  let found = null;
-
-  if (slug) {
-    if (/[.$#\[\]\/]/.test(slug)) throw new HttpsError('invalid-argument', 'Organização inválida.');
-    const t = (await db.ref(`${TENANTS}/${slug}`).get()).val();
-    const r = roleInTenant(t, uid, email);
-    if (r) found = { slug, ...r };
-  } else {
-    const all = (await db.ref(TENANTS).get()).val() || {};
-    for (const s of Object.keys(all)) {
-      const r = roleInTenant(all[s], uid, email);
-      if (r) { found = { slug: s, ...r }; break; }
-    }
-  }
-
-  if (!found) return { role: 'client' };   // cliente comum: não recebe papel especial
-
-  const user = await admin.auth().getUser(uid);
-  const claims = user.customClaims || {};
-  const staff = { ...(claims.staff || {}), [found.slug]: found.role };
-  await admin.auth().setCustomUserClaims(uid, { ...claims, staff });
-  return found;   // { slug, role, id }
-});
+// syncRole (papel do login) e pagamentos (Mercado Pago) vivem em arquivos próprios
+exports.syncRole = require('./roles').syncRole;
+Object.assign(exports, require('./pagamentos'));
 
 // ---- Lembretes automáticos (e-mail pela extensão "Trigger Email from Firestore") ----
 // Requer: plano Blaze, Firestore ativo e a extensão instalada com a coleção "mail".
