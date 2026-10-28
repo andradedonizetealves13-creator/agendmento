@@ -21,7 +21,7 @@
         ".read": true,
         ".write": false,
         "$empresa": {
-          ".write": "!data.exists()",
+          ".write": "auth != null && !data.exists() && newData.child('admin/id').val() == auth.uid",
           "$campo": {
             ".write": "auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)"
           },
@@ -34,7 +34,7 @@
           "clients": {
             ".write": "auth != null",
             "$i": {
-              ".validate": "(auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)) || (auth != null && ((!data.exists() && newData.child('id').val() == auth.uid) || (data.exists() && ((data.child('id').val() == auth.uid || (auth.token.email != null && data.child('email').val() != null && data.child('email').val().toLowerCase() == auth.token.email.toLowerCase())) ? (newData.child('id').val() == auth.uid && newData.child('email').val() == data.child('email').val()) : (newData.child('id').val() == data.child('id').val() && newData.child('email').val() == data.child('email').val() && newData.child('name').val() == data.child('name').val() && newData.child('phone').val() == data.child('phone').val() && newData.child('avatar').val() == data.child('avatar').val())))))"
+              ".validate": "(auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)) || (auth != null && ((!data.exists() && newData.child('id').val() == auth.uid) || (data.exists() && ((data.child('id').val() == auth.uid || (auth.token.email_verified == true && auth.token.email != null && data.child('email').val() != null && data.child('email').val().toLowerCase() == auth.token.email.toLowerCase())) ? (newData.child('id').val() == auth.uid && newData.child('email').val() == data.child('email').val()) : (newData.child('id').val() == data.child('id').val() && newData.child('email').val() == data.child('email').val() && newData.child('name').val() == data.child('name').val() && newData.child('phone').val() == data.child('phone').val() && newData.child('avatar').val() == data.child('avatar').val())))))"
             }
           }
         }
