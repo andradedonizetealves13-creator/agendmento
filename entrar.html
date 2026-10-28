@@ -267,7 +267,7 @@
                 }
             } catch (err) {
                 showError(window.traduzErroAuth(err, mode));
-                marcarCampos(window.campoDoErro(err));
+                marcarCampos(typeof window.campoDoErro === 'function' ? window.campoDoErro(err) : ((err && err.campo) || []));
                 btnSubmit.textContent = mode === 'login' ? 'Acessar Painel' : 'Criar Conta';
                 btnSubmit.disabled = false;
             }
