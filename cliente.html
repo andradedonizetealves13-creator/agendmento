@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f8fafc">
     <title>Primstav - Agendamento do Cliente</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -43,14 +44,35 @@
         @media (min-width: 390px) { html { font-size: 16px; } }
         /* acompanha a barra do navegador no celular */
         @supports (height: 100dvh) { html, body { height: 100dvh; } }
+        @supports (height: 100lvh) { #custom-bg-layer { height: calc(100lvh + var(--bg-blur) * 4 + 4px); } }
+        html, body { overscroll-behavior: none; }
+        /* respeita notch / barra de início sem deixar faixas vazias: o fundo continua por baixo */
+        #app {
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
+        }
+        @media (max-width: 767px) {
+            #app aside.fixed.bottom-0 {
+                height: calc(4rem + env(safe-area-inset-bottom, 0px));
+                padding-bottom: calc(.5rem + env(safe-area-inset-bottom, 0px));
+            }
+        }
         #app { overflow-x: hidden; overflow-wrap: break-word; }
         img, svg, video, iframe, canvas { max-width: 100%; }
         @media (max-width: 380px) {
-            #mode-toggle { width: 2.1rem; height: 2.1rem; top: .5rem; right: .5rem; }
+            #mode-toggle { width: 2.1rem; height: 2.1rem; top: calc(.5rem + env(safe-area-inset-top, 0px)); right: calc(.5rem + env(safe-area-inset-right, 0px)); }
         }
         #custom-bg-layer {
             position: fixed;
-            inset: 0;
+            /* vai além das bordas (blur esmaece as pontas) e cobre notch + barras do navegador */
+            left: calc(var(--bg-blur) * -2 - 2px);
+            right: calc(var(--bg-blur) * -2 - 2px);
+            top: calc(var(--bg-blur) * -2 - 2px);
+            bottom: auto;
+            width: auto;
+            height: calc(100vh + var(--bg-blur) * 4 + 4px);
             background-image: var(--bg-image);
             background-repeat: no-repeat;
             background-size: cover;
@@ -104,7 +126,7 @@
         }
 
         /* ===== Modo noturno / claro (só cores; não muda posição de nada). Vale sobre qualquer tema ===== */
-        #mode-toggle { position: fixed; top: .75rem; right: .75rem; z-index: 60; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background: rgba(255,255,255,.75); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.7); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 45%, transparent); transition: transform .2s; }
+        #mode-toggle { position: fixed; top: calc(.75rem + env(safe-area-inset-top, 0px)); right: calc(.75rem + env(safe-area-inset-right, 0px)); z-index: 60; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background: rgba(255,255,255,.75); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.7); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 45%, transparent); transition: transform .2s; }
         #mode-toggle:hover { transform: scale(1.08) rotate(-8deg); }
         html[data-mode="dark"] { color-scheme: dark; --dk-bg: color-mix(in srgb, var(--theme-primary) 8%, #07070a); }
         html[data-mode="dark"] #mode-toggle { color: #fcd34d; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); box-shadow: 0 6px 18px -6px rgba(0,0,0,.6); }
@@ -183,6 +205,14 @@
 <body class="text-slate-800 antialiased h-full w-full flex m-0 p-0 overflow-hidden">
 
     <div id="custom-bg-layer"></div>
+    <script>
+    (function(){
+        var meta = document.querySelector('meta[name="theme-color"]'), tm = null;
+        function sync(){ try { var c = getComputedStyle(document.body).backgroundColor; if (c && meta) meta.setAttribute('content', c); } catch(e){} }
+        new MutationObserver(function(){ clearTimeout(tm); tm = setTimeout(sync, 60); }).observe(document.documentElement, { attributes: true, attributeFilter: ['style','data-mode'] });
+        window.addEventListener('load', sync); sync();
+    })();
+    </script>
 
     <div id="app" class="h-full w-full flex flex-col p-0 m-0 relative z-10 overflow-y-auto custom-scrollbar">
         <div class="m-auto flex flex-col items-center justify-center">
