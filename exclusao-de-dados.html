@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Exclusão de dados | Primstav</title>
+<meta name="description" content="Como pedir a exclusão dos seus dados na Primstav.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--ink:#18181b;--mute:#52525b;--line:#e4e4e7;--soft:#fffbeb;--acc:#b45309;--acc-d:#92400e;--acc-l:#f0b90b;color-scheme:light}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:1.0313rem;line-height:1.75;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+a{color:var(--acc);text-underline-offset:3px}
+a:hover{color:var(--acc-d)}
+a:focus-visible,summary:focus-visible,.btn:focus-visible{outline:3px solid var(--acc-l);outline-offset:3px;border-radius:.4rem}
+.top{border-bottom:1px solid var(--line)}
+.top-in{max-width:68rem;margin:0 auto;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.brand{font-weight:800;font-size:1.3rem;letter-spacing:-.01em;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:.55rem}
+.brand i{width:.9rem;height:.9rem;border-radius:50%;background:linear-gradient(135deg,#f0b90b,#d97706 60%,#b45309);display:inline-block}
+.top nav a{color:var(--mute);text-decoration:none;font-size:.9rem;font-weight:500;margin-left:1.25rem;padding-bottom:.2rem;border-bottom:2px solid transparent}
+.top nav a:hover{color:var(--ink)}
+.top nav a[aria-current]{color:var(--ink);border-bottom-color:var(--acc-l)}
+.hero{max-width:68rem;margin:0 auto;padding:3rem 1.25rem 1.5rem}
+h1{font-size:clamp(2rem,6vw,3.25rem);line-height:1.08;letter-spacing:-.03em;font-weight:800;margin:0 0 .75rem;max-width:20ch}
+.meta{color:var(--mute);font-size:.9rem;margin:0}
+.layout{max-width:68rem;margin:0 auto;padding:1rem 1.25rem 4rem;display:block}
+main{min-width:0;max-width:44rem}
+main>p:first-of-type,.sum+p{margin-bottom:2.5rem}
+.sum{background:var(--soft);border-left:4px solid var(--acc-l);border-radius:.25rem .9rem .9rem .25rem;padding:1.1rem 1.4rem;margin:0 0 2.5rem}
+.sum p{margin:0 0 .4rem;font-weight:700}
+.sum ul{margin:0;padding-left:1.1rem}
+.sum li{margin:.2rem 0}
+.sum li::marker{color:var(--acc)}
+section{scroll-margin-top:1.5rem;margin-bottom:2.5rem}
+h2{font-size:1.4rem;line-height:1.3;letter-spacing:-.015em;font-weight:700;margin:0 0 .6rem}
+h2 span{color:var(--acc);margin-right:.5rem;font-variant-numeric:tabular-nums}
+p{margin:.65rem 0}
+ul,ol{padding-left:1.25rem;margin:.65rem 0}
+li{margin:.35rem 0}
+li::marker{color:var(--acc)}
+strong{font-weight:600}
+.callout{border:1px solid var(--line);border-radius:.9rem;padding:1rem 1.25rem;margin:1rem 0;background:#fafafa}
+.callout p{margin:.2rem 0}
+.toc{margin-bottom:1rem}
+.toc summary{cursor:pointer;font-weight:700;padding:.7rem 1rem;border:1px solid var(--line);border-radius:.8rem;list-style:none}
+.toc summary::-webkit-details-marker{display:none}
+.toc ol{list-style:none;margin:.5rem 0 1.5rem;padding:0}
+.toc a{display:block;padding:.3rem 1rem;color:var(--mute);text-decoration:none;font-size:.9rem;line-height:1.4;border-left:2px solid var(--line)}
+.toc a:hover{color:var(--ink)}
+.toc a.on{color:var(--ink);font-weight:600;border-left-color:var(--acc)}
+@media (min-width:60rem){
+ .layout.two{display:grid;grid-template-columns:15rem minmax(0,1fr);gap:4rem;align-items:start}
+ .toc{position:sticky;top:1.5rem}
+ .toc summary{display:none}
+ .toc ol{margin-top:0}
+}
+.steps{list-style:none;padding:0;counter-reset:s;margin:1.25rem 0}
+.steps>li{counter-increment:s;position:relative;padding-left:3rem;margin:1.1rem 0;min-height:2.2rem}
+.steps>li::before{content:counter(s);position:absolute;left:0;top:-.1rem;width:2.1rem;height:2.1rem;border-radius:50%;background:var(--soft);border:2px solid var(--acc-l);color:var(--acc-d);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:.95rem}
+.btn{display:inline-block;margin:.5rem 0 1rem;padding:.9rem 1.5rem;border-radius:.8rem;font-weight:700;color:#fff;background:var(--acc);text-decoration:none}
+.btn:hover{background:var(--acc-d);color:#fff}
+footer{border-top:1px solid var(--line);color:var(--mute);font-size:.85rem}
+footer div{max-width:68rem;margin:0 auto;padding:1.5rem 1.25rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+<a class="brand" href="/"><i></i>Primstav</a>
+<nav><a href="privacidade.html">Privacidade</a><a href="exclusao-de-dados.html" aria-current="page">Exclusão de dados</a></nav>
+</div></header>
+<div class="hero"><h1>Exclusão de dados</h1><p class="meta">Última atualização: 29 de outubro de 2026</p></div>
+<div class="layout single">
+
+<main>
+
+<p>Você pode pedir a exclusão dos seus dados da Primstav a qualquer momento, inclusive se entrou usando o <strong>Facebook</strong> ou o <strong>Google</strong>.</p>
+
+<section id="pedir"><h2>Como pedir a exclusão</h2>
+<ol class="steps">
+<li>Envie um e-mail para <a href="mailto:leonardo.andrade@primstav.com.br?subject=Exclus%C3%A3o%20de%20dados">leonardo.andrade@primstav.com.br</a> com o assunto <strong>Exclusão de dados</strong>.</li>
+<li>Escreva o e-mail que você usa na conta e, se for cliente, o nome do estabelecimento onde agendou.</li>
+<li>Para sua segurança, podemos pedir uma confirmação de que a conta é sua.</li>
+<li>Respondemos em até <strong>15 dias</strong> confirmando a exclusão.</li>
+</ol>
+<a class="btn" href="mailto:leonardo.andrade@primstav.com.br?subject=Exclus%C3%A3o%20de%20dados">Pedir exclusão por e-mail</a>
+</section>
+
+<section id="excluido"><h2>O que é excluído</h2>
+<ul>
+<li>seu cadastro e os dados de login (nome, e-mail, telefone e foto);</li>
+<li>seu histórico de agendamentos, quando você for cliente;</li>
+<li>a empresa e todos os dados da agenda, quando o pedido vier do administrador da conta.</li>
+</ul>
+<h2 style="margin-top:1.75rem">O que pode ser mantido</h2>
+<p>Alguns dados precisam ser guardados por obrigação legal, como registros de cobrança e notas fiscais. Eles ficam apenas pelo prazo exigido por lei e depois são apagados.</p>
+</section>
+
+<section id="facebook"><h2>Se você entrou com o Facebook</h2>
+<p>Além do pedido por e-mail, você pode tirar o acesso da Primstav à sua conta do Facebook:</p>
+<ol>
+<li>No Facebook, abra <strong>Configurações e privacidade → Configurações</strong>.</li>
+<li>Vá em <strong>Aplicativos e sites</strong> (ou <strong>Segurança e login</strong>, dependendo da sua tela).</li>
+<li>Encontre <strong>Primstav</strong> e clique em <strong>Remover</strong>.</li>
+</ol>
+<p>Isso corta o acesso da Primstav à sua conta do Facebook. Para apagar também os dados que já estão guardados aqui, envie o pedido por e-mail.</p>
+</section>
+
+<section id="google"><h2>Se você entrou com o Google</h2>
+<p>Você pode remover o acesso em <strong>myaccount.google.com → Segurança → Seus apps e serviços conectados</strong>. Para excluir os dados guardados na Primstav, envie o pedido por e-mail.</p>
+</section>
+
+<div class="callout"><p>Veja também a nossa <a href="privacidade.html">Política de Privacidade</a>.</p></div>
+
+</main>
+</div>
+<footer><div><span>© 2026 Primstav</span><span>Dúvidas sobre seus dados: <a href="mailto:leonardo.andrade@primstav.com.br">leonardo.andrade@primstav.com.br</a></span></div></footer>
+
+</body>
+</html>

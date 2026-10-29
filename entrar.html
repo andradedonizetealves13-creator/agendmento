@@ -321,11 +321,16 @@
         }
 
         $('wizard').innerHTML = '<div id="stepper" class="flex items-start justify-between mb-6"></div><div id="w1"></div><div id="w2" class="hidden"></div><div id="w3" class="hidden"></div>';
+        $('wizard').addEventListener('change', e => { if (e.target.id === 'w-aceite') $('w-aceite-box').classList.remove('border-rose-400', 'bg-rose-50'); });
         $('wizard').addEventListener('input', e => e.target.classList && e.target.classList.remove('border-rose-400', 'bg-rose-50'));
         $('w1').innerHTML = `<form id="w-form" class="space-y-4" novalidate>${fld('w-empresa', 'Nome da Empresa')}${fld('w-nome', 'Seu nome completo')}${fld('w-email', 'E-mail', 'email')}
             <div>${fld('w-doc', 'CPF ou CNPJ', 'text', 'inputmode="numeric" placeholder="Somente números"')}<p id="w-doc-hint" class="text-[11px] mt-1 h-4"></p></div>
             ${fld('w-nasc', 'Data de nascimento', 'date', 'max="' + new Date().toISOString().slice(0, 10) + '"')}${fld('w-pass', 'Senha', 'password')}${fld('w-pass2', 'Repetir senha', 'password')}
             <p class="text-[11px] text-slate-400 -mt-2">Mínimo de 6 caracteres. Com e-mail e senha você pode entrar sem usar o Google.</p>
+            <label id="w-aceite-box" class="flex items-start gap-2 text-xs text-slate-600 cursor-pointer border border-transparent rounded-xl p-2 -mx-2">
+                <input type="checkbox" id="w-aceite" class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer" style="accent-color:#d97706">
+                <span>Li e estou ciente da <a href="/privacidade.html" target="_blank" rel="noopener" class="font-bold text-amber-700 underline">Política de Privacidade</a> e concordo com o tratamento dos meus dados para criar a conta. *</span>
+            </label>
             <button id="w-go" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md">Continuar</button>
             <p class="text-center text-[11px] text-slate-400">1 mês grátis. Sem cobrança agora.</p></form>`;
         $('w-doc').addEventListener('input', e => {
@@ -349,6 +354,7 @@
                 const v = id => $(id).value.trim();
                 const empresa = v('w-empresa'), nome = v('w-nome'), email = (W.user && W.user.email) || v('w-email'), pass = $('w-pass').value, doc = v('w-doc').replace(/\D/g, ''), slug = generateSlug(empresa);
                 if (!slug) falha('w-empresa', 'Digite o nome da empresa (use letras ou números).');
+                if (!$('w-aceite').checked) falha('w-aceite-box', 'Para criar a conta, marque a confirmação de que leu a Política de Privacidade.');
                 if (nome.split(/\s+/).filter(Boolean).length < 2) falha('w-nome', 'Digite seu nome completo (nome e sobrenome).');
                 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) falha('w-email', 'O e-mail digitado não é válido. Exemplo: nome@gmail.com.');
                 if (doc.length !== 11 && doc.length !== 14) falha('w-doc', 'Digite o CPF (11 números) ou o CNPJ (14 números).');
