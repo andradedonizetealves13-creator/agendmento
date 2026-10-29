@@ -383,13 +383,6 @@
 
             window.providerInfo = null;
             window.watchPayId = null;
-            // Empresa desativada pelo dono da plataforma (Controle): a página de agendamento fica indisponível.
-            window.orgSuspended = false;
-            onValue(ref(rtdb, 'agendapro_saas/billing/' + orgSlug + '/assinatura/status'), (snap) => {
-                window.orgSuspended = snap.val() === 'suspenso';
-                if (window.orgSuspended) render();
-                else if (window.hasRendered && window.t) safeRender();
-            }, () => {});
             onValue(ref(rtdb, 'agendapro_saas/providers/' + orgSlug), (snap) => {
                 window.providerInfo = snap.val();
                 if (window.hasRendered && window.t) safeRender();
@@ -1026,11 +1019,6 @@
 
             window.render = function() {
                 const appDiv = document.getElementById('app');
-                if (window.orgSuspended) {
-                    appDiv.innerHTML = '<div class="bg-white p-5 sm:p-8 rounded-3xl shadow-xl border text-center max-w-md w-full m-auto"><h2 class="text-xl font-bold text-rose-600 mb-2">Agendamento indisponível</h2><p class="text-slate-600 text-sm">Esta empresa está com o atendimento online temporariamente desativado. Entre em contato diretamente com ela.</p></div>';
-                    window.hasRendered = true;
-                    return;
-                }
                 if (!currentClient) {
                     if (window.clientBusy) appDiv.innerHTML = '<div class="m-auto flex flex-col items-center"><div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div><p class="text-sm text-slate-500 font-medium">Carregando...</p></div>';
                     else appDiv.innerHTML = auth.currentUser ? renderClientComplete() : renderClientAuth();
