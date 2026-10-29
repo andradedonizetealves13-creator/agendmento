@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>AgendaPro · Controle</title>
+<style>
+:root{--bg:#0b0f17;--card:#131a26;--line:#222c3d;--tx:#e7ecf4;--mut:#8493aa;--ac:#f5b335;--ok:#34d399;--bad:#f87171;--warn:#fbbf24;--blue:#60a5fa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button,input{font:inherit}.hide{display:none!important}
+.login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;width:100%;max-width:360px}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:0 0 12px}.mut{color:var(--mut)}
+input{width:100%;background:#0b0f17;border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:11px 12px;margin:6px 0 10px}
+input:focus{outline:2px solid var(--ac);border-color:transparent}
+.btn{background:var(--ac);color:#1a1200;border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+.btn.g{background:transparent;color:var(--tx);border:1px solid var(--line)}.btn.d{background:var(--bad);color:#2a0606}
+.btn.s{padding:6px 10px;font-size:12px;border-radius:8px}.btn:disabled{opacity:.5}
+.err{color:var(--bad);min-height:18px;margin-top:8px;font-size:13px}
+header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+main{padding:20px;max-width:1300px;margin:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.k{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.k b{display:block;font-size:24px;margin-top:2px}.k span{color:var(--mut);font-size:12px}
+.bar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}.bar input{margin:0;max-width:280px}
+.wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:980px}
+th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700}
+.p-ativo{background:#34d39922;color:var(--ok)}.p-trial{background:#60a5fa22;color:var(--blue)}
+.p-vencido{background:#fbbf2422;color:var(--warn)}.p-suspenso{background:#f8717122;color:var(--bad)}
+.act{display:flex;gap:6px;flex-wrap:wrap}
+.mini{height:6px;background:#0b0f17;border-radius:9px;margin-top:5px;overflow:hidden}.mini i{display:block;height:100%;background:var(--ac)}
+.ov{position:fixed;inset:0;background:#000a;display:grid;place-items:center;padding:16px;z-index:9}
+.md{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:440px;max-height:90vh;overflow:auto}
+.md.big{max-width:760px}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:12px 0}
+.chart{display:flex;align-items:flex-end;gap:10px;height:110px;margin:10px 0}
+.chart div{flex:1;text-align:center;font-size:11px;color:var(--mut);display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.chart i{display:block;background:var(--ac);border-radius:6px 6px 0 0;min-height:2px}
+.chip{display:inline-block;background:#0b0f17;border:1px solid var(--line);border-radius:8px;padding:3px 8px;margin:2px 4px 2px 0;font-size:12px}
+.emp{padding:8px 0;border-bottom:1px solid var(--line)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ac);color:#1a1200;padding:10px 16px;border-radius:10px;font-weight:700;z-index:20}
+</style>
+</head>
+<body>
+
+<div class="login" id="login">
+  <div class="box">
+    <h1>AgendaPro · Controle</h1>
+    <p class="mut" style="margin:0 0 14px">Acesso restrito ao proprietário.</p>
+    <label class="mut">E-mail</label><input id="em" type="email" autocomplete="username">
+    <label class="mut">Senha</label><input id="pw" type="password" autocomplete="current-password">
+    <button class="btn" id="go" style="width:100%">Entrar</button>
+    <div class="err" id="lerr"></div>
+  </div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <div><h1>AgendaPro · Controle</h1><span class="mut" id="who"></span></div>
+    <div style="display:flex;gap:8px"><button class="btn g s" id="reload">Atualizar</button><button class="btn g s" id="out">Sair</button></div>
+  </header>
+  <main>
+    <div class="kpis" id="kpis"></div>
+    <div class="bar">
+      <input id="q" placeholder="Buscar empresa, dono, e-mail ou telefone">
+      <input id="fs" list="stl" placeholder="Filtrar status" style="max-width:160px"><datalist id="stl"><option value="ativo"><option value="trial"><option value="vencido"><option value="suspenso"></datalist>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th>Empresa</th><th>Dono (adm)</th><th>Plano</th><th>Status</th><th>Renovação</th><th>Prof.</th><th>Clientes</th><th>Agend.</th><th>Banco</th><th>Ações</th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table></div>
+  </main>
+</div>
+
+<div id="modal"></div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {getDatabase,ref,get,update,remove} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const OWNER_UID='d5emgNiOvBato7k7eV6ecjKjkJy1';
+const app=initializeApp({apiKey:"AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",authDomain:"agenda-16a31.firebaseapp.com",databaseURL:"https://agenda-16a31-default-rtdb.firebaseio.com",projectId:"agenda-16a31",storageBucket:"agenda-16a31.firebasestorage.app",messagingSenderId:"865554229500",appId:"1:865554229500:web:f786ebd6f0d0781019cf79"},"Controle");
+const auth=getAuth(app),db=getDatabase(app);
+const $=id=>document.getElementById(id),DAY=864e5,B='agendapro_saas/';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const arr=v=>v?(Array.isArray(v)?v.filter(Boolean):Object.values(v)):[];
+const kb=n=>n>=1048576?(n/1048576).toFixed(2)+' MB':(n/1024).toFixed(1)+' KB';
+const money=n=>(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtD=t=>t?new Date(t).toLocaleDateString('pt-BR'):'—';
+let rows=[];
+
+// ---------- LOGIN ----------
+async function doLogin(){
+  $('lerr').textContent='';$('go').disabled=true;
+  try{await signInWithEmailAndPassword(auth,$('em').value.trim(),$('pw').value)}
+  catch(e){$('lerr').textContent='E-mail ou senha inválidos.'}
+  $('go').disabled=false;
+}
+$('go').onclick=doLogin;$('pw').onkeydown=e=>{if(e.key==='Enter')doLogin()};
+$('out').onclick=()=>signOut(auth);
+onAuthStateChanged(auth,async u=>{
+  if(!u){$('app').classList.add('hide');$('login').classList.remove('hide');return}
+  if(u.uid!==OWNER_UID){await signOut(auth);$('lerr').textContent='Acesso negado.';return}
+  $('login').classList.add('hide');$('app').classList.remove('hide');$('who').textContent=u.email;
+  load();
+});
+
+// ---------- DADOS ----------
+async function load(){
+  $('tb').innerHTML='<tr><td colspan="10" class="mut">Carregando…</td></tr>';
+  try{
+    const [t,b]=await Promise.all([get(ref(db,B+'tenants')),get(ref(db,B+'billing'))]);
+    const T=t.val()||{},BI=b.val()||{},now=Date.now();
+    rows=Object.keys(T).map(slug=>{
+      const t=T[slug]||{},a=(BI[slug]||{}).assinatura||{},ad=t.admin||{};
+      const emps=arr(t.employees),cls=arr(t.clients),aps=arr(t.appointments);
+      const days=a.acessoAte?Math.ceil((a.acessoAte-now)/DAY):null;
+      const st=a.status==='suspenso'?'suspenso':(!a.acessoAte||a.acessoAte<=now)?'vencido':a.status==='trial'?'trial':'ativo';
+      return {slug,name:t.name||slug,admin:ad,a,emps,cls,aps,days,st,size:JSON.stringify(t).length,max:a.maxProfissionais||0};
+    });
+    render();
+  }catch(e){$('tb').innerHTML='<tr><td colspan="10" style="color:var(--bad)">Erro ao carregar: '+esc(e.message)+'</td></tr>'}
+}
+$('reload').onclick=load;
+
+function render(){
+  const q=$('q').value.toLowerCase(),f=$('fs').value.toLowerCase();
+  const tot=k=>rows.reduce((s,r)=>s+r[k].length,0),sz=rows.reduce((s,r)=>s+r.size,0),mx=Math.max(1,...rows.map(r=>r.size));
+  const c=s=>rows.filter(r=>r.st===s).length;
+  $('kpis').innerHTML=[['Empresas',rows.length],['Ativas',c('ativo')],['Em trial',c('trial')],['Vencidas',c('vencido')],['Suspensas',c('suspenso')],
+    ['Profissionais',tot('emps')],['Clientes finais',tot('cls')],['Agendamentos',tot('aps')],['Banco (tenants)',kb(sz)],['Média por empresa',kb(sz/Math.max(1,rows.length))]]
+    .map(([l,v])=>`<div class="k"><span>${l}</span><b>${v}</b></div>`).join('');
+  const list=rows.filter(r=>(!f||r.st===f)&&(!q||[r.name,r.slug,r.admin.name,r.admin.email,r.admin.phone].join(' ').toLowerCase().includes(q)));
+  $('tb').innerHTML=list.map(r=>{
+    const s=esc(r.slug),d=r.days===null?'—':r.days>0?r.days+' dia(s)':'vencido há '+Math.abs(r.days)+' d';
+    return `<tr>
+      <td><b>${esc(r.name)}</b><br><span class="mut">${s}</span></td>
+      <td>${esc(r.admin.name||'—')}<br><span class="mut">${esc(r.admin.email||'')}</span><br><span class="mut">${esc(r.admin.phone||'sem celular')}</span></td>
+      <td>${esc(r.a.plano||'—')}</td>
+      <td><span class="pill p-${r.st}">${r.st}</span></td>
+      <td>${d}<br><span class="mut">${fmtD(r.a.acessoAte)}</span></td>
+      <td>${r.emps.length}${r.max?' / '+r.max:''}</td><td>${r.cls.length}</td><td>${r.aps.length}</td>
+      <td>${kb(r.size)}<div class="mini"><i style="width:${Math.round(r.size/mx*100)}%"></i></div></td>
+      <td><div class="act">
+        <button class="btn s" data-a="view" data-s="${s}">Dashboard</button>
+        <button class="btn g s" data-a="renew" data-s="${s}">+30 dias</button>
+        <button class="btn g s" data-a="${r.st==='suspenso'?'on':'off'}" data-s="${s}">${r.st==='suspenso'?'Ativar':'Desativar'}</button>
+        <button class="btn d s" data-a="del" data-s="${s}">Excluir</button>
+      </div></td></tr>`}).join('')||'<tr><td colspan="10" class="mut">Nenhuma empresa encontrada.</td></tr>';
+}
+$('q').oninput=render;$('fs').oninput=render;
+
+// ---------- CONFIRMAÇÃO / TOAST ----------
+function ask(msg,typeName){
+  return new Promise(res=>{
+    $('modal').innerHTML=`<div class="ov"><div class="md"><h2>Confirmação</h2><p>${msg}</p>
+      ${typeName?`<p class="mut">Para confirmar, digite o nome: <b>${esc(typeName)}</b></p><input id="cf" autocomplete="off">`:''}
+      <div class="row"><button class="btn g" id="n">Cancelar</button><button class="btn ${typeName?'d':''}" id="y">Confirmar</button></div></div></div>`;
+    const close=v=>{$('modal').innerHTML='';res(v)};
+    $('n').onclick=()=>close(false);
+    $('y').onclick=()=>{if(typeName&&$('cf').value.trim()!==typeName){$('cf').style.borderColor='var(--bad)';return}close(true)};
+  });
+}
+function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+
+// ---------- AÇÕES ----------
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const r=rows.find(x=>x.slug===b.dataset.s);if(!r)return;
+  const a=b.dataset.a,P=B+'billing/'+r.slug+'/assinatura',now=Date.now(),n=esc(r.name);
+  try{
+    if(a==='view')return detail(r);
+    if(a==='renew'){
+      if(!await ask(`Deseja renovar <b>${n}</b> por mais 30 dias?`))return;
+      await update(ref(db,P),{acessoAte:Math.max(now,r.a.acessoAte||0)+30*DAY});toast('Renovado +30 dias');
+    }
+    if(a==='off'){
+      if(!await ask(`Deseja <b>desativar</b> a empresa <b>${n}</b>? O acesso dela será bloqueado até você ativar novamente.`))return;
+      await update(ref(db,P),{status:'suspenso',acessoAnterior:r.a.acessoAte||null,acessoAte:now-1000});toast('Empresa desativada');
+    }
+    if(a==='on'){
+      if(!await ask(`Deseja <b>ativar</b> a empresa <b>${n}</b>?`))return;
+      const ant=r.a.acessoAnterior;
+      await update(ref(db,P),{status:'ativo',acessoAte:ant>now?ant:now+30*DAY,acessoAnterior:null});toast('Empresa ativada');
+    }
+    if(a==='del'){
+      if(!await ask(`Deseja <b>excluir permanentemente</b> a empresa <b>${n}</b>? Todos os profissionais, clientes e agendamentos serão apagados. Não dá para desfazer.`,r.name))return;
+      await Promise.all([remove(ref(db,B+'tenants/'+r.slug)),remove(ref(db,B+'billing/'+r.slug)),remove(ref(db,B+'providers/'+r.slug))]);toast('Empresa excluída');
+    }
+    load();
+  }catch(err){toast('Erro: '+err.message)}
+});
+
+// ---------- DASHBOARD POR EMPRESA ----------
+function detail(r){
+  const by={},mo={};let val=0;
+  r.aps.forEach(x=>{const s=x.status||'agendado';by[s]=(by[s]||0)+1;if(s!=='cancelado')val+=Number(x.totalPrice)||0;
+    const m=String(x.date||'').slice(0,7);if(/^\d{4}-\d{2}$/.test(m))mo[m]=(mo[m]||0)+1});
+  const ms=Object.keys(mo).sort().slice(-6),mm=Math.max(1,...ms.map(k=>mo[k]));
+  const ad=r.admin,k=(l,v)=>`<div class="k"><span>${l}</span><b style="font-size:19px">${v}</b></div>`;
+  $('modal').innerHTML=`<div class="ov"><div class="md big">
+    <h2>${esc(r.name)} <span class="pill p-${r.st}">${r.st}</span></h2>
+    <p class="mut" style="margin:0">Dono: ${esc(ad.name||'—')} · ${esc(ad.email||'—')} · ${esc(ad.phone||'sem celular')}</p>
+    <div class="g2">${k('Plano',esc(r.a.plano||'—'))}${k('Renovação',fmtD(r.a.acessoAte))}${k('Dias restantes',r.days===null?'—':r.days)}
+      ${k('Profissionais',r.emps.length+(r.max?' / '+r.max:''))}${k('Clientes',r.cls.length)}${k('Agendamentos',r.aps.length)}
+      ${k('Valor agendado',money(val))}${k('Banco',kb(r.size))}${k('Média por agend.',r.aps.length?kb(r.size/r.aps.length):'—')}</div>
+    <h2>Agendamentos por mês</h2>
+    <div class="chart">${ms.length?ms.map(m=>`<div><span>${mo[m]}</span><i style="height:${Math.round(mo[m]/mm*80)}px"></i>${m.slice(5)}/${m.slice(2,4)}</div>`).join(''):'<span class="mut">Sem dados</span>'}</div>
+    <h2>Por situação</h2><div>${Object.keys(by).map(s=>`<span class="chip">${esc(s)}: <b>${by[s]}</b></span>`).join('')||'<span class="mut">Sem agendamentos</span>'}</div>
+    <h2 style="margin-top:14px">Profissionais</h2>
+    ${r.emps.map(e=>`<div class="emp"><b>${esc(e.name)}</b>${e.isAdmin?' <span class="chip">adm</span>':''}<br><span class="mut">${esc(e.email||'')} · ${esc(e.phone||'sem celular')}</span></div>`).join('')||'<span class="mut">Nenhum</span>'}
+    <div class="row"><button class="btn g" id="cl">Fechar</button></div></div></div>`;
+  $('cl').onclick=()=>$('modal').innerHTML='';
+}
+</script>
+</body>
+</html>
