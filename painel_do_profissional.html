@@ -386,7 +386,7 @@
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = window.__bloqueada ? 'entrar?bloqueada=1' : 'entrar';
+                window.location.href = 'entrar';
             } else {
                 ensureStaffClaims(user);
             }
@@ -410,13 +410,6 @@
 
         const basePath = 'agendapro_saas/tenants/' + (session.slug || 'demo');
         const tenantRef = ref(rtdb, basePath);
-        // Empresa desativada pelo dono da plataforma (Controle): encerra a sessão na hora.
-        onValue(ref(rtdb, 'agendapro_saas/billing/' + (session.slug || 'demo') + '/assinatura/status'), (snap) => {
-            if (snap.val() !== 'suspenso') return;
-            window.__bloqueada = true;
-            localStorage.removeItem('agendaProSession');
-            Promise.resolve(signOut(auth)).catch(() => {}).finally(() => { window.location.href = 'entrar?bloqueada=1'; });
-        }, () => {});
         window.providerInfo = null;
         onValue(ref(rtdb, 'agendapro_saas/providers/' + (session.slug || 'demo')), (snap) => {
             window.providerInfo = snap.val();
