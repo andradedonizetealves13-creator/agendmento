@@ -99,16 +99,22 @@
 
         <div id="wizard" class="hidden"></div>
 
-        <div id="box-google" class="mt-4 pt-4 border-t border-slate-100 text-center">
-            <button id="btn-google" class="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 px-4 border border-slate-200 rounded-xl shadow-sm flex items-center justify-center space-x-2 transition-all">
-                <svg class="w-5 h-5" viewBox="0 0 24 24">
+        <div id="box-google" class="mt-5 text-center">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="flex-1 h-px bg-slate-200"></div>
+                <span id="social-txt" class="text-xs text-slate-400 font-medium">ou entre com</span>
+                <div class="flex-1 h-px bg-slate-200"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <button type="button" id="btn-google"  aria-label="Google" title="Google" class="h-12 rounded-xl shadow-sm flex items-center justify-center transition-all bg-white hover:bg-slate-50 border border-slate-200"><svg class="w-6 h-6" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                </svg>
-                <span>Entrar com o Google</span>
-            </button>
+                </svg></button>
+                <button type="button" id="btn-apple"  aria-label="Apple" title="Apple" class="h-12 rounded-xl shadow-sm flex items-center justify-center transition-all bg-black hover:bg-zinc-800 border border-white/20"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="#fff"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg></button>
+                <button type="button" id="btn-facebook"  aria-label="Facebook" title="Facebook" class="h-12 rounded-xl shadow-sm flex items-center justify-center transition-all hover:brightness-110" style="background:#1877F2"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="#fff"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg></button>
+            </div>
         </div>
     </div>
 
@@ -118,7 +124,7 @@
             window.history.replaceState(null, '', window.location.pathname.replace(/\.html$/, '') + window.location.search);
         }
 
-        import { sendPasswordResetEmail, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { sendPasswordResetEmail, linkWithCredential, EmailAuthProvider, OAuthProvider, FacebookAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
         import { 
@@ -166,6 +172,7 @@
             document.getElementById('inp-empresa').required = reg;
             document.getElementById('inp-confirm').required = reg;
             btnSubmit.textContent = reg ? 'Criar Conta' : 'Acessar Painel';
+            document.getElementById('social-txt').textContent = reg ? 'ou cadastre-se com' : 'ou entre com';
             document.getElementById('box-forgot').classList.toggle('hidden', reg);
             document.getElementById('auth-form').classList.toggle('hidden', reg);
             document.getElementById('wizard').classList.toggle('hidden', !reg);
@@ -449,18 +456,42 @@
             }
             return null;
         }
-        btnGoogle.onclick = async () => {
+        // ===== Login social: Google, Apple e Facebook (Firebase Authentication) =====
+        const appleProvider = new OAuthProvider('apple.com');
+        appleProvider.addScope('email'); appleProvider.addScope('name');
+        const facebookProvider = new FacebookAuthProvider();
+        facebookProvider.addScope('email'); facebookProvider.addScope('public_profile');
+
+        function erroSocial(err, nome) {
+            const c = (err && err.code) || '';
+            if (c === 'auth/account-exists-with-different-credential') return 'Já existe uma conta com o e-mail do seu ' + nome + ', criada de outra forma (e-mail e senha ou outro botão). Entre pelo método que você usou antes.';
+            if (c === 'auth/operation-not-allowed') return 'O login com ' + nome + ' ainda não está ativado. Fale com o suporte.';
+            if (c === 'auth/popup-blocked') return 'O navegador bloqueou a janela de login. Libere pop-ups para este site e tente de novo.';
+            if (c === 'auth/unauthorized-domain') return 'Este endereço do site ainda não foi autorizado para o login com ' + nome + '. Fale com o suporte.';
+            return window.traduzErroAuth(err, 'google');
+        }
+
+        async function entrarComProvedor(provider, nome) {
             errorMsg.classList.add('hidden');
             try {
-                const user = (await signInWithPopup(auth, googleProvider)).user;
+                const user = (await signInWithPopup(auth, provider)).user;
                 const org = await acharOrg(user);
                 if (org) { localStorage.setItem('agendaProSession', JSON.stringify(org)); window.location.href = 'painel_do_profissional.html'; return; }
                 W.user = user; setMode('register');
-                $('w-nome').value = user.displayName || ''; $('w-email').value = user.email || ''; $('w-email').readOnly = true;
+                $('w-nome').value = user.displayName || '';
+                $('w-email').value = user.email || '';
+                // Apple (e-mail oculto) e Facebook (conta só com telefone) podem não devolver e-mail: nesse caso a pessoa digita
+                $('w-email').readOnly = !!user.email;
                 errorMsg.className = 'mb-4 p-3 bg-emerald-50 text-emerald-700 text-sm rounded-lg border border-emerald-100 text-center font-medium';
-                errorMsg.textContent = 'Conectado com o Google. Complete os dados abaixo e crie uma senha para também poder entrar com e-mail e senha.';
-            } catch (err) { showError(window.traduzErroAuth(err, 'google')); }
-        };
+                errorMsg.textContent = 'Conectado com ' + nome + '. Complete os dados abaixo' + (user.email ? '' : ' (informe também o seu e-mail)') + ' e crie uma senha para também poder entrar com e-mail e senha.';
+            } catch (err) {
+                if (err && (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request')) return;
+                showError(erroSocial(err, nome));
+            }
+        }
+        btnGoogle.onclick = () => entrarComProvedor(googleProvider, 'Google');
+        $('btn-apple').onclick = () => entrarComProvedor(appleProvider, 'Apple');
+        $('btn-facebook').onclick = () => entrarComProvedor(facebookProvider, 'Facebook');
         if (location.hash === '#criar' || qs.get('plano')) setMode('register');
     </script>
 <script>
