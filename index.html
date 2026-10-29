@@ -427,5 +427,24 @@ function draw(){el.className='flex flex-nowrap justify-center gap-4 overflow-hid
  if(el.scrollWidth>el.clientWidth+1){el.className='mqw overflow-hidden';el.innerHTML=`<div class="mq flex gap-4 w-max" style="--d:${CLIENTES.length*8}s">${h}<div class="flex gap-4" aria-hidden="true">${h}</div></div>`}}
 draw();let t;addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(draw,200)})})();
 </script>
+
+<!-- Contador de acessos (Primstav Controle). Grava só dois números por dia; nenhum dado pessoal. -->
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {getDatabase,ref,runTransaction} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+try{
+  const app=initializeApp({apiKey:"AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",authDomain:"agenda-16a31.firebaseapp.com",databaseURL:"https://agenda-16a31-default-rtdb.firebaseio.com",projectId:"agenda-16a31",appId:"1:865554229500:web:f786ebd6f0d0781019cf79"},"Visitas");
+  const db=getDatabase(app);
+  const dia=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+  const inc=k=>runTransaction(ref(db,'agendapro_saas/analytics/index/'+dia+'/'+k),v=>(v||0)+1).catch(()=>{});
+  let sess=true,vistoHoje=true;
+  try{sess=!!sessionStorage.getItem('pv_sess');vistoHoje=localStorage.getItem('pv_dia')===dia}catch(e){}
+  if(!sess){ // 1 visita por sessão (recarregar a página não conta de novo)
+    try{sessionStorage.setItem('pv_sess','1')}catch(e){}
+    inc('visitas');
+    if(!vistoHoje){try{localStorage.setItem('pv_dia',dia);inc('unicos')}catch(e){}} // 1 visitante por navegador por dia
+  }
+}catch(e){}
+</script>
 </body>
 </html>
