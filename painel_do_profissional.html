@@ -729,6 +729,14 @@
         });
         
 
+
+        // quem vê valores (R$): administrador, ou profissional com "Dashboard completo" liberado no cadastro
+        window.canSeeValues = function() {
+            if (session.role === 'admin') return true;
+            const me = (window.t && t.employees || []).find(e => e.id === session.id);
+            return !!(me && me.canSeeDashboard);
+        };
+
         // foto de perfil do cliente (quando ele cadastrou uma)
         window.clientAvatarUrl = function(a) {
             const c = (t.clients || []).find(x => x.id === a.clientId);
@@ -948,7 +956,7 @@
                         <input type="checkbox" value="${p.id}" class="manual-proc-cb w-4 h-4 text-indigo-600 rounded">
                         <span class="text-xs font-bold text-slate-800">${esc(p.name)} (${p.duration} min)</span>
                     </div>
-                    <span class="text-xs font-bold text-emerald-600">R$ ${p.price.toFixed(2)}</span>
+                    ${canSeeValues() ? `<span class="text-xs font-bold text-emerald-600">R$ ${p.price.toFixed(2)}</span>` : ''}
                 </label>
             `).join('') || '<p class="text-xs text-slate-400">Nenhum serviço cadastrado.</p>';
 
@@ -1527,10 +1535,10 @@
             return agendaScope(role, user).filter(a => getEffectiveAppStatus(a) === 'pendente').sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
         }
         function payAlertText(a) {
-            const v = brl(a.paidAmount != null ? a.paidAmount : a.depositAmount);
-            if (a.paymentAlert === 'late_conflict') return `Pix de ${v} recebido depois do prazo, e o horário já foi ocupado por outra pessoa. Devolva o valor ao cliente.`;
-            if (a.paymentAlert === 'late_past') return `Pix de ${v} recebido depois do horário do agendamento. Devolva o valor ao cliente.`;
-            return `Pix de ${v} recebido em um agendamento cancelado. Devolva o valor ao cliente.`;
+            const v = canSeeValues() ? ' de ' + brl(a.paidAmount != null ? a.paidAmount : a.depositAmount) : '';
+            if (a.paymentAlert === 'late_conflict') return `Pix${v} recebido depois do prazo, e o horário já foi ocupado por outra pessoa. Devolva o valor ao cliente.`;
+            if (a.paymentAlert === 'late_past') return `Pix${v} recebido depois do horário do agendamento. Devolva o valor ao cliente.`;
+            return `Pix${v} recebido em um agendamento cancelado. Devolva o valor ao cliente.`;
         }
         window.resolvePayAlert = function(id) {
             const a = (t.appointments || []).find(x => x.id === id); if (!a) return;
@@ -1548,7 +1556,7 @@
                         <div><p class="text-sm font-black text-rose-900">${list.length} ${list.length === 1 ? 'pagamento precisa' : 'pagamentos precisam'} de atenção</p><p class="text-[11px] text-rose-800">Pix pago que não pôde confirmar o horário. Devolva o valor e marque como resolvido.</p></div>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        ${list.map(a => `<button onclick="showAppDetails('${a.id}')" class="text-[11px] font-bold bg-white border border-rose-300 text-rose-900 rounded-full px-3 py-1.5 hover:bg-rose-100">🚨 ${formatDateBR(a.date)} ${a.time} · ${esc(a.clientName)} · ${brl(a.paidAmount != null ? a.paidAmount : a.depositAmount)}</button>`).join('')}
+                        ${list.map(a => `<button onclick="showAppDetails('${a.id}')" class="text-[11px] font-bold bg-white border border-rose-300 text-rose-900 rounded-full px-3 py-1.5 hover:bg-rose-100">🚨 ${formatDateBR(a.date)} ${a.time} · ${esc(a.clientName)}${canSeeValues() ? ' · ' + brl(a.paidAmount != null ? a.paidAmount : a.depositAmount) : ''}</button>`).join('')}
                     </div>
                 </div>`;
         }
@@ -1580,7 +1588,7 @@
                     <div class="pm-when"><b>${a.time}</b><span>${formatDateBR(a.date).slice(0, 5)}</span></div>
                     ${clientAvatarImg(a, 'w-9 h-9')}
                     <div class="min-w-0 flex-1"><p class="pm-name truncate">${esc(a.clientName)}</p><p class="pm-meta truncate">${meta}</p>${exp ? `<p class="pm-exp">⏳ ${exp}</p>` : ''}</div>
-                    <div class="flex items-center gap-1 shrink-0">${a.depositAmount ? `<span class="pm-val">${brl(a.depositAmount)}</span>` : ''}<i data-lucide="chevron-right" class="w-4 h-4" style="opacity:.5"></i></div>
+                    <div class="flex items-center gap-1 shrink-0">${(a.depositAmount && canSeeValues()) ? `<span class="pm-val">${brl(a.depositAmount)}</span>` : ''}<i data-lucide="chevron-right" class="w-4 h-4" style="opacity:.5"></i></div>
                 </button>`;
             }).join('');
             const el = document.createElement('div');
@@ -1993,7 +2001,7 @@
                         </div>
                     </div>` : '';
                 return `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Telefone / WhatsApp * (DDD + 9 dígitos)</label><input type="tel" id="e-phone" value="${esc(empToEdit?(empToEdit.phone||''):'')}" required placeholder="(00) 00000-0000" oninput="formatPhoneInput(this)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Repita a Senha</label><input type="password" id="e-pass2" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Perfil de acesso</label><select id="e-role" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white"><option value="employee" ${empToEdit&&empToEdit.isAdmin?'':'selected'}>Profissional (vê só a própria agenda)</option><option value="admin" ${empToEdit&&empToEdit.isAdmin?'selected':''}>Administrador (acesso total)</option></select><p class="text-[11px] text-slate-400 mt-1">O administrador vê todos os dados, regras e o Portal do Desenvolvedor. Marque só para pessoas de confiança.</p></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div>${whGrid}<div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}${e.isAdmin ? ' <span class="ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 align-middle">Administrador</span>' : ''}</p><p class="text-xs text-slate-500">${esc(e.email)}${e.phone ? ' • ' + esc(e.phone) : ' • <span class="text-rose-600 font-bold">sem telefone</span>'}</p></div></div><div class="flex items-center gap-2 shrink-0"><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button><button onclick="deleteEmployee('${e.id}')" title="Excluir profissional" class="text-xs font-bold text-rose-700 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`).join('')}</div></div></div>`;
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Telefone / WhatsApp * (DDD + 9 dígitos)</label><input type="tel" id="e-phone" value="${esc(empToEdit?(empToEdit.phone||''):'')}" required placeholder="(00) 00000-0000" oninput="formatPhoneInput(this)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Repita a Senha</label><input type="password" id="e-pass2" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Perfil de acesso</label><select id="e-role" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white"><option value="employee" ${empToEdit&&empToEdit.isAdmin?'':'selected'}>Profissional (vê só a própria agenda)</option><option value="admin" ${empToEdit&&empToEdit.isAdmin?'selected':''}>Administrador (acesso total)</option></select><p class="text-[11px] text-slate-400 mt-1">O administrador vê todos os dados, regras e o Portal do Desenvolvedor. Marque só para pessoas de confiança.</p></div><div><label class="block text-xs font-semibold mb-1">Dashboard completo (faturamento e valores)</label><select id="e-dash" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white"><option value="no" ${empToEdit&&empToEdit.canSeeDashboard?'':'selected'}>Não — vê só o que não tem valor em R$</option><option value="yes" ${empToEdit&&empToEdit.canSeeDashboard?'selected':''}>Sim — vê faturamento, sinais e valores</option></select><p class="text-[11px] text-slate-400 mt-1">Sem acesso, o profissional continua vendo a própria agenda e as quantidades, mas nenhum valor em reais. Administrador sempre vê tudo.</p></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div>${whGrid}<div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}${e.isAdmin ? ' <span class="ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 align-middle">Administrador</span>' : ''}</p><p class="text-xs text-slate-500">${esc(e.email)}${e.phone ? ' • ' + esc(e.phone) : ' • <span class="text-rose-600 font-bold">sem telefone</span>'}</p></div></div><div class="flex items-center gap-2 shrink-0"><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button><button onclick="deleteEmployee('${e.id}')" title="Excluir profissional" class="text-xs font-bold text-rose-700 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`).join('')}</div></div></div>`;
             }
 
             if(role === 'admin' && activeTab === 'procedures') {
@@ -2302,7 +2310,7 @@
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        ${card('wallet', 'bg-emerald-50 text-emerald-600', 'Faturamento Total', `<span class="text-emerald-600">${brl(totalRevenue)}</span>`, deltaHtml)}
+                        ${!canSeeValues() ? '' : card('wallet', 'bg-emerald-50 text-emerald-600', 'Faturamento Total', `<span class="text-emerald-600">${brl(totalRevenue)}</span>`, deltaHtml)}
                         ${card('check-circle', 'bg-theme-secondary text-theme-primary', 'Atendimentos Concluídos', completedApps.length)}
                         ${card('user-x', 'bg-amber-50 text-amber-600', 'Não Compareceram', `<span class="text-amber-600">${noShowApps.length}</span>`)}
                         ${card('x-circle', 'bg-rose-50 text-rose-600', 'Cancelamentos', `<span class="text-rose-600">${canceledApps.length}</span>`)}
@@ -2310,18 +2318,18 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         ${card('calendar-clock', 'bg-sky-50 text-sky-600', 'A Realizar no Mês', upcomingApps.length)}
-                        ${card('receipt', 'bg-emerald-50 text-emerald-600', 'Ticket Médio', brl(avgTicket))}
+                        ${!canSeeValues() ? '' : card('receipt', 'bg-emerald-50 text-emerald-600', 'Ticket Médio', brl(avgTicket))}
                         ${card('percent', 'bg-rose-50 text-rose-600', 'Taxa de Cancelamento', pctOf(canceledApps.length).toFixed(1) + '%')}
                         ${card('percent', 'bg-amber-50 text-amber-600', 'Taxa de Faltas', pctOf(noShowApps.length).toFixed(1) + '%')}
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${canSeeValues() ? '' : 'hidden'}">
                         ${card('wallet', 'bg-emerald-50 text-emerald-600', 'Sinal recebido no mês', `<span class="text-emerald-600">${brl(depReceived)}</span>`, `<p class="text-[11px] text-slate-400 mt-1">${depReceivedApps.length} agendamento(s) com sinal</p>`)}
                         ${card('hourglass', 'bg-amber-50 text-amber-600', 'Sinais pendentes', `<span class="text-amber-600">${depPendingApps.length}</span>`, `<p class="text-[11px] text-slate-400 mt-1">${brl(depPendingVal)} aguardando${depExpiredCount ? ' • ' + depExpiredCount + ' expirado(s)' : ''}</p>`)}
                         ${card('banknote', 'bg-sky-50 text-sky-600', 'Restante a receber', brl(depRestToReceive), `<p class="text-[11px] text-slate-400 mt-1">dos agendados com sinal pago</p>`)}
                     </div>
 
-                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm ${canSeeValues() ? '' : 'hidden'}">
                         <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center"><i data-lucide="bar-chart-3" class="w-5 h-5 mr-2 text-theme-primary"></i> Faturamento por Dia</h3>
                         <div class="overflow-x-auto custom-scrollbar pb-2">
                             <div class="flex items-end gap-1 h-36 min-w-[560px]">
@@ -2365,7 +2373,7 @@
                                             </div>
                                         </div>
                                         <div class="flex items-center justify-between sm:justify-end space-x-3 border-t sm:border-0 pt-2 sm:pt-0">
-                                            <span class="font-bold text-emerald-600 text-xs">R$ ${a.totalPrice.toFixed(2)}</span>${statusBadge}
+                                            ${canSeeValues() ? `<span class="font-bold text-emerald-600 text-xs">R$ ${a.totalPrice.toFixed(2)}</span>` : ''}${statusBadge}
                                         </div>
                                     </div>
                                 `;
@@ -2381,7 +2389,7 @@
                                     <div class="flex items-center justify-between p-3.5 bg-slate-50 border rounded-xl gap-3">
                                         <div class="min-w-0">
                                             <span class="font-bold text-sm text-slate-700 block truncate">${esc(r.name)}</span>
-                                            <span class="text-[11px] font-bold text-emerald-600">${brl(r.revenue)} <span class="text-slate-400 font-medium">estimado</span></span>
+                                            ${canSeeValues() ? `<span class="text-[11px] font-bold text-emerald-600">${brl(r.revenue)} <span class="text-slate-400 font-medium">estimado</span></span>` : ''}
                                         </div>
                                         <span class="font-black text-theme-primary bg-theme-secondary px-3 py-1 rounded-lg border text-sm shrink-0">${r.count} realizados</span>
                                     </div>
@@ -2542,7 +2550,7 @@
                                     <div><p class="font-bold text-slate-900 text-base">${titleText}${a.rescheduledAt ? `<span class="text-sky-800 text-[10px] font-bold bg-sky-100 px-1.5 py-0.5 rounded ml-2 align-middle">Reagendado</span>` : ''}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} - ${esc(a.proceduresNames.join(', '))}</p>${a.status === 'pendente' ? '<span class="inline-block mt-1.5 bg-amber-100 text-amber-800 border border-dashed border-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ Aguardando confirmação do sinal</span>' : ''}</div>
                                 </div>
                                 <div class="flex items-center justify-between md:justify-end space-x-4 border-t md:border-0 pt-4 md:pt-0 w-full md:w-auto">
-                                    <p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">R$ ${a.totalPrice.toFixed(2)}</p>
+                                    ${canSeeValues() ? `<p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">R$ ${a.totalPrice.toFixed(2)}</p>` : ''}
                                     <span class="text-xs text-theme-primary bg-theme-secondary px-4 py-2 rounded-xl font-bold border flex items-center"><i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 mr-1.5"></i>Ver / Alterar</span>
                                 </div>
                             </div>
@@ -2747,12 +2755,12 @@
             const dlTxt = app.depositDeadline ? new Date(app.depositDeadline).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
             const expiredInfo = effSt === 'expirado' ? `<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-100 p-3 text-xs text-slate-700 font-bold">⌛ Prazo do sinal vencido${dlTxt ? ' em ' + dlTxt : ''}. O horário foi liberado. Se o cliente já pagou, cancele este e faça um novo agendamento.</div>` : '';
             const depPaid = app.depositRequired && app.status !== 'pendente' && app.status !== 'cancelado';
-            const depSummary = depPaid ? `<div class="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs"><span class="font-bold text-emerald-800">Sinal pago${app.depositPaidVia === 'mercadopago' ? ' (Pix automático)' : ''} ${brl(depVal)}</span><span class="font-bold text-slate-700">Restante ${brl(Math.max(0, (Number(app.totalPrice) || 0) - depVal))}</span></div>` : '';
+            const depSummary = (depPaid && canSeeValues()) ? `<div class="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs"><span class="font-bold text-emerald-800">Sinal pago${app.depositPaidVia === 'mercadopago' ? ' (Pix automático)' : ''} ${brl(depVal)}</span><span class="font-bold text-slate-700">Restante ${brl(Math.max(0, (Number(app.totalPrice) || 0) - depVal))}</span></div>` : '';
             const pendingInfo = effSt === 'pendente' ? `
                     <div class="rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50 p-4 space-y-3">
                         <div class="flex items-center space-x-3"><div class="bg-amber-100 p-2 rounded-lg text-amber-700"><i data-lucide="hourglass" class="w-5 h-5"></i></div><div><p class="text-sm font-black text-amber-900">Aguardando confirmação do sinal</p><p class="text-[11px] text-amber-800">Este horário está reservado, mas só vira agendamento firme depois que você confirmar.</p></div></div>
                         <div class="bg-white/80 border border-amber-200 rounded-xl p-3 text-xs text-slate-700 space-y-1">
-                            <p>Sinal combinado: <b class="text-emerald-700">${brl(depVal)}</b>${dlTxt ? ` • pagar até <b>${dlTxt}</b>` : ''}</p>
+                            <p>Sinal combinado${canSeeValues() ? `: <b class="text-emerald-700">${brl(depVal)}</b>` : ''}${dlTxt ? ` • pagar até <b>${dlTxt}</b>` : ''}</p>
                             ${app.pixProvider === 'mercadopago' ? `<p class="text-emerald-800 font-bold">⚡ Pix automático: este agendamento confirma sozinho quando o cliente pagar.</p>` : (depPixKey ? `<p>Chave Pix (${esc(depPixType)}) enviada ao cliente: <b class="font-mono break-all">${esc(depPixKey)}</b></p>` : '')}
                         </div>
                         <button onclick="confirmPendingApp('${app.id}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center"><i data-lucide="check-circle" class="w-4 h-4 mr-2"></i>${app.pixProvider === 'mercadopago' ? 'Confirmar manualmente (já conferi o pagamento)' : 'Confirmar agendamento (sinal recebido)'}</button>
@@ -2769,7 +2777,7 @@
                     <div class="flex items-center space-x-3 border-b pb-3"><div class="bg-theme-secondary p-2 rounded-lg text-theme-primary"><i data-lucide="user-check" class="w-5 h-5"></i></div><div><p class="text-xs text-slate-400 font-bold uppercase">Profissional</p><span class="font-bold text-slate-800 text-sm">${esc(emp?emp.name:'Profissional')}</span></div></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="calendar" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700">${formatDateBR(app.date)} às ${app.time}</span></div>
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${esc(app.proceduresNames.join(', '))}</span></div>
-                    <div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>
+                    ${canSeeValues() ? `<div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>` : ''}
                     ${depSummary}
                     
                     <div class="pt-4 border-t flex flex-col sm:flex-row gap-2">
@@ -3456,8 +3464,22 @@
             user.email = document.getElementById('prof-email').value;
             if (novoHash) user.password = novoHash;
             if (draft.avatar) { user.avatar = draft.avatar; delete draft.avatar; }
-            saveDB(window.__isOwner ? ['admin', 'employees'] : ['employees']);
-            showModal('Sucesso', 'Perfil atualizado!', 'success');
+            let ok;
+            if (window.__isOwner) {
+                ok = await saveDB(['admin', 'employees']);
+            } else {
+                // profissional grava SOMENTE o próprio registro (não reescreve a lista inteira de profissionais)
+                const idx = t.employees.findIndex(e => e.id === user.id);
+                const fields = { name: user.name, email: user.email, avatar: user.avatar || '' };
+                if (novoHash) fields.password = novoHash;
+                try { await update(ref(rtdb, basePath + '/employees/' + idx), fields); ok = true; }
+                catch (err) {
+                    console.error('Erro ao salvar perfil:', err && err.code, err && err.message);
+                    ok = false;
+                    showModal('Erro ao salvar', 'O banco de dados recusou a gravação do seu perfil (permissão negada). O administrador precisa liberar, nas regras do Firebase, que cada profissional edite o próprio cadastro.', 'error');
+                }
+            }
+            if (ok) showModal('Sucesso', 'Perfil atualizado!', 'success');
         };
 
         window.saveEmployee = async function(e) {
@@ -3484,7 +3506,7 @@
             }
             if (editEmployeeId) {
                 const emp = t.employees.find(x => x.id === editEmployeeId);
-                emp.name = name; emp.email = email; emp.phone = phoneRaw; emp.procedures = checks; emp.isAdmin = (document.getElementById('e-role') || {}).value === 'admin'; emp.role = emp.isAdmin ? 'admin' : 'employee';
+                emp.name = name; emp.email = email; emp.phone = phoneRaw; emp.procedures = checks; emp.isAdmin = (document.getElementById('e-role') || {}).value === 'admin'; emp.role = emp.isAdmin ? 'admin' : 'employee'; emp.canSeeDashboard = (document.getElementById('e-dash') || {}).value === 'yes';
                 if (senhaHash) emp.password = senhaHash;
                 // horário de trabalho do profissional
                 if (document.getElementById('ewh-cb-0')) {
@@ -3500,7 +3522,7 @@
                 }
             } else {
                 const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length];
-                t.employees.push({ id: 'emp-' + Date.now(), uid: empUid, name, email: email.trim(), phone: phoneRaw, password: senhaHash, avatar: '', color: newColor, procedures: checks, isAdmin: (document.getElementById('e-role') || {}).value === 'admin', role: ((document.getElementById('e-role') || {}).value === 'admin') ? 'admin' : 'employee', workingHours: getDefWH(), exceptions: {} });
+                t.employees.push({ id: 'emp-' + Date.now(), uid: empUid, name, email: email.trim(), phone: phoneRaw, password: senhaHash, avatar: '', color: newColor, procedures: checks, isAdmin: (document.getElementById('e-role') || {}).value === 'admin', role: ((document.getElementById('e-role') || {}).value === 'admin') ? 'admin' : 'employee', canSeeDashboard: (document.getElementById('e-dash') || {}).value === 'yes', workingHours: getDefWH(), exceptions: {} });
             }
             editEmployeeId = null;
             saveDB(['employees']);
