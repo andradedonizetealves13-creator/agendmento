@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Primstav · Controle · Entrar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070a;--card2:#0e0e13;--line:rgba(255,255,255,.10);--tx:#f4f4f5;--mut:#9a9aa6;--ac:#f0b90b;--ac2:#d97706;--bad:#f87171}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(900px 420px at 85% -10%,rgba(217,119,6,.18),transparent 70%),var(--bg);color:var(--tx);font:14px/1.5 Inter,system-ui,sans-serif;min-height:100vh}
+button,input{font:inherit}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.mut{color:var(--mut)}.gold{background:linear-gradient(120deg,var(--ac),var(--ac2));-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-size:20px;font-weight:800;margin:0}
+.login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.box{background:var(--card2);border:1px solid var(--line);border-radius:18px;padding:30px;width:100%;max-width:380px}
+label{display:block;color:var(--mut);font-size:12px;margin-top:10px}
+input{width:100%;background:#0a0a0e;border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:10px 12px;margin:5px 0}
+input:focus{border-color:var(--ac);outline:0}
+.btn{background:linear-gradient(120deg,var(--ac),var(--ac2));color:#1a1000;border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.5}
+.err{color:var(--bad);min-height:18px;margin-top:8px;font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="login">
+  <div class="box">
+    <h1><span class="gold">Primstav</span> · Controle</h1>
+    <p class="mut" style="margin:4px 0 8px">Acesso restrito ao proprietário.</p>
+    <label for="em">E-mail</label><input id="em" type="email" autocomplete="username">
+    <label for="pw">Senha</label><input id="pw" type="password" autocomplete="current-password">
+    <button class="btn" id="go" style="width:100%;margin-top:10px">Entrar</button>
+    <div class="err" id="lerr" role="alert"></div>
+  </div>
+</div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+const OWNER_UID='d5emgNiOvBato7k7eV6ecjKjkJy1';
+// O nome "Controle" precisa ser igual ao do controle-painel.html para a sessão ser compartilhada
+const app=initializeApp({apiKey:"AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",authDomain:"agenda-16a31.firebaseapp.com",databaseURL:"https://agenda-16a31-default-rtdb.firebaseio.com",projectId:"agenda-16a31",storageBucket:"agenda-16a31.firebasestorage.app",messagingSenderId:"865554229500",appId:"1:865554229500:web:f786ebd6f0d0781019cf79"},"Controle");
+const auth=getAuth(app);
+const $=id=>document.getElementById(id);
+
+if(location.hash==='#negado')$('lerr').textContent='Acesso negado.';
+
+async function doLogin(){
+  $('lerr').textContent='';$('go').disabled=true;
+  try{await signInWithEmailAndPassword(auth,$('em').value.trim(),$('pw').value)}
+  catch(e){$('lerr').textContent='E-mail ou senha inválidos.'}
+  $('go').disabled=false;
+}
+$('go').onclick=doLogin;
+$('pw').onkeydown=e=>{if(e.key==='Enter')doLogin()};
+
+onAuthStateChanged(auth,async u=>{
+  if(!u)return;
+  if(u.uid!==OWNER_UID){await signOut(auth);$('lerr').textContent='Acesso negado.';return}
+  location.replace('controle-painel.html');
+});
+</script>
+</body>
+</html>

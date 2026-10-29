@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Primstav · Controle</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070a;--card:rgba(255,255,255,.045);--card2:#0e0e13;--line:rgba(255,255,255,.10);--tx:#f4f4f5;--mut:#9a9aa6;--ac:#f0b90b;--ac2:#d97706;--ok:#34d399;--bad:#f87171;--warn:#fbbf24;--blue:#60a5fa}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(900px 420px at 85% -10%,rgba(217,119,6,.18),transparent 70%),var(--bg);color:var(--tx);font:14px/1.5 Inter,system-ui,sans-serif;min-height:100vh}
+button,input,select{font:inherit}.hide{display:none!important}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.mut{color:var(--mut)}.gold{background:linear-gradient(120deg,var(--ac),var(--ac2));-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-size:20px;font-weight:800;margin:0}h2{font-size:15px;font-weight:700;margin:0 0 10px}
+input,select{width:100%;background:#0a0a0e;border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:10px 12px;margin:5px 0}
+input:focus,select:focus{border-color:var(--ac);outline:0}
+.btn{background:linear-gradient(120deg,var(--ac),var(--ac2));color:#1a1000;border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+.btn.g{background:transparent;color:var(--tx);border:1px solid var(--line)}.btn.g:hover{border-color:var(--ac)}
+.btn.d{background:var(--bad);color:#2a0606}.btn.s{padding:6px 10px;font-size:12px;border-radius:8px}.btn:disabled{opacity:.5}
+header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+main{padding:20px;max-width:1400px;margin:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.k{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px}
+.k span{color:var(--mut);font-size:12px}.k b{display:block;font-size:22px;font-weight:800;margin-top:2px}
+.k.hl{border-color:rgba(240,185,11,.45)}.k small{color:var(--mut);font-size:11px}
+.bar{display:flex;gap:8px;margin:16px 0 12px;flex-wrap:wrap;align-items:center}
+.bar input{margin:0;max-width:300px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.fc{background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.fc.on{background:var(--ac);color:#1a1000;border-color:var(--ac)}
+.wrap{background:var(--card2);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:1080px}
+th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--mut);font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--tx)}th.s::after{content:" ▾"}th.s.asc::after{content:" ▴"}
+tr:last-child td{border-bottom:0}tbody tr:hover{background:rgba(255,255,255,.025)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700}
+.p-ativo{background:#34d39922;color:var(--ok)}.p-trial{background:#60a5fa22;color:var(--blue)}
+.p-vencido{background:#fbbf2422;color:var(--warn)}.p-suspenso{background:#f8717122;color:var(--bad)}
+.act{display:flex;gap:6px;flex-wrap:wrap}.act a{text-decoration:none}
+.mini{height:5px;background:#1a1a22;border-radius:9px;margin-top:5px;overflow:hidden;min-width:70px}.mini i{display:block;height:100%;background:var(--ac)}
+.ov{position:fixed;inset:0;background:#000b;display:grid;place-items:center;padding:16px;z-index:9}
+.md{background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:440px;max-height:90vh;overflow:auto}
+.md.big{max-width:780px}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:12px 0}
+.chart{display:flex;align-items:flex-end;gap:10px;height:120px;margin:10px 0}
+.chart div{flex:1;text-align:center;font-size:11px;color:var(--mut);display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.chart i{display:block;background:linear-gradient(var(--ac),var(--ac2));border-radius:6px 6px 0 0;min-height:2px}
+.chip{display:inline-block;background:#14141a;border:1px solid var(--line);border-radius:8px;padding:3px 8px;margin:2px 4px 2px 0;font-size:12px}
+.emp{padding:8px 0;border-bottom:1px solid var(--line)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ac);color:#1a1000;padding:10px 16px;border-radius:10px;font-weight:700;z-index:20}
+@media(max-width:600px){main{padding:12px}header{padding:12px}}
+@media(prefers-reduced-motion:no-preference){.md{animation:up .18s ease-out}@keyframes up{from{opacity:0;transform:translateY(8px)}}}
+</style>
+</head>
+<body>
+
+<div id="app" class="hide">
+  <header>
+    <div><h1><span class="gold">Primstav</span> · Controle</h1><span class="mut" id="who"></span></div>
+    <div style="display:flex;gap:8px;align-items:center"><span class="mut" id="upd" style="font-size:12px"></span><button class="btn g s" id="csv">Exportar CSV</button><button class="btn g s" id="reload">Atualizar</button><button class="btn g s" id="out">Sair</button></div>
+  </header>
+  <main>
+    <div class="kpis" id="kpis"></div>
+    <div id="vis"></div>
+    <div class="bar">
+      <input id="q" type="search" placeholder="Buscar empresa, dono, e-mail ou telefone" aria-label="Buscar">
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr>
+        <th data-k="name">Empresa</th><th data-k="admin">Dono (adm)</th><th data-k="plano">Plano</th><th data-k="st">Status</th>
+        <th data-k="days">Renovação</th><th data-k="mrr">Mensal</th><th data-k="emps">Prof.</th><th data-k="cls">Clientes</th><th data-k="aps">Agend.</th><th data-k="size">Banco</th><th style="cursor:default">Ações</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table></div>
+  </main>
+</div>
+
+<div id="modal"></div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {getAuth,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {getDatabase,ref,get,update,remove} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const OWNER_UID='d5emgNiOvBato7k7eV6ecjKjkJy1';
+// O nome "Controle" precisa ser igual ao do controle-entrar.html para a sessão ser compartilhada
+const app=initializeApp({apiKey:"AIzaSyCcqtIOZ1E5O--gKxOfKofE0LwQeKPtBzs",authDomain:"agenda-16a31.firebaseapp.com",databaseURL:"https://agenda-16a31-default-rtdb.firebaseio.com",projectId:"agenda-16a31",storageBucket:"agenda-16a31.firebasestorage.app",messagingSenderId:"865554229500",appId:"1:865554229500:web:f786ebd6f0d0781019cf79"},"Controle");
+const auth=getAuth(app),db=getDatabase(app);
+const $=id=>document.getElementById(id),DAY=864e5,B='agendapro_saas/';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const arr=v=>v?(Array.isArray(v)?v.filter(Boolean):Object.values(v)):[];
+const kb=n=>n>=1048576?(n/1048576).toFixed(2)+' MB':(n/1024).toFixed(1)+' KB';
+const money=n=>(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtD=t=>t?new Date(t).toLocaleDateString('pt-BR'):'—';
+const PL={individual:'Individual',equipe:'Equipe Inicial',crescimento:'Crescimento',avancado:'Avançado'};
+let rows=[],flt='todas',sk='st',sd=1,VIS=null;
+const dia=n=>new Date(Date.now()-n*DAY).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+
+// ---------- SESSÃO (o login fica em entrar.html) ----------
+$('out').onclick=()=>signOut(auth);
+onAuthStateChanged(auth,async u=>{
+  if(!u){location.replace('controle-entrar.html');return}
+  if(u.uid!==OWNER_UID){await signOut(auth);location.replace('controle-entrar.html#negado');return}
+  $('app').classList.remove('hide');$('who').textContent=u.email;
+  load();
+});
+
+// ---------- DADOS ----------
+async function load(){
+  $('tb').innerHTML='<tr><td colspan="11" class="mut">Carregando…</td></tr>';
+  try{
+    const [t,b,v]=await Promise.all([get(ref(db,B+'tenants')),get(ref(db,B+'billing')),get(ref(db,B+'analytics/index')).catch(()=>null)]);
+    const T=t.val()||{},BI=b.val()||{},now=Date.now();
+    VIS=v?(v.val()||{}):null; // null = sem permissão (regras ainda não publicadas)
+    rows=Object.keys(T).map(slug=>{
+      const t=T[slug]||{},bi=BI[slug]||{},a=bi.assinatura||{},ad=t.admin||{};
+      const emps=arr(t.employees),cls=arr(t.clients),aps=arr(t.appointments);
+      // o cadastro grava trialFim; acessoAte só existe depois de renovar/pagar
+      const fim=a.acessoAte||a.trialFim||0;
+      const days=fim?Math.ceil((fim-now)/DAY):null;
+      const st=a.status==='suspenso'?'suspenso':fim<=now?'vencido':a.status==='trial'?'trial':'ativo';
+      const mrr=a.valor?(a.ciclo==='anual'?a.valor/12:a.valor):0;
+      return {slug,name:t.name||slug,admin:ad,a,fim,emps,cls,aps,days,st,mrr,criado:bi.criadoEm||0,size:JSON.stringify(t).length,max:a.maxProfissionais||0,
+        plano:PL[a.plano]||a.plano||'—'};
+    });
+    $('upd').textContent='Atualizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    render();
+  }catch(e){$('tb').innerHTML='<tr><td colspan="11" style="color:var(--bad)">Erro ao carregar: '+esc(e.message)+'</td></tr>'}
+}
+$('reload').onclick=load;
+
+const soon=r=>(r.st==='ativo'||r.st==='trial')&&r.days!==null&&r.days<=7;
+function filtered(){
+  const q=$('q').value.toLowerCase();
+  const ord={vencido:0,suspenso:1,trial:2,ativo:3};
+  const v=r=>sk==='admin'?(r.admin.name||''):sk==='st'?ord[r.st]:sk==='days'?(r.days===null?1e9:r.days):r[sk];
+  return rows.filter(r=>(flt==='todas'||(flt==='7d'?soon(r):r.st===flt))&&
+    (!q||[r.name,r.slug,r.admin.name,r.admin.email,r.admin.phone].join(' ').toLowerCase().includes(q)))
+    .sort((x,y)=>{const a=typeof v(x)==='object'?v(x).length:v(x),b=typeof v(y)==='object'?v(y).length:v(y);return (a>b?1:a<b?-1:0)*sd});
+}
+
+function vk(novos){
+  if(VIS===null)return [['Acessos ao site','—','','regras do banco pendentes']];
+  const sum=(f,n)=>{let t=0;for(let i=0;i<n;i++)t+=((VIS[dia(i)]||{})[f])||0;return t};
+  const u=sum('unicos',30);
+  return [['Visitas hoje',sum('visitas',1),'',`${sum('unicos',1)} visitantes`],['Visitantes em 30 dias',u,'',`${sum('visitas',30)} visitas`],
+    ['Conversão em 30 dias',u?(novos/u*100).toFixed(1)+'%':'—','',`${novos} cadastros ÷ visitantes`]];
+}
+function visChart(){
+  if(VIS===null){$('vis').innerHTML='';return}
+  const d=[...Array(14).keys()].reverse().map(i=>{const k=dia(i);return [k.slice(8)+'/'+k.slice(5,7),(VIS[k]||{}).visitas||0]}),m=Math.max(1,...d.map(x=>x[1]));
+  $('vis').innerHTML=`<div class="k" style="margin-bottom:12px"><span>Visitas na página inicial · últimos 14 dias</span><div class="chart">${d.map(([l,n])=>`<div><span>${n}</span><i style="height:${Math.round(n/m*80)}px"></i>${l}</div>`).join('')}</div></div>`;
+}
+function render(){
+  const c=s=>rows.filter(r=>r.st===s).length;
+  const tot=k=>rows.reduce((s,r)=>s+r[k].length,0),sz=rows.reduce((s,r)=>s+r.size,0);
+  const mrr=rows.filter(r=>r.st==='ativo').reduce((s,r)=>s+r.mrr,0);
+  const pot=rows.filter(r=>r.st==='trial').reduce((s,r)=>s+r.mrr,0);
+  const novos=rows.filter(r=>r.criado>Date.now()-30*DAY).length;
+  $('kpis').innerHTML=[
+    ['Receita mensal (MRR)',money(mrr),'hl',`ARR ${money(mrr*12)}`],...vk(novos),['Potencial dos trials',money(pot),'',`${c('trial')} em teste`],
+    ['Ativas',c('ativo')],['Vencem em 7 dias',rows.filter(soon).length,rows.filter(soon).length?'hl':''],['Vencidas',c('vencido')],['Suspensas',c('suspenso')],
+    ['Novas em 30 dias',novos],['Empresas',rows.length],['Profissionais',tot('emps')],['Clientes finais',tot('cls')],['Agendamentos',tot('aps')],['Banco (tenants)',kb(sz),'',`média ${kb(sz/Math.max(1,rows.length))}`]]
+    .map(([l,v,h,s])=>`<div class="k ${h||''}"><span>${l}</span><b>${v}</b>${s?`<small>${s}</small>`:''}</div>`).join('');
+  const F=[['todas','Todas',rows.length],['ativo','Ativas',c('ativo')],['trial','Trial',c('trial')],['7d','Vencem em 7 dias',rows.filter(soon).length],['vencido','Vencidas',c('vencido')],['suspenso','Suspensas',c('suspenso')]];
+  $('chips').innerHTML=F.map(([k,l,n])=>`<button class="fc ${flt===k?'on':''}" data-f="${k}">${l} ${n}</button>`).join('');
+  visChart();
+  document.querySelectorAll('th[data-k]').forEach(h=>{h.classList.toggle('s',h.dataset.k===sk);h.classList.toggle('asc',h.dataset.k===sk&&sd===1)});
+  const mx=Math.max(1,...rows.map(r=>r.size));
+  $('tb').innerHTML=filtered().map(r=>{
+    const s=esc(r.slug),d=r.days===null?'—':r.days>0?r.days+' dia(s)':'vencido há '+Math.abs(r.days)+' d';
+    const tel=String(r.admin.phone||'').replace(/\D/g,''),wa=tel.length>=10?'https://wa.me/'+(tel.length<=11?'55':'')+tel:'';
+    return `<tr>
+      <td><b>${esc(r.name)}</b><br><span class="mut">${s}</span></td>
+      <td>${esc(r.admin.name||'—')}<br><span class="mut">${esc(r.admin.email||'')}</span><br><span class="mut">${esc(r.admin.phone||'sem celular')}</span></td>
+      <td>${esc(r.plano)}<br><span class="mut">${esc(r.a.ciclo||'')}</span></td>
+      <td><span class="pill p-${r.st}">${r.st}</span></td>
+      <td>${d}<br><span class="mut">${fmtD(r.fim)}</span></td>
+      <td>${r.mrr?money(r.mrr):'—'}</td>
+      <td>${r.emps.length}${r.max?' / '+r.max:''}</td><td>${r.cls.length}</td><td>${r.aps.length}</td>
+      <td>${kb(r.size)}<div class="mini"><i style="width:${Math.round(r.size/mx*100)}%"></i></div></td>
+      <td><div class="act">
+        <button class="btn s" data-a="view" data-s="${s}">Dashboard</button>
+        <button class="btn g s" data-a="renew" data-s="${s}">Renovar</button>
+        ${wa?`<a class="btn g s" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>`:''}
+        <button class="btn g s" data-a="${r.st==='suspenso'?'on':'off'}" data-s="${s}">${r.st==='suspenso'?'Ativar':'Desativar'}</button>
+        <button class="btn d s" data-a="del" data-s="${s}">Excluir</button>
+      </div></td></tr>`}).join('')||'<tr><td colspan="11" class="mut">Nenhuma empresa encontrada com esse filtro.</td></tr>';
+}
+$('q').oninput=render;
+$('chips').onclick=e=>{const b=e.target.closest('[data-f]');if(b){flt=b.dataset.f;render()}};
+document.querySelector('thead').onclick=e=>{const h=e.target.closest('th[data-k]');if(!h)return;
+  if(sk===h.dataset.k)sd=-sd;else{sk=h.dataset.k;sd=1}render()};
+
+$('csv').onclick=()=>{
+  const H=['Empresa','Slug','Dono','E-mail','Celular','Plano','Ciclo','Valor','Status','Vencimento','Profissionais','Clientes','Agendamentos'];
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const L=filtered().map(r=>[r.name,r.slug,r.admin.name,r.admin.email,r.admin.phone,r.plano,r.a.ciclo,r.a.valor,r.st,fmtD(r.fim),r.emps.length,r.cls.length,r.aps.length].map(q).join(';'));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+[H.map(q).join(';'),...L].join('\n')],{type:'text/csv'}));
+  a.download='primstav-empresas.csv';a.click();URL.revokeObjectURL(a.href);
+};
+
+// ---------- MODAIS / TOAST ----------
+const closeM=()=>{$('modal').innerHTML=''};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeM()});
+function ask(msg,typeName){
+  return new Promise(res=>{
+    $('modal').innerHTML=`<div class="ov"><div class="md" role="dialog" aria-modal="true"><h2>Confirmação</h2><p>${msg}</p>
+      ${typeName?`<p class="mut">Para confirmar, digite o nome: <b>${esc(typeName)}</b></p><input id="cf" autocomplete="off">`:''}
+      <div class="row"><button class="btn g" id="n">Cancelar</button><button class="btn ${typeName?'d':''}" id="y">Confirmar</button></div></div></div>`;
+    const close=v=>{closeM();res(v)};
+    $('n').onclick=()=>close(false);
+    $('y').onclick=()=>{if(typeName&&$('cf').value.trim()!==typeName){$('cf').style.borderColor='var(--bad)';return}close(true)};
+    (($('cf'))||$('y')).focus();
+  });
+}
+function pickDays(n){
+  return new Promise(res=>{
+    $('modal').innerHTML=`<div class="ov"><div class="md" role="dialog" aria-modal="true"><h2>Renovar ${n}</h2>
+      <p class="mut">Soma ao vencimento atual (ou a hoje, se já venceu).</p>
+      <div class="row" style="justify-content:flex-start"><button class="btn g" data-d="7">+7 dias</button><button class="btn" data-d="30">+30 dias</button><button class="btn g" data-d="365">+1 ano</button></div>
+      <div class="row"><button class="btn g" id="n">Cancelar</button></div></div></div>`;
+    $('n').onclick=()=>{closeM();res(0)};
+    $('modal').onclick=e=>{const b=e.target.closest('[data-d]');if(b){closeM();res(+b.dataset.d)}};
+  });
+}
+function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+
+// ---------- AÇÕES ----------
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const r=rows.find(x=>x.slug===b.dataset.s);if(!r)return;
+  const a=b.dataset.a,P=B+'billing/'+r.slug+'/assinatura',now=Date.now(),n=esc(r.name);
+  b.disabled=true;
+  try{
+    if(a==='view'){b.disabled=false;return detail(r)}
+    if(a==='renew'){
+      const d=await pickDays(n);if(!d){b.disabled=false;return}
+      await update(ref(db,P),{acessoAte:Math.max(now,r.fim)+d*DAY});toast('Renovado +'+d+' dias');
+    }
+    if(a==='off'){
+      if(!await ask(`Deseja <b>desativar</b> a empresa <b>${n}</b>? O acesso dela será bloqueado até você ativar novamente.`)){b.disabled=false;return}
+      await update(ref(db,P),{status:'suspenso',acessoAnterior:r.fim||null,acessoAte:now-1000});toast('Empresa desativada');
+    }
+    if(a==='on'){
+      if(!await ask(`Deseja <b>ativar</b> a empresa <b>${n}</b>?`)){b.disabled=false;return}
+      const ant=r.a.acessoAnterior;
+      await update(ref(db,P),{status:r.a.trialFim&&ant&&ant===r.a.trialFim?'trial':'ativo',acessoAte:ant>now?ant:now+30*DAY,acessoAnterior:null});toast('Empresa ativada');
+    }
+    if(a==='del'){
+      if(!await ask(`Deseja <b>excluir permanentemente</b> a empresa <b>${n}</b>? Todos os profissionais, clientes e agendamentos serão apagados. Não dá para desfazer.`,r.name)){b.disabled=false;return}
+      await Promise.all([remove(ref(db,B+'tenants/'+r.slug)),remove(ref(db,B+'billing/'+r.slug)),remove(ref(db,B+'providers/'+r.slug))]);toast('Empresa excluída');
+    }
+    load();
+  }catch(err){b.disabled=false;toast('Erro: '+err.message)}
+});
+
+// ---------- DASHBOARD POR EMPRESA ----------
+function detail(r){
+  const by={},mo={};let val=0,last='';
+  r.aps.forEach(x=>{const s=x.status||'agendado';by[s]=(by[s]||0)+1;if(s!=='cancelado')val+=Number(x.totalPrice)||0;
+    const d=String(x.date||'');if(d>last)last=d;
+    const m=d.slice(0,7);if(/^\d{4}-\d{2}$/.test(m))mo[m]=(mo[m]||0)+1});
+  const ms=Object.keys(mo).sort().slice(-6),mm=Math.max(1,...ms.map(k=>mo[k]));
+  const ad=r.admin,k=(l,v)=>`<div class="k"><span>${l}</span><b style="font-size:18px">${v}</b></div>`;
+  const uso=r.max?Math.round(r.emps.length/r.max*100):0;
+  $('modal').innerHTML=`<div class="ov"><div class="md big" role="dialog" aria-modal="true">
+    <h2 style="font-size:18px">${esc(r.name)} <span class="pill p-${r.st}">${r.st}</span></h2>
+    <p class="mut" style="margin:0">Dono: ${esc(ad.name||'—')} · ${esc(ad.email||'—')} · ${esc(ad.phone||'sem celular')}</p>
+    <div class="g2">${k('Plano',esc(r.plano)+(r.a.ciclo?' · '+esc(r.a.ciclo):''))}${k('Valor',r.a.valor?money(r.a.valor):'—')}${k('Cadastro',fmtD(r.criado))}
+      ${k(r.st==='trial'?'Fim do teste':'Renovação',fmtD(r.fim))}${k('Dias restantes',r.days===null?'—':r.days)}${k('Último agend.',last?last.split('-').reverse().join('/'):'—')}
+      ${k('Profissionais',r.emps.length+(r.max?' / '+r.max:''))}${k('Clientes',r.cls.length)}${k('Agendamentos',r.aps.length)}
+      ${k('Valor agendado',money(val))}${k('Banco',kb(r.size))}${k('Média por agend.',r.aps.length?kb(r.size/r.aps.length):'—')}</div>
+    ${r.max?`<span class="mut">Uso do plano: ${uso}%</span><div class="mini" style="height:7px"><i style="width:${Math.min(100,uso)}%"></i></div>`:''}
+    <h2 style="margin-top:16px">Agendamentos por mês</h2>
+    <div class="chart">${ms.length?ms.map(m=>`<div><span>${mo[m]}</span><i style="height:${Math.round(mo[m]/mm*80)}px"></i>${m.slice(5)}/${m.slice(2,4)}</div>`).join(''):'<span class="mut">Sem dados</span>'}</div>
+    <h2>Por situação</h2><div>${Object.keys(by).map(s=>`<span class="chip">${esc(s)}: <b>${by[s]}</b></span>`).join('')||'<span class="mut">Sem agendamentos</span>'}</div>
+    <h2 style="margin-top:14px">Profissionais</h2>
+    ${r.emps.map(e=>`<div class="emp"><b>${esc(e.name)}</b>${e.isAdmin?' <span class="chip">adm</span>':''}<br><span class="mut">${esc(e.email||'')} · ${esc(e.phone||'sem celular')}</span></div>`).join('')||'<span class="mut">Nenhum</span>'}
+    <div class="row"><button class="btn g" id="cl">Fechar</button></div></div></div>`;
+  $('cl').onclick=closeM;$('cl').focus();
+}
+</script>
+</body>
+</html>
