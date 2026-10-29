@@ -519,6 +519,12 @@
                 if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
             });
 
+            // papel de acesso vem do BANCO (campo do cadastro do profissional): quem é "Administrador" ganha a visão de admin
+            if (!window.__baseRole) window.__baseRole = session.role;
+            const __me = t.employees.find(e => e.id === session.id);
+            session.role = (window.__baseRole === 'admin' || (__me && (__me.isAdmin || __me.role === 'admin'))) ? 'admin' : 'employee';
+            window.__isOwner = !__me;
+
             applyThemeCSS(t.themePalette);
             applyBgImageSettings();
             render();
@@ -723,7 +729,7 @@
         window.render = function() {
             if(!window.t) return;
             const role = session.role;
-            const userProfile = role === 'admin' ? t.admin : (t.employees || []).find(e=>e.id === session.id);
+            const userProfile = window.__isOwner ? t.admin : ((t.employees || []).find(e=>e.id === session.id) || t.admin);
             if(!userProfile) return logout();
 
             const logoHtml = t.logo ? `<img src="${t.logo}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-200 shrink-0">` : `<div class="w-10 h-10 shrink-0 rounded-xl btn-theme-primary flex items-center justify-center font-bold text-lg shadow-sm">O</div>`;
@@ -3409,7 +3415,7 @@
 
         window.salvarPerfil = async function(userId) {
             const role = session.role;
-            const user = role === 'admin' ? t.admin : t.employees.find(emp => emp.id === userId);
+            const user = window.__isOwner ? t.admin : t.employees.find(emp => emp.id === userId);
             const conf = document.getElementById('prof-pass-conf').value;
             let novoHash = null;
 
@@ -3433,7 +3439,7 @@
             user.email = document.getElementById('prof-email').value;
             if (novoHash) user.password = novoHash;
             if (draft.avatar) { user.avatar = draft.avatar; delete draft.avatar; }
-            saveDB(role === 'admin' ? ['admin', 'employees'] : ['employees']);
+            saveDB(window.__isOwner ? ['admin', 'employees'] : ['employees']);
             showModal('Sucesso', 'Perfil atualizado!', 'success');
         };
 
@@ -3461,7 +3467,7 @@
             }
             if (editEmployeeId) {
                 const emp = t.employees.find(x => x.id === editEmployeeId);
-                emp.name = name; emp.email = email; emp.phone = phoneRaw; emp.procedures = checks; emp.isAdmin = (document.getElementById('e-role') || {}).value === 'admin';
+                emp.name = name; emp.email = email; emp.phone = phoneRaw; emp.procedures = checks; emp.isAdmin = (document.getElementById('e-role') || {}).value === 'admin'; emp.role = emp.isAdmin ? 'admin' : 'employee';
                 if (senhaHash) emp.password = senhaHash;
                 // horário de trabalho do profissional
                 if (document.getElementById('ewh-cb-0')) {
@@ -3477,7 +3483,7 @@
                 }
             } else {
                 const newColor = COLOR_PALETTE[(t.employees.length + 1) % COLOR_PALETTE.length];
-                t.employees.push({ id: 'emp-' + Date.now(), uid: empUid, name, email: email.trim(), phone: phoneRaw, password: senhaHash, avatar: '', color: newColor, procedures: checks, isAdmin: (document.getElementById('e-role') || {}).value === 'admin', workingHours: getDefWH(), exceptions: {} });
+                t.employees.push({ id: 'emp-' + Date.now(), uid: empUid, name, email: email.trim(), phone: phoneRaw, password: senhaHash, avatar: '', color: newColor, procedures: checks, isAdmin: (document.getElementById('e-role') || {}).value === 'admin', role: ((document.getElementById('e-role') || {}).value === 'admin') ? 'admin' : 'employee', workingHours: getDefWH(), exceptions: {} });
             }
             editEmployeeId = null;
             saveDB(['employees']);
