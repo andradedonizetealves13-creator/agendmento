@@ -2513,37 +2513,7 @@
 
         window.selectListMonth = function(val) { listFilterMonth = val; listFilterDate = ''; render(); };
 
-        function renderListView(role, user) {
-            let apps = t.appointments || [];
-            if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
-            else if(agendaFilterEmp !== 'all') apps = apps.filter(a => a.employeeId === agendaFilterEmp);
-            const todayStr = localDateStr();
-            apps = apps.filter(a => isBusyApp(a) && a.date >= todayStr);
-            if(listFilterMonth) apps = apps.filter(a => a.date.split('-')[1] === listFilterMonth);
-            if(listFilterDate) apps = apps.filter(a => a.date === listFilterDate);
-            apps.sort((a,b) => new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time));
-
-            const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
-            const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-            const mesesCurtos = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-            const hasEmployees = t.employees.length > 0;
-            const fmtMins = (m) => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
-            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); const tomorrowStr = localDateStr(tomorrow);
-            const dayLabel = (ds) => {
-                const d = new Date(ds + 'T00:00:00');
-                const base = `${diasSemana[d.getDay()]}, ${d.getDate()} de ${mesesCurtos[d.getMonth()]}`;
-                return ds === todayStr ? `Hoje · ${base}` : (ds === tomorrowStr ? `Amanhã · ${base}` : base);
-            };
-
-            // agrupa por dia
-            const groups = []; 
-            apps.forEach(a => {
-                let g = groups[groups.length - 1];
-                if (!g || g.date !== a.date) { g = { date: a.date, items: [] }; groups.push(g); }
-                g.items.push(a);
-            });
-
-            const card = (a) => {
+        window.listCardHtml = function(a) {
                 const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
                 const empName = emp ? emp.name : 'Profissional';
                 const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
@@ -2555,6 +2525,7 @@
                     ? `<img src="${esc(emp.avatar)}" alt="" class="w-6 h-6 rounded-full object-cover shrink-0" style="border:1.5px solid ${empColor}">`
                     : `<div class="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white" style="background:${empColor}">${esc(empName.charAt(0).toUpperCase())}</div>`;
                 const procs = (a.proceduresNames || []).map(n => esc(n)).join(' <span style="opacity:.55">•</span> ');
+                const fmtMins = (m) => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
                 const endTime = fmtMins(timeToMins(a.time) + (a.totalDuration || 0));
                 const chips = [
                     a.status === 'pendente' ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(245,158,11,.15); color:#fbbf24; border:1px dashed rgba(245,158,11,.55)">⏳ Aguardando sinal</span>` : '',
@@ -2586,6 +2557,124 @@
                     </div>
                 </div>`;
             };
+
+        // ---------- Lista no celular: faixa de dias + seletor de mês, ocupando a tela toda ----------
+        window.listMobYM = null; window.listSelDay = null; window.listPickerOpen = false; window.listPickerYear = null;
+        window.listPickDay = function(d) { listSelDay = d; listPickerOpen = false; render(); };
+        window.listShiftMonth = function(n) {
+            const ym = listMobYM || { y: new Date().getFullYear(), m: new Date().getMonth() };
+            const d = new Date(ym.y, ym.m + n, 1); listMobYM = { y: d.getFullYear(), m: d.getMonth() }; listSelDay = null; listPickerOpen = false; render();
+        };
+        window.listGoToday = function() { listMobYM = null; listSelDay = null; listPickerOpen = false; render(); };
+        window.listToggleMonthPicker = function(y) { listPickerOpen = !listPickerOpen; listPickerYear = y; render(); };
+        window.listChangePickerYear = function(d) { listPickerYear += d; render(); };
+        window.listJumpMonth = function(y, m) { listMobYM = { y, m }; listSelDay = null; listPickerOpen = false; render(); };
+
+        function renderListViewMobile(role, user) {
+            const now = new Date(), todayStr = localDateStr(now);
+            const ym = listMobYM || { y: now.getFullYear(), m: now.getMonth() };
+            const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+            const mesesCurtos = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+            const prefix = `${ym.y}-${String(ym.m + 1).padStart(2, '0')}-`;
+            const daysInMonth = new Date(ym.y, ym.m + 1, 0).getDate();
+            const sel = (listSelDay && listSelDay.startsWith(prefix)) ? listSelDay : (todayStr.startsWith(prefix) ? todayStr : prefix + '01');
+            listSelDay = sel;
+
+            const scoped = agendaScope(role, user).filter(a => a.date.startsWith(prefix));
+            const countBy = {}, pendBy = {};
+            scoped.forEach(a => { countBy[a.date] = (countBy[a.date] || 0) + 1; if (a.status === 'pendente') pendBy[a.date] = (pendBy[a.date] || 0) + 1; });
+
+            const chips = [];
+            for (let i = 1; i <= daysInMonth; i++) {
+                const ds = prefix + String(i).padStart(2, '0'), d = new Date(ym.y, ym.m, i), on = ds === sel, n = countBy[ds] || 0, pn = pendBy[ds] || 0;
+                const wd = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+                chips.push(`<button ${on ? 'data-list-sel="1"' : ''} onclick="listPickDay('${ds}')" class="shrink-0 w-[54px] flex flex-col items-center py-2 rounded-2xl border transition-colors ${on ? 'btn-theme-primary border-transparent shadow-md' : 'bg-white text-slate-700'}">
+                    <span class="text-[10px] uppercase font-bold ${on ? '' : 'text-slate-500'}">${wd}</span>
+                    <span class="text-xl font-extrabold leading-tight ${on ? '' : (ds === todayStr ? 'text-theme-primary' : 'text-slate-800')}">${i}</span>
+                    <span class="h-[6px] mt-0.5 flex items-center justify-center">${n ? `<i class="block w-1.5 h-1.5 rounded-full" style="background:${on ? '#fff' : (pn ? '#f59e0b' : 'var(--theme-primary)')}"></i>` : ''}</span>
+                </button>`);
+            }
+
+            const pickerYear = listPickerYear !== null ? listPickerYear : ym.y;
+            const monthPicker = listPickerOpen ? `
+                <div class="date-pop absolute top-full left-0 mt-2 w-64 border rounded-2xl shadow-xl p-3 z-[70] fade-in">
+                    <div class="flex items-center justify-between mb-3">
+                        <button onclick="listChangePickerYear(-1)" class="p-2 bg-slate-50 border rounded-lg hover:bg-slate-100"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                        <span class="font-bold text-sm text-slate-800">${pickerYear}</span>
+                        <button onclick="listChangePickerYear(1)" class="p-2 bg-slate-50 border rounded-lg hover:bg-slate-100"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        ${monthNames.map((n, i) => `<button onclick="listJumpMonth(${pickerYear}, ${i})" class="px-2 py-2.5 rounded-xl text-xs font-bold transition-colors ${(i === ym.m && pickerYear === ym.y) ? 'btn-theme-primary' : 'bg-slate-50 text-slate-700 hover:bg-theme-secondary'}">${n.slice(0,3)}</button>`).join('')}
+                    </div>
+                </div>` : '';
+
+            const dayApps = scoped.filter(a => a.date === sel).sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+            const sd = new Date(sel + 'T00:00:00');
+            const baseLabel = `${diasSemana[sd.getDay()]}, ${sd.getDate()} de ${mesesCurtos[sd.getMonth()]}`;
+            const label = sel === todayStr ? `Hoje · ${baseLabel}` : baseLabel;
+
+            setTimeout(() => {
+                const sc = document.getElementById('list-day-strip'), el = sc && sc.querySelector('[data-list-sel]');
+                if (sc && el) sc.scrollLeft = el.offsetLeft - sc.clientWidth / 2 + el.offsetWidth / 2;
+            }, 0);
+
+            return `
+                <div class="-mx-4 -mb-4 ${isCalendarFullscreen ? 'calendar-fullscreen' : ''}">
+                    <div class="px-3 flex items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center gap-2">
+                            <button onclick="listShiftMonth(-1)" class="p-2.5 bg-white border rounded-xl"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                            <div class="relative">
+                                <button onclick="listToggleMonthPicker(${ym.y})" title="Escolher mês" class="h-full flex items-center px-3 bg-white border rounded-xl font-bold">${monthNames[ym.m].slice(0,3)}&nbsp;${ym.y}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
+                                ${monthPicker}
+                            </div>
+                            <button onclick="listShiftMonth(1)" class="p-2.5 bg-white border rounded-xl"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                        </div>
+                        <button onclick="listGoToday()" class="bg-theme-secondary text-theme-primary px-4 py-2.5 rounded-xl font-bold text-sm">Hoje</button>
+                    </div>
+                    <div id="list-day-strip" class="flex gap-2 overflow-x-auto px-3 pb-2 custom-scrollbar" style="scrollbar-width:none">${chips.join('')}</div>
+                    <div class="px-3 mt-3 mb-2 flex items-center justify-between">
+                        <h3 class="text-sm font-extrabold text-slate-800">${label}</h3>
+                        <span class="text-[11px] font-bold text-slate-500 bg-white border px-2 py-0.5 rounded-full">${dayApps.length} ${dayApps.length === 1 ? 'atendimento' : 'atendimentos'}</span>
+                    </div>
+                    <div class="px-3 pb-4 space-y-3">
+                        ${dayApps.length ? dayApps.map(listCardHtml).join('') : '<div class="text-center py-14 bg-white/80 rounded-2xl border border-dashed"><p class="text-sm text-slate-500 font-medium">Nenhum atendimento neste dia.</p></div>'}
+                    </div>
+                </div>`;
+        }
+
+        function renderListView(role, user) {
+            if (window.innerWidth <= 768) return renderListViewMobile(role, user);
+            let apps = t.appointments || [];
+            if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
+            else if(agendaFilterEmp !== 'all') apps = apps.filter(a => a.employeeId === agendaFilterEmp);
+            const todayStr = localDateStr();
+            apps = apps.filter(a => isBusyApp(a) && a.date >= todayStr);
+            if(listFilterMonth) apps = apps.filter(a => a.date.split('-')[1] === listFilterMonth);
+            if(listFilterDate) apps = apps.filter(a => a.date === listFilterDate);
+            apps.sort((a,b) => new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time));
+
+            const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
+            const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+            const mesesCurtos = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+            const hasEmployees = t.employees.length > 0;
+            const fmtMins = (m) => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); const tomorrowStr = localDateStr(tomorrow);
+            const dayLabel = (ds) => {
+                const d = new Date(ds + 'T00:00:00');
+                const base = `${diasSemana[d.getDay()]}, ${d.getDate()} de ${mesesCurtos[d.getMonth()]}`;
+                return ds === todayStr ? `Hoje · ${base}` : (ds === tomorrowStr ? `Amanhã · ${base}` : base);
+            };
+
+            // agrupa por dia
+            const groups = []; 
+            apps.forEach(a => {
+                let g = groups[groups.length - 1];
+                if (!g || g.date !== a.date) { g = { date: a.date, items: [] }; groups.push(g); }
+                g.items.push(a);
+            });
+
+            const card = listCardHtml;
 
             return `
                 <div class="bg-white/90 backdrop-blur-md p-4 md:p-6 rounded-2xl border shadow-sm ${isCalendarFullscreen ? 'calendar-fullscreen' : ''}">
