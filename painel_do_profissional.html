@@ -2620,31 +2620,31 @@
             }, 0);
 
             return `
-                <div class="-mx-4 -mb-4 ${isCalendarFullscreen ? 'calendar-fullscreen' : ''}">
-                    <div class="px-3 flex items-center justify-between gap-2 mb-3">
+                <div class="-mx-4 -mb-4 md:mx-0 md:mb-0 md:bg-white/90 md:backdrop-blur-md md:border md:rounded-2xl md:shadow-sm md:py-5 ${isCalendarFullscreen ? 'calendar-fullscreen' : ''}">
+                    <div class="px-3 md:px-6 flex items-center justify-between gap-2 mb-3">
                         <div class="flex items-center gap-2">
                             <button onclick="listShiftMonth(-1)" class="p-2.5 bg-white border rounded-xl"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
                             <div class="relative">
-                                <button onclick="listToggleMonthPicker(${ym.y})" title="Escolher mês" class="h-full flex items-center px-3 bg-white border rounded-xl font-bold">${monthNames[ym.m].slice(0,3)}&nbsp;${ym.y}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
+                                <button onclick="listToggleMonthPicker(${ym.y})" title="Escolher mês" class="h-full flex items-center px-3 bg-white border rounded-xl font-bold"><span class="md:hidden">${monthNames[ym.m].slice(0,3)}</span><span class="hidden md:inline">${monthNames[ym.m]}</span>&nbsp;${ym.y}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
                                 ${monthPicker}
                             </div>
                             <button onclick="listShiftMonth(1)" class="p-2.5 bg-white border rounded-xl"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                         </div>
                         <button onclick="listGoToday()" class="bg-theme-secondary text-theme-primary px-4 py-2.5 rounded-xl font-bold text-sm">Hoje</button>
                     </div>
-                    <div id="list-day-strip" class="flex gap-2 overflow-x-auto px-3 pb-2 custom-scrollbar" style="scrollbar-width:none">${chips.join('')}</div>
-                    <div class="px-3 mt-3 mb-2 flex items-center justify-between">
+                    <div id="list-day-strip" class="flex gap-2 overflow-x-auto px-3 md:px-6 pb-2 custom-scrollbar" style="scrollbar-width:none">${chips.join('')}</div>
+                    <div class="px-3 md:px-6 mt-3 mb-2 flex items-center justify-between">
                         <h3 class="text-sm font-extrabold text-slate-800">${label}</h3>
                         <span class="text-[11px] font-bold text-slate-500 bg-white border px-2 py-0.5 rounded-full">${dayApps.length} ${dayApps.length === 1 ? 'atendimento' : 'atendimentos'}</span>
                     </div>
-                    <div class="px-3 pb-4 space-y-3">
-                        ${dayApps.length ? dayApps.map(listCardHtml).join('') : '<div class="text-center py-14 bg-white/80 rounded-2xl border border-dashed"><p class="text-sm text-slate-500 font-medium">Nenhum atendimento neste dia.</p></div>'}
+                    <div class="px-3 md:px-6 pb-4 md:pb-0 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        ${dayApps.length ? dayApps.map(listCardHtml).join('') : '<div class="md:col-span-2 xl:col-span-3 text-center py-14 bg-white/80 rounded-2xl border border-dashed"><p class="text-sm text-slate-500 font-medium">Nenhum atendimento neste dia.</p></div>'}
                     </div>
                 </div>`;
         }
 
         function renderListView(role, user) {
-            if (window.innerWidth <= 768) return renderListViewMobile(role, user);
+            return renderListViewMobile(role, user);
             let apps = t.appointments || [];
             if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
             else if(agendaFilterEmp !== 'all') apps = apps.filter(a => a.employeeId === agendaFilterEmp);
