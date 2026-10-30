@@ -2524,7 +2524,68 @@
             apps.sort((a,b) => new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time));
 
             const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
+            const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+            const mesesCurtos = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
             const hasEmployees = t.employees.length > 0;
+            const fmtMins = (m) => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); const tomorrowStr = localDateStr(tomorrow);
+            const dayLabel = (ds) => {
+                const d = new Date(ds + 'T00:00:00');
+                const base = `${diasSemana[d.getDay()]}, ${d.getDate()} de ${mesesCurtos[d.getMonth()]}`;
+                return ds === todayStr ? `Hoje · ${base}` : (ds === tomorrowStr ? `Amanhã · ${base}` : base);
+            };
+
+            // agrupa por dia
+            const groups = []; 
+            apps.forEach(a => {
+                let g = groups[groups.length - 1];
+                if (!g || g.date !== a.date) { g = { date: a.date, items: [] }; groups.push(g); }
+                g.items.push(a);
+            });
+
+            const card = (a) => {
+                const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
+                const empName = emp ? emp.name : 'Profissional';
+                const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
+                const cliUrl = clientAvatarUrl(a);
+                const cliAvatar = cliUrl
+                    ? `<img src="${esc(cliUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" class="w-11 h-11 rounded-full object-cover shrink-0" style="border:2px solid #2a2a30">`
+                    : `<div class="w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-bold text-sm" style="background:#2a2a30; color:#e5e7eb; border:2px solid #34343b">${esc((a.clientName || '?').trim().charAt(0).toUpperCase())}</div>`;
+                const empAvatar = (emp && emp.avatar)
+                    ? `<img src="${esc(emp.avatar)}" alt="" class="w-6 h-6 rounded-full object-cover shrink-0" style="border:1.5px solid ${empColor}">`
+                    : `<div class="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white" style="background:${empColor}">${esc(empName.charAt(0).toUpperCase())}</div>`;
+                const procs = (a.proceduresNames || []).map(n => esc(n)).join(' <span style="opacity:.55">•</span> ');
+                const endTime = fmtMins(timeToMins(a.time) + (a.totalDuration || 0));
+                const chips = [
+                    a.status === 'pendente' ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(245,158,11,.15); color:#fbbf24; border:1px dashed rgba(245,158,11,.55)">⏳ Aguardando sinal</span>` : '',
+                    a.rescheduledAt ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(56,189,248,.14); color:#7dd3fc">↻ Reagendado</span>` : '',
+                    a.paymentAlert && !a.paymentAlertResolved ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(244,63,94,.15); color:#fda4af">🚨 Pagamento</span>` : ''
+                ].join('');
+                return `
+                <div onclick="showAppDetails('${a.id}')" class="cursor-pointer rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg" style="background:#17171b; border:1px solid #26262c; box-shadow:0 2px 8px rgba(0,0,0,.18)">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-3 min-w-0">
+                            ${cliAvatar}
+                            <div class="min-w-0">
+                                <p class="font-bold text-[15px] leading-tight truncate" style="color:#fff">${esc(a.clientName)}</p>
+                                <p class="text-xs font-semibold mt-1 leading-snug" style="color:#60a5fa">${procs || '—'}</p>
+                                ${chips ? `<div class="flex flex-wrap gap-1.5 mt-2">${chips}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="font-extrabold text-lg leading-none tracking-tight" style="color:#fff">${esc(a.time)}</p>
+                            <span class="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:#26262c; color:#a1a1aa">${endTime}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid #26262c">
+                        <div class="flex items-center gap-2 min-w-0">
+                            ${empAvatar}
+                            <span class="text-xs font-semibold truncate" style="color:#d4d4d8">${esc(empName)}</span>
+                        </div>
+                        ${canSeeValues() ? `<span class="text-xs font-bold shrink-0" style="color:#a1a1aa">R$ ${Number(a.totalPrice || 0).toFixed(2).replace('.', ',')}</span>` : ''}
+                    </div>
+                </div>`;
+            };
 
             return `
                 <div class="bg-white/90 backdrop-blur-md p-4 md:p-6 rounded-2xl border shadow-sm ${isCalendarFullscreen ? 'calendar-fullscreen' : ''}">
@@ -2538,24 +2599,17 @@
                         <div class="w-full md:w-48"><label class="block text-xs font-bold mb-1 text-slate-600">Data Específica</label><input type="date" value="${listFilterDate}" onchange="listFilterDate=this.value; listFilterMonth=''; render()" class="date-field w-full px-4 py-2 bg-white border rounded-xl text-sm font-semibold outline-none"></div>
                         <div class="flex items-end w-full md:w-auto"><button onclick="listFilterDate=''; listFilterMonth=''; render()" class="w-full px-4 py-2 bg-white border text-slate-600 hover:bg-rose-50 hover:text-rose-600 rounded-xl text-sm font-bold">Limpar</button></div>
                     </div>
-                    <div class="space-y-4">
-                        ${apps.length === 0 ? '<div class="text-center py-16 bg-slate-50 rounded-2xl border-dashed border"><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>' : apps.map(a => {
-                            const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
-                            const titleText = (role === 'admin' && hasEmployees) ? `${esc(emp?emp.name:'Profissional')} - ${esc(a.clientName)}` : esc(a.clientName);
-                            return `
-                            <div onclick="showAppDetails('${a.id}')" class="p-4 border rounded-2xl flex flex-col md:flex-row md:items-center justify-between hover:border-indigo-300 bg-white gap-4 cursor-pointer transition-colors">
-                                <div class="flex items-start space-x-4">
-                                    <div class="bg-theme-secondary text-theme-primary w-14 h-14 rounded-xl flex flex-col items-center justify-center border shrink-0"><span class="text-[10px] font-bold uppercase">${a.date.split('-')[1]}</span><span class="text-xl font-bold">${a.date.split('-')[2]}</span></div>
-                                    ${clientAvatarImg(a, 'w-12 h-12')}
-                                    <div><p class="font-bold text-slate-900 text-base">${titleText}${a.rescheduledAt ? `<span class="text-sky-800 text-[10px] font-bold bg-sky-100 px-1.5 py-0.5 rounded ml-2 align-middle">Reagendado</span>` : ''}</p><p class="text-xs font-medium text-slate-500 mt-1">${a.time} - ${esc(a.proceduresNames.join(', '))}</p>${a.status === 'pendente' ? '<span class="inline-block mt-1.5 bg-amber-100 text-amber-800 border border-dashed border-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ Aguardando confirmação do sinal</span>' : ''}</div>
+                    ${groups.length === 0 ? '<div class="text-center py-16 bg-slate-50 rounded-2xl border-dashed border"><p class="text-sm text-slate-500 font-medium">Nenhum agendamento encontrado.</p></div>' : `
+                    <div class="space-y-6">
+                        ${groups.map(g => `
+                            <div>
+                                <div class="flex items-center justify-between mb-3 px-1">
+                                    <h3 class="text-sm font-extrabold text-slate-800">${dayLabel(g.date)}</h3>
+                                    <span class="text-[11px] font-bold text-slate-500 bg-slate-100 border px-2 py-0.5 rounded-full">${g.items.length} ${g.items.length === 1 ? 'atendimento' : 'atendimentos'}</span>
                                 </div>
-                                <div class="flex items-center justify-between md:justify-end space-x-4 border-t md:border-0 pt-4 md:pt-0 w-full md:w-auto">
-                                    ${canSeeValues() ? `<p class="font-bold text-emerald-600 text-sm bg-emerald-50 px-4 py-2 rounded-xl border">R$ ${a.totalPrice.toFixed(2)}</p>` : ''}
-                                    <span class="text-xs text-theme-primary bg-theme-secondary px-4 py-2 rounded-xl font-bold border flex items-center"><i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 mr-1.5"></i>Ver / Alterar</span>
-                                </div>
-                            </div>
-                        `}).join('')}
-                    </div>
+                                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">${g.items.map(card).join('')}</div>
+                            </div>`).join('')}
+                    </div>`}
                 </div>
             `;
         }
