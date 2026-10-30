@@ -1721,7 +1721,7 @@
                 return `
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-3 sm:space-y-0">
                         <div>
-                            <div class="flex items-center flex-wrap gap-x-3 gap-y-2"><h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2><span class="hidden sm:inline-flex">${pendingPillHtml(role, user)}</span></div>
+                            <div class="flex items-center flex-wrap gap-x-3 gap-y-2"><h2 class="font-bold text-lg text-slate-800">Agenda de Atendimentos</h2><span class="hidden sm:inline-flex items-center gap-2 flex-wrap">${pendingPillHtml(role, user)}${closePillHtml(role, user)}</span></div>
                             <p class="text-xs text-slate-500 mt-0.5">${agendaSummary(role, user)}</p>
                         </div>
                         <div class="flex items-center gap-3 flex-wrap sm:self-start">
@@ -1729,10 +1729,9 @@
                             <button onclick="dashboardViewMode='calendar'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='calendar'?'bg-theme-secondary text-theme-primary':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="layout-grid" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Calendário</span></button>
                             <button onclick="dashboardViewMode='list'; render()" class="px-4 py-2 rounded-md text-sm font-bold transition-all ${dashboardViewMode==='list'?'bg-theme-secondary text-theme-primary':'text-slate-500 hover:text-slate-900'} flex items-center"><i data-lucide="list" class="w-4 h-4 sm:mr-2"></i><span class="hidden sm:inline">Lista</span></button>
                         </div>
-                        <span class="sm:hidden inline-flex">${pendingPillHtml(role, user)}</span>
+                        <span class="sm:hidden inline-flex items-center gap-2 flex-wrap">${pendingPillHtml(role, user)}${closePillHtml(role, user)}</span>
                         </div>
                     </div>
-                    ${closeBannerHtml(role, user)}
                     ${role === 'admin' && t.employees.length > 0 ? agendaLegend() : ''}
                     ${dashboardViewMode === 'calendar' ? renderWeeklyCalendar(role, user) : renderListView(role, user)}
                 `;
@@ -4002,24 +4001,49 @@
             return `<span class="inline-flex items-center font-bold ${cls}" style="background:rgba(148,163,184,.25); color:#e2e8f0">Passou</span>`;
         };
 
-        // aviso no topo da agenda com os atendimentos que faltam fechar
-        window.closeBannerHtml = function(role, user) {
-            if (!closeRuleOn()) return '';
-            const list = agendaScope(role, user).filter(a => appPhase(a) === 'toclose').sort((x, y) => (x.date + x.time).localeCompare(y.date + y.time));
-            if (!list.length) return '';
-            const shown = list.slice(-12);
-            return `
-                <div class="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 mb-4 space-y-3">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-amber-100 p-2 rounded-lg text-amber-700 shrink-0"><i data-lucide="clipboard-check" class="w-5 h-5"></i></div>
-                        <div><p class="text-sm font-black text-amber-900">${list.length} ${list.length === 1 ? 'atendimento precisa' : 'atendimentos precisam'} ser fechado${list.length === 1 ? '' : 's'}</p><p class="text-[11px] text-amber-800">Feche com serviços, produtos e pagamento, ou marque Não compareceu / Cancelar.</p></div>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        ${shown.map(a => `<button onclick="openCloseModal('${a.id}')" class="text-[11px] font-bold bg-white border border-amber-300 text-amber-900 rounded-full px-3 py-1.5 hover:bg-amber-100">${formatDateBR(a.date)} ${esc(a.time)} · ${esc(a.clientName)}</button>`).join('')}
-                        ${list.length > shown.length ? `<span class="text-[11px] font-bold text-amber-800 self-center">+${list.length - shown.length} mais antigos</span>` : ''}
-                    </div>
-                </div>`;
+        // selo pulsante (mesmo estilo do de "pendentes de sinal") + lista dos atendimentos para fechar
+        window.toCloseList = function(role, user) {
+            if (!closeRuleOn()) return [];
+            return agendaScope(role, user).filter(a => appPhase(a) === 'toclose').sort((x, y) => (y.date + y.time).localeCompare(x.date + x.time));
         };
+        window.closePillHtml = function(role, user) {
+            window.__closeCtx = { role, user };
+            const n = toCloseList(role, user).length;
+            if (!n) return '';
+            return `<button onclick="openCloseList()" class="pend-pill" title="Ver atendimentos que precisam ser fechados"><span class="pend-pill-ico"><i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i></span><span>${n} para fechar</span><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>`;
+        };
+        window.openCloseList = function() {
+            const ctx = window.__closeCtx || {}; const list = toCloseList(ctx.role, ctx.user);
+            if (!list.length) return;
+            closeCloseList();
+            const people = [t.admin, ...t.employees];
+            const showEmp = ctx.role === 'admin' && t.employees.length > 0;
+            const items = list.map(a => {
+                const emp = showEmp ? people.find(p => p.id === a.employeeId) : null;
+                const meta = esc((a.proceduresNames || []).join(', ')) + (emp ? ' · ' + esc(emp.name) : '');
+                return `<button class="pm-item" onclick="closeCloseList(); openCloseModal('${a.id}')">
+                    <div class="pm-when"><b>${esc(a.time)}</b><span>${formatDateBR(a.date).slice(0, 5)}</span></div>
+                    ${clientAvatarImg(a, 'w-9 h-9')}
+                    <div class="min-w-0 flex-1"><p class="pm-name truncate">${esc(a.clientName)}</p><p class="pm-meta truncate">${meta}</p></div>
+                    <div class="flex items-center gap-1 shrink-0">${canSeeValues() ? `<span class="pm-val">${brl(a.totalPrice)}</span>` : ''}<i data-lucide="chevron-right" class="w-4 h-4" style="opacity:.5"></i></div>
+                </button>`;
+            }).join('');
+            const el = document.createElement('div');
+            el.id = 'closelist-modal'; el.className = 'pm-back';
+            el.onclick = e => { if (e.target === el) closeCloseList(); };
+            el.innerHTML = `<div class="pm-box" role="dialog" aria-label="Atendimentos para fechar">
+                <div class="pm-head">
+                    <div class="pm-head-ico"><i data-lucide="clipboard-check" class="w-5 h-5"></i></div>
+                    <div><p class="pm-title">${list.length} ${list.length === 1 ? 'atendimento para fechar' : 'atendimentos para fechar'}</p><p class="pm-sub">Toque em um para fechar a comanda.</p></div>
+                    <button class="pm-x" onclick="closeCloseList()" aria-label="Fechar"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div class="pm-list custom-scrollbar">${items}</div>
+            </div>`;
+            document.body.appendChild(el);
+            if (window.lucide) lucide.createIcons();
+        };
+        window.closeCloseList = function() { const el = document.getElementById('closelist-modal'); if (el) el.remove(); };
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCloseList(); });
 
         // bloco dentro dos "Detalhes do Agendamento"
         window.closeInfoHtml = function(app) {
