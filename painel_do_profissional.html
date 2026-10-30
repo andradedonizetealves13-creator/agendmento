@@ -221,8 +221,28 @@
         html[data-mode="dark"] .kb-col .kb-num { color: #fff; }
         html[data-mode="dark"] .kb-col .kb-empty { color: #8b8b94; }
         html[data-mode="dark"] .kb-col .kb-badge { background: rgba(255,255,255,.12); color: #f4f4f5; border-color: rgba(255,255,255,.18); }
-        html[data-mode="dark"] .lst-card { background: #202028 !important; border-color: #34343e !important; box-shadow: 0 4px 14px rgba(0,0,0,.35) !important; }
+        html[data-mode="dark"] .lst-card { background: #202028 !important; border-top-color: #34343e !important; border-right-color: #34343e !important; border-bottom-color: #34343e !important; box-shadow: 0 4px 14px rgba(0,0,0,.35) !important; }
+        html[data-mode="dark"] .lst-card:not(.lst-compact) { border-left-color: #34343e !important; }
         html[data-mode="dark"] .lst-card:hover { background: #26262f !important; }
+        /* estados do atendimento: passou (cinza), para fechar (âmbar), fechado (verde) */
+        .lst-card.lst-past { --lc: #5b606b; background: #3d414a !important; box-shadow: none !important; }
+        .lst-card.lst-past > * { opacity: .7; }
+        .lst-card.lst-closed { --lc: #15755a; background: #0e2a22 !important; }
+        .lst-card.lst-toclose { --lc: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.28) !important; }
+        .lst-card:is(.lst-past, .lst-closed, .lst-toclose) { border-top-color: var(--lc) !important; border-right-color: var(--lc) !important; border-bottom-color: var(--lc) !important; }
+        .lst-card:is(.lst-past, .lst-closed, .lst-toclose):not(.lst-compact) { border-left-color: var(--lc) !important; }
+        html[data-mode="dark"] .lst-card.lst-past { --lc: #474b56; background: #2a2d35 !important; box-shadow: none !important; }
+        html[data-mode="dark"] .lst-card.lst-closed { --lc: #17805f; background: #0c2b22 !important; }
+        html[data-mode="dark"] .lst-card.lst-toclose { --lc: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.28) !important; }
+        html[data-mode="dark"] .lst-card.lst-past:hover { background: #31343d !important; }
+        .appointment-postit.past { filter: grayscale(.9) brightness(.9); opacity: .7; }
+        .appointment-postit.past.closed { filter: none; opacity: .85; background-image: linear-gradient(rgba(5,150,105,.78), rgba(5,150,105,.78)); }
+        .appointment-postit.past.toclose { outline: 2px solid #f59e0b; outline-offset: -2px; animation: pendingPulse 1.8s ease-in-out infinite; }
+        /* janela de fechar atendimento */
+        #close-modal .cm-box { background: #fff; color: #0f172a; }
+        html[data-mode="dark"] #close-modal .cm-box { background: #1c1c22; color: #f4f4f5; border: 1px solid rgba(255,255,255,.12); }
+        html[data-mode="dark"] #close-modal .cm-sticky { background: #1c1c22; }
+        #close-modal .cm-sticky { background: #fff; }
         html[data-mode="dark"] .pending-chip { background: rgba(252,211,77,.2); color: #fde68a; }
 
 
@@ -477,7 +497,7 @@
         window.editEmployeeId = null;
         window.editProcedureId = null;
         window.currentWeekOffset = 0;
-        window.dashboardViewMode = 'calendar'; 
+        window.dashboardViewMode = 'list'; 
         window.dashboardFilterMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
         window.dashboardFilterYear = new Date().getFullYear().toString();
         window.listFilterMonth = ''; window.listFilterDate = '';
@@ -522,9 +542,10 @@
             if(!t.procedures) t.procedures = [];
             if(!t.appointments) t.appointments = [];
             if(!t.clients) t.clients = [];
+            if(!t.products) t.products = [];
             
             // o Firebase pode devolver listas como objeto; normaliza
-            ['requests', 'employees', 'procedures', 'appointments', 'clients'].forEach(k => { t[k] = toList(t[k]); });
+            ['requests', 'employees', 'procedures', 'appointments', 'clients', 'products'].forEach(k => { t[k] = toList(t[k]); });
 
             t.employees.forEach((e, idx) => {
                 if(!e.workingHours) e.workingHours = getDefWH();
@@ -795,6 +816,7 @@
                             ${navBtn('horarios', 'clock', 'Horários & Folgas')}
                             ${role === 'admin' ? `
                                 ${navBtn('procedures', 'scissors', 'Serviços', 'editProcedureId=null;procDraft=null;')}
+                                ${navBtn('products', 'package', 'Produtos', 'editProductId=null;prodDraft=null;')}
                                 ${navBtn('employees', 'users', 'Profissionais', 'editEmployeeId=null;')}
                                 ${navBtn('clients', 'user-cog', 'Clientes')}
                             ` : ''}
@@ -1263,6 +1285,7 @@
         //  rules.deposit        { enabled, all, procedureIds[], percent, pixKeyType, pixKey }
         //  rules.openingWindow  { enabled, mode: weekly|monthly|yearly|always, amount }
         //  rules.bookingFlow    { enabled, steps: ['date','professional','procedure','time'] na ordem escolhida }
+        //  rules.closeService   { enabled, askPayment } — exige fechar o atendimento (comanda) depois do horário
         // Agendamento com sinal obrigatório deve ser criado com status 'pendente' (+ depositAmount, pixKeyType, pixKey).
         const PIX_TYPES = [
             ['cpf', 'CPF', '000.000.000-00'], ['cnpj', 'CNPJ', '00.000.000/0000-00'],
@@ -1280,7 +1303,7 @@
 
         function normalizeRules(src) {
             src = src || {};
-            const dep = src.deposit || {}, win = src.openingWindow || {}, flow = src.bookingFlow || {};
+            const dep = src.deposit || {}, win = src.openingWindow || {}, flow = src.bookingFlow || {}, cs = src.closeService || {};
             let steps = toList(flow.steps).filter(s => FLOW_STEPS[s]);
             DEFAULT_FLOW.forEach(s => { if (!steps.includes(s)) steps.push(s); });
             steps = steps.filter((s, i) => steps.indexOf(s) === i);
@@ -1299,7 +1322,8 @@
                     mode: WIN_MODES.some(m => m[0] === win.mode) ? win.mode : 'weekly',
                     amount: Number(win.amount) > 0 ? Math.floor(Number(win.amount)) : 2
                 },
-                bookingFlow: { enabled: flow.enabled === true, steps }
+                bookingFlow: { enabled: flow.enabled === true, steps },
+                closeService: { enabled: cs.enabled === true, askPayment: cs.askPayment !== false }
             };
         }
         window.getRules = () => normalizeRules(t.rules);
@@ -1520,25 +1544,60 @@
                 <button type="button" onclick="resetFlow()" class="text-xs font-bold text-slate-600 bg-white border px-3 py-2 rounded-xl hover:bg-slate-100">Restaurar ordem padrão</button>`;
         }
 
+        // cada regra é uma seção: clica no título para abrir/fechar; o botão ao lado liga/desliga a regra
+        window.rulesOpen = window.rulesOpen || {};
+        window.toggleRuleOpen = function(key) { rulesOpen[key] = !rulesOpen[key]; render(); };
+        function ruleSection(key, icon, title, desc, on, handler, body) {
+            const open = !!rulesOpen[key];
+            const badge = handler ? `<span class="shrink-0 text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${on ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}">${on ? 'Ativa' : 'Desligada'}</span>` : '';
+            return `
+                <div class="bg-white/90 backdrop-blur-md rounded-3xl border shadow-sm overflow-hidden">
+                    <div class="flex items-center gap-3 p-4 md:p-5">
+                        <button type="button" onclick="toggleRuleOpen('${key}')" class="flex-1 min-w-0 flex items-center gap-3 text-left">
+                            <div class="bg-theme-secondary text-theme-primary p-2.5 rounded-xl shrink-0"><i data-lucide="${icon}" class="w-5 h-5"></i></div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 flex-wrap"><h3 class="font-bold text-slate-900">${title}</h3>${badge}</div>
+                                <p class="text-xs text-slate-500 mt-0.5">${desc}</p>
+                            </div>
+                            <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 shrink-0 transition-transform" style="transform:rotate(${open ? 180 : 0}deg)"></i>
+                        </button>
+                        ${handler ? ruleSwitch(on, handler) : ''}
+                    </div>
+                    ${open ? `<div class="px-5 md:px-6 pb-5 pt-5 border-t space-y-4 fade-in">${(on || !handler) ? body : '<p class="text-xs text-slate-500">Esta regra está desligada. Ligue o botão ao lado para configurar.</p>'}</div>` : ''}
+                </div>`;
+        }
+
+        function closeServiceBodyHtml(d) {
+            const cs = d.closeService;
+            const nVenda = (t.products || []).filter(p => p.type === 'venda').length, nCons = (t.products || []).filter(p => p.type === 'consumo').length;
+            return `
+                <div class="rounded-2xl bg-slate-50 border p-4 text-sm text-slate-700 space-y-2">
+                    <p>Depois do horário, todo atendimento aparece marcado como <b>“Fechar atendimento”</b> na agenda (lista e calendário) e em um aviso no topo.</p>
+                    <p>O profissional abre a comanda, que já vem com os serviços agendados. Ele pode <b>juntar mais serviços</b>, marcar os <b>produtos consumidos ou vendidos</b> e escolher a forma de pagamento. Se o cliente não veio, basta marcar <b>Não compareceu</b> ou <b>Cancelar</b>.</p>
+                </div>
+                <label class="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
+                    <input type="checkbox" ${cs.askPayment ? 'checked' : ''} onchange="rd().closeService.askPayment = this.checked" class="w-4 h-4" style="accent-color:var(--theme-primary)">
+                    Pedir a forma de pagamento ao fechar
+                </label>
+                <div class="flex items-center justify-between gap-3 flex-wrap rounded-2xl border border-dashed p-3">
+                    <p class="text-xs text-slate-500">Produtos cadastrados: <b class="text-slate-700">${nVenda}</b> para venda • <b class="text-slate-700">${nCons}</b> de consumo. Os de consumo são ligados a cada serviço na tela de Serviços.</p>
+                    <button type="button" onclick="activeTab='products'; editProductId=null; prodDraft=null; render()" class="text-xs font-bold text-theme-primary bg-theme-secondary px-3 py-2 rounded-xl">Cadastrar produtos</button>
+                </div>`;
+        }
+
         function rulesPanelHtml() {
             const d = rd();
+            const reschedBody = `
+                <label class="block text-xs font-bold text-slate-700 mb-1">Reagendar até quantas horas antes?</label>
+                <input type="number" id="org-cancel-hours" min="0" step="1" value="${Number(d.hours) || 0}" oninput="rd().hours = this.value" class="w-full sm:w-48 px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500">
+                <p class="text-[11px] text-slate-400 mt-1">Use 0 para não ter limite.</p>`;
             return `
-                <div class="space-y-5 max-w-3xl">
-                    <div class="bg-white/90 backdrop-blur-md p-5 md:p-6 rounded-3xl border shadow-sm">
-                        <div class="flex items-start gap-3">
-                            <div class="bg-theme-secondary text-theme-primary p-2.5 rounded-xl shrink-0"><i data-lucide="refresh-cw" class="w-5 h-5"></i></div>
-                            <div class="flex-1">
-                                <h3 class="font-bold text-slate-900">Reagendamento</h3>
-                                <p class="text-xs text-slate-500 mt-0.5 mb-4">Vale só para reagendamento na área do cliente (cancelar é sempre liberado).</p>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Reagendar até quantas horas antes?</label>
-                                <input type="number" id="org-cancel-hours" min="0" step="1" value="${Number(d.hours) || 0}" oninput="rd().hours = this.value" class="w-full sm:w-48 px-4 py-3 border rounded-xl text-sm outline-none focus:border-indigo-500">
-                                <p class="text-[11px] text-slate-400 mt-1">Use 0 para não ter limite.</p>
-                            </div>
-                        </div>
-                    </div>
-                    ${ruleCard('wallet', 'Cobrar sinal', 'Exige um sinal por Pix nos procedimentos escolhidos. O agendamento fica pendente até você confirmar.', d.deposit.enabled, "toggleRule('deposit')", depositBodyHtml(d))}
-                    ${ruleCard('calendar-range', 'Abertura da agenda', 'Define até quando o cliente pode agendar, contando a partir de hoje.', d.openingWindow.enabled, "toggleRule('openingWindow')", windowBodyHtml(d))}
-                    ${ruleCard('list-ordered', 'Etapas do agendamento do cliente', 'Organize a ordem em que o cliente escolhe dia, profissional, procedimento e horário.', d.bookingFlow.enabled, "toggleRule('bookingFlow')", flowBodyHtml(d))}
+                <div class="space-y-3 max-w-3xl">
+                    ${ruleSection('reschedule', 'refresh-cw', 'Reagendamento', 'Vale só para reagendamento na área do cliente (cancelar é sempre liberado).', true, '', reschedBody)}
+                    ${ruleSection('closeService', 'clipboard-check', 'Fechar atendimento', 'Exige fechar cada atendimento depois do horário, com serviços, produtos e pagamento.', d.closeService.enabled, "toggleRule('closeService')", closeServiceBodyHtml(d))}
+                    ${ruleSection('deposit', 'wallet', 'Cobrar sinal', 'Exige um sinal por Pix nos procedimentos escolhidos. O agendamento fica pendente até você confirmar.', d.deposit.enabled, "toggleRule('deposit')", depositBodyHtml(d))}
+                    ${ruleSection('openingWindow', 'calendar-range', 'Abertura da agenda', 'Define até quando o cliente pode agendar, contando a partir de hoje.', d.openingWindow.enabled, "toggleRule('openingWindow')", windowBodyHtml(d))}
+                    ${ruleSection('bookingFlow', 'list-ordered', 'Etapas do agendamento do cliente', 'Organize a ordem em que o cliente escolhe dia, profissional, procedimento e horário.', d.bookingFlow.enabled, "toggleRule('bookingFlow')", flowBodyHtml(d))}
                     <button onclick="salvarRegras()" class="w-full btn-theme-primary text-sm font-bold py-3.5 rounded-xl shadow-sm">Salvar Regras</button>
                 </div>`;
         }
@@ -1673,6 +1732,7 @@
                         <span class="sm:hidden inline-flex">${pendingPillHtml(role, user)}</span>
                         </div>
                     </div>
+                    ${closeBannerHtml(role, user)}
                     ${role === 'admin' && t.employees.length > 0 ? agendaLegend() : ''}
                     ${dashboardViewMode === 'calendar' ? renderWeeklyCalendar(role, user) : renderListView(role, user)}
                 `;
@@ -2017,6 +2077,8 @@
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in"><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit"><h3 class="font-bold text-lg mb-4">${empToEdit ? 'Editar' : 'Adicionar'} Profissional</h3><form onsubmit="saveEmployee(event)" class="space-y-4"><div><label class="block text-xs font-semibold mb-1">Nome</label><input type="text" id="e-name" value="${esc(empToEdit?empToEdit.name:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">E-mail</label><input type="email" id="e-email" value="${esc(empToEdit?empToEdit.email:'')}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Telefone / WhatsApp * (DDD + 9 dígitos)</label><input type="tel" id="e-phone" value="${esc(empToEdit?(empToEdit.phone||''):'')}" required placeholder="(00) 00000-0000" oninput="formatPhoneInput(this)" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">${empToEdit?'Nova Senha (opcional)':'Senha'}</label><input type="password" id="e-pass" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Repita a Senha</label><input type="password" id="e-pass2" ${empToEdit?'':'required'} class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div><div><label class="block text-xs font-semibold mb-1">Perfil de acesso</label><select id="e-role" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white"><option value="employee" ${empToEdit&&empToEdit.isAdmin?'':'selected'}>Profissional (vê só a própria agenda)</option><option value="admin" ${empToEdit&&empToEdit.isAdmin?'selected':''}>Administrador (acesso total)</option></select><p class="text-[11px] text-slate-400 mt-1">O administrador vê todos os dados, regras e o Portal do Desenvolvedor. Marque só para pessoas de confiança.</p></div><div><label class="block text-xs font-semibold mb-1">Dashboard completo (faturamento e valores)</label><select id="e-dash" class="w-full px-4 py-3 border rounded-xl text-sm outline-none bg-white"><option value="no" ${empToEdit&&empToEdit.canSeeDashboard?'':'selected'}>Não — vê só o que não tem valor em R$</option><option value="yes" ${empToEdit&&empToEdit.canSeeDashboard?'selected':''}>Sim — vê faturamento, sinais e valores</option></select><p class="text-[11px] text-slate-400 mt-1">Sem acesso, o profissional continua vendo a própria agenda e as quantidades, mas nenhum valor em reais. Administrador sempre vê tudo.</p></div><div><label class="block text-xs font-semibold mb-2">Serviços</label><div class="space-y-2 max-h-48 overflow-y-auto border p-3 rounded-xl bg-slate-50">${t.procedures.map(p=>`<label class="flex items-center space-x-3 text-sm p-2 bg-white rounded-lg border cursor-pointer"><input type="checkbox" value="${p.id}" class="proc-check w-5 h-5" ${empToEdit&&empToEdit.procedures&&empToEdit.procedures.includes(p.id)?'checked':''}><span class="font-medium">${esc(p.name)}</span></label>`).join('')}</div></div>${whGrid}<div class="flex space-x-3 mt-6">${empToEdit?`<button type="button" onclick="editEmployeeId=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold">Cancelar</button>`:''}<button type="submit" class="flex-1 btn-theme-primary py-3 rounded-xl text-sm font-bold">Salvar</button></div></form></div><div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm"><h3 class="font-bold text-lg mb-4">Profissionais</h3><div class="space-y-3">${t.employees.map((e, idx)=>`<div class="p-4 border rounded-xl flex justify-between items-center bg-slate-50"><div class="flex items-center space-x-4"><div class="w-3 h-10 rounded-full" style="background-color:${e.color}"></div><div><p class="font-bold text-sm text-slate-900">${esc(e.name)}${e.isAdmin ? ' <span class="ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 align-middle">Administrador</span>' : ''}</p><p class="text-xs text-slate-500">${esc(e.email)}${e.phone ? ' • ' + esc(e.phone) : ' • <span class="text-rose-600 font-bold">sem telefone</span>'}</p></div></div><div class="flex items-center gap-2 shrink-0"><button onclick="editEmployeeId='${e.id}';render()" class="text-xs font-bold text-theme-primary px-4 py-2 bg-theme-secondary rounded-lg">Editar</button><button onclick="deleteEmployee('${e.id}')" title="Excluir profissional" class="text-xs font-bold text-rose-700 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`).join('')}</div></div></div>`;
             }
 
+            if(role === 'admin' && activeTab === 'products') return productsPageHtml();
+
             if(role === 'admin' && activeTab === 'procedures') {
                 const procToEdit = editProcedureId ? t.procedures.find(p=>p.id===editProcedureId) : null;
                 const pd = (procDraft && procDraft.forId === (editProcedureId || '')) ? procDraft : null;
@@ -2028,6 +2090,8 @@
                 const pCat = pv('cat', procToEdit ? (procToEdit.category || '') : '');
                 const pPhoto = pv('photo', procToEdit ? (procToEdit.photo || '') : '');
                 const allCats = Array.from(new Set(t.procedures.map(x => (x.category || '').trim()).filter(Boolean)));
+                const consProds = (t.products || []).filter(p => p.type === 'consumo');
+                const pCons = pv('cons', procToEdit ? toList(procToEdit.consumableIds) : []).map(String);
                 return `
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in">
                         <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit">
@@ -2039,6 +2103,10 @@
                                     <div><label class="block text-xs font-semibold mb-1">Valor (R$)</label><input type="number" id="p-price" value="${esc(pPrice)}" required step="0.01" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>
                                 </div>
                                 <div><label class="block text-xs font-semibold mb-1">Categoria (opcional)</label><input type="text" id="p-cat" list="p-cat-list" value="${esc(pCat)}" placeholder="Ex: Cabelo, Unhas, Estética..." class="w-full px-4 py-3 border rounded-xl text-sm outline-none"><datalist id="p-cat-list">${allCats.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist></div>
+                                <div>
+                                    <label class="block text-xs font-semibold mb-1">Consumíveis deste serviço <span class="font-normal text-slate-400">(entram no fechamento sem cobrar do cliente)</span></label>
+                                    ${consProds.length ? `<div class="border rounded-xl max-h-44 overflow-y-auto custom-scrollbar">${consProds.map(p => `<label class="flex items-center gap-3 px-3 py-2.5 text-sm border-b last:border-0 cursor-pointer"><input type="checkbox" ${pCons.includes(String(p.id)) ? 'checked' : ''} onchange="toggleProcCons('${p.id}')" class="w-4 h-4" style="accent-color:var(--theme-primary)"><span class="flex-1">${esc(p.name)}</span></label>`).join('')}</div>` : `<div class="text-xs text-slate-500 border border-dashed rounded-xl p-3">Nenhum produto de consumo cadastrado. <button type="button" onclick="stashProcInputs(); activeTab='products'; editProductId=null; prodDraft=null; render()" class="font-bold text-theme-primary underline">Cadastrar produtos</button></div>`}
+                                </div>
                                 <div><label class="block text-xs font-semibold mb-1">Descrição (aparece no catálogo)</label><textarea id="p-desc" rows="3" maxlength="600" placeholder="Explique o que está incluso, benefícios, cuidados..." class="w-full px-4 py-3 border rounded-xl text-sm outline-none">${esc(pDesc)}</textarea></div>
                                 <div>
                                     <label class="block text-xs font-semibold mb-1">Foto do catálogo</label>
@@ -2066,7 +2134,7 @@
                                             <div class="min-w-0">
                                                 <p class="font-bold text-sm text-slate-900">${esc(p.name)}</p>
                                                 <p class="text-xs text-slate-500 mt-1">${p.duration} minutos — <b class="text-emerald-600">R$ ${p.price.toFixed(2)}</b></p>
-                                                ${p.category ? `<span class="inline-block text-[10px] font-bold text-theme-primary bg-theme-secondary px-2 py-0.5 rounded-full mt-1">${esc(p.category)}</span>` : ''}
+                                                ${p.category ? `<span class="inline-block text-[10px] font-bold text-theme-primary bg-theme-secondary px-2 py-0.5 rounded-full mt-1">${esc(p.category)}</span>` : ''}${toList(p.consumableIds).length ? `<span class="inline-block text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full mt-1 ml-1">${toList(p.consumableIds).length} ${toList(p.consumableIds).length === 1 ? 'consumível' : 'consumíveis'}</span>` : ''}
                                             </div>
                                         </div>
                                         <div class="flex items-center space-x-2">
@@ -2541,12 +2609,13 @@
                 const fmtMins = (m) => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
                 const endTime = fmtMins(timeToMins(a.time) + (a.totalDuration || 0));
                 const chips = [
+                    phaseChip(a, false),
                     a.status === 'pendente' ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(245,158,11,.15); color:#fbbf24; border:1px dashed rgba(245,158,11,.55)">⏳ Aguardando sinal</span>` : '',
                     a.rescheduledAt ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(56,189,248,.14); color:#7dd3fc">↻ Reagendado</span>` : '',
                     a.paymentAlert && !a.paymentAlertResolved ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(244,63,94,.15); color:#fda4af">🚨 Pagamento</span>` : ''
                 ].join('');
                 return `
-                <div onclick="showAppDetails('${a.id}')" class="lst-card cursor-pointer rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg" style="background:#17171b; border:1px solid #26262c; box-shadow:0 2px 8px rgba(0,0,0,.18)">
+                <div onclick="showAppDetails('${a.id}')" class="lst-card ${phaseClass(a)} cursor-pointer rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg" style="background:#17171b; border:1px solid #26262c; box-shadow:0 2px 8px rgba(0,0,0,.18)">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex items-start gap-3 min-w-0">
                             ${cliAvatar}
@@ -2673,12 +2742,13 @@
             const fmtMins = (m) => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
             const endTime = fmtMins(timeToMins(a.time) + (a.totalDuration || 0));
             const chips = [
+                phaseChip(a, true),
                 a.status === 'pendente' ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(245,158,11,.15); color:#fbbf24; border:1px dashed rgba(245,158,11,.55)">⏳ Aguardando sinal</span>` : '',
                 a.rescheduledAt ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(56,189,248,.14); color:#7dd3fc">↻ Reagendado</span>` : '',
                 a.paymentAlert && !a.paymentAlertResolved ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(244,63,94,.15); color:#fda4af">🚨 Pagamento</span>` : ''
             ].join('');
             return `
-            <div onclick="showAppDetails('${a.id}')" class="lst-card cursor-pointer rounded-xl p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg" style="background:#17171b; border:1px solid #26262c; border-left:3px solid ${empColor}; box-shadow:0 2px 8px rgba(0,0,0,.15)">
+            <div onclick="showAppDetails('${a.id}')" class="lst-card lst-compact ${phaseClass(a)} cursor-pointer rounded-xl p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg" style="background:#17171b; border:1px solid #26262c; border-left:3px solid ${empColor}; box-shadow:0 2px 8px rgba(0,0,0,.15)">
                 <div class="flex items-center justify-between gap-2">
                     <span class="font-extrabold text-base leading-none tracking-tight" style="color:#fff">${esc(a.time)}</span>
                     <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style="background:#26262c; color:#a1a1aa">até ${endTime}</span>
@@ -2914,9 +2984,9 @@
                     }
 
                     postitsHtmlByDay[dayIdx].push(`
-                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${esc(a.proceduresNames.join(', '))}" class="appointment-postit ${a.status === 'pendente' ? 'pending' : ''}" 
+                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${esc(a.proceduresNames.join(', '))}" class="appointment-postit ${a.status === 'pendente' ? 'pending' : ''}${postClass(a)}" 
                              style="top: ${topPixels}px; height: ${heightPixels}px; width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
-                            <p class="font-bold truncate text-[10px] text-white flex items-center gap-1">${clientAvatarUrl(a) ? clientAvatarImg(a, 'w-4 h-4 !border') : ''}<span class="truncate">${postitTitle}</span></p>${a.status === 'pendente' ? '<span class="pending-chip">PENDENTE</span>' : ''}
+                            <p class="font-bold truncate text-[10px] text-white flex items-center gap-1">${clientAvatarUrl(a) ? clientAvatarImg(a, 'w-4 h-4 !border') : ''}<span class="truncate">${postitTitle}</span></p>${a.status === 'pendente' ? '<span class="pending-chip">PENDENTE</span>' : postChip(a)}
                         </div>
                     `);
                 });
@@ -2945,7 +3015,7 @@
                     const top = (a.startMins - CAL_START_HOUR * 60) / 60 * PXV, h = Math.max(a.totalDuration / 60 * PXV - 2, 28), pd = a.status === 'pendente';
                     const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId), col = emp ? (emp.color || '#dc2626') : '#dc2626';
                     const ttl = (pd ? '⏳ ' : '') + (a.rescheduledAt ? '↻ ' : '') + a.time + ' · ' + esc(a.clientName);
-                    return `<div onclick="showAppDetails('${a.id}')" class="appointment-postit ${pd ? 'pending' : ''}" style="top:${top}px;height:${h}px;left:calc(${ix * q}% + 2px);width:calc(${q}% - 4px) !important;background-color:${col}"><div class="min-w-0 flex-1"><p class="font-bold truncate text-[11px] text-white">${ttl}</p>${h >= 42 ? `<p class="truncate text-[10px] text-white/90">${esc(emp ? emp.name : '')} · ${esc(a.proceduresNames.join(', '))}</p>` : ''}</div>${pd ? '<span class="pending-chip">PEND.</span>' : ''}</div>`;
+                    return `<div onclick="showAppDetails('${a.id}')" class="appointment-postit ${pd ? 'pending' : ''}${postClass(a)}" style="top:${top}px;height:${h}px;left:calc(${ix * q}% + 2px);width:calc(${q}% - 4px) !important;background-color:${col}"><div class="min-w-0 flex-1"><p class="font-bold truncate text-[11px] text-white">${ttl}</p>${h >= 42 ? `<p class="truncate text-[10px] text-white/90">${esc(emp ? emp.name : '')} · ${esc(a.proceduresNames.join(', '))}</p>` : ''}</div>${pd ? '<span class="pending-chip">PEND.</span>' : postChip(a)}</div>`;
                 }).join('');
                 const nl = (sel === todayStrNow && nowInRange) ? `<div class="absolute left-0 right-0 z-20 pointer-events-none" style="top:${(nowM - CAL_START_HOUR * 60) / 60 * PXV}px;height:2px;background:#ef4444"><span class="absolute -left-1 -top-[3px] w-2 h-2 rounded-full bg-red-500"></span></div>` : '';
                 const hint = (!L.length && isW) ? `<p class="absolute inset-x-0 text-center text-xs text-slate-400 pointer-events-none" style="top:${2 * PXV}px">Nenhum atendimento neste dia.<br>Toque em um horário para agendar.</p>` : '';
@@ -3051,6 +3121,7 @@
                     <div class="flex items-center space-x-3"><div class="bg-slate-200 p-2 rounded-lg text-slate-500"><i data-lucide="scissors" class="w-5 h-5"></i></div><span class="text-sm font-medium text-slate-700 leading-tight">${esc(app.proceduresNames.join(', '))}</span></div>
                     ${canSeeValues() ? `<div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>` : ''}
                     ${depSummary}
+                    ${closeInfoHtml(app)}
                     
                     <div class="pt-4 border-t flex flex-col sm:flex-row gap-2">
                         <button onclick="confirmAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">${app.status === 'pendente' ? 'Recusar / Cancelar' : 'Cancelar Agendamento'}</button>
@@ -3075,7 +3146,7 @@
         };
 
         // ---------- REGRAS: ações ----------
-        window.toggleRule = function(section) { const d = rd(); d[section].enabled = !d[section].enabled; render(); };
+        window.toggleRule = function(section) { const d = rd(); d[section].enabled = !d[section].enabled; if (d[section].enabled) rulesOpen[section] = true; render(); };
         window.toggleDepAll = function() {
             const dep = rd().deposit;
             const ids = (t.procedures || []).map(p => String(p.id));
@@ -3170,7 +3241,8 @@
                     expiryHours: (!isNaN(expiryHours) && expiryHours >= 0 && expiryHours <= 720) ? expiryHours : 2
                 },
                 openingWindow: { enabled: win.enabled, mode: win.mode, amount: amount >= 1 ? amount : 2 },
-                bookingFlow: { enabled: flow.enabled, steps: flow.steps.slice() }
+                bookingFlow: { enabled: flow.enabled, steps: flow.steps.slice() },
+                closeService: { enabled: d.closeService.enabled === true, askPayment: d.closeService.askPayment !== false }
             };
             t.cancelMinHours = (isNaN(hours) || hours < 0) ? 0 : hours;
             window.rulesDraft = null;
@@ -3876,16 +3948,18 @@
             const description = (document.getElementById('p-desc') || {}).value || '';
             const category = ((document.getElementById('p-cat') || {}).value || '').trim();
             const pdr = (procDraft && procDraft.forId === (editProcedureId || '')) ? procDraft : null;
+            const consIds = (pdr && Array.isArray(pdr.cons)) ? pdr.cons.map(String) : null;
 
             if(editProcedureId) {
                 let p = t.procedures.find(x => x.id === editProcedureId);
                 if(p) {
                     p.name = name; p.duration = duration; p.price = price;
                     p.description = description.trim(); p.category = category;
+                    p.consumableIds = consIds !== null ? consIds : toList(p.consumableIds).map(String);
                     p.photo = (pdr && 'photo' in pdr) ? pdr.photo : (p.photo || '');
                 }
             } else {
-                t.procedures.push({ id: 'p-' + Date.now(), name, duration, price, description: description.trim(), category, photo: (pdr && pdr.photo) || '' });
+                t.procedures.push({ id: 'p-' + Date.now(), name, duration, price, description: description.trim(), category, photo: (pdr && pdr.photo) || '', consumableIds: consIds || [] });
             }
             editProcedureId = null;
             procDraft = null;
@@ -3897,6 +3971,374 @@
                 t.procedures = t.procedures.filter(p => p.id !== id);
                 saveDB(['procedures']);
             });
+        };
+
+        // ================= FECHAR ATENDIMENTO + PRODUTOS =================
+        window.closeRuleOn = function() { return !!(window.t && t.rules && t.rules.closeService && t.rules.closeService.enabled === true); };
+        // future = ainda vai acontecer | past = já passou | toclose = passou e precisa fechar (regra ligada) | closed = fechado
+        window.appPhase = function(a) {
+            if (a.closed) return 'closed';
+            const end = new Date(a.date + 'T' + a.time).getTime() + (Number(a.totalDuration) || 0) * 60000;
+            if (end >= Date.now()) return 'future';
+            return (closeRuleOn() && a.status !== 'realizado') ? 'toclose' : 'past';
+        };
+        window.phaseClass = function(a) {
+            const ph = appPhase(a);
+            return ph === 'closed' ? 'lst-closed' : (ph === 'toclose' ? 'lst-past lst-toclose' : (ph === 'past' ? 'lst-past' : ''));
+        };
+        window.postClass = function(a) {
+            const ph = appPhase(a);
+            return ph === 'closed' ? ' past closed' : (ph === 'toclose' ? ' past toclose' : (ph === 'past' ? ' past' : ''));
+        };
+        window.postChip = function(a) {
+            const ph = appPhase(a);
+            return ph === 'toclose' ? '<span class="pending-chip">FECHAR</span>' : (ph === 'closed' ? '<span class="pending-chip" style="background:#d1fae5;color:#065f46">✔</span>' : '');
+        };
+        window.phaseChip = function(a, small) {
+            const ph = appPhase(a); if (ph === 'future') return '';
+            const cls = small ? 'text-[9px] px-1.5 py-0.5 rounded' : 'text-[10px] px-2 py-0.5 rounded-md';
+            if (ph === 'closed') return `<span class="inline-flex items-center font-bold ${cls}" style="background:rgba(16,185,129,.18); color:#6ee7b7">✔ Fechado${(canSeeValues() && a.closed && a.closed.total != null) ? ' · ' + brl(a.closed.total) : ''}</span>`;
+            if (ph === 'toclose') return `<button type="button" onclick="event.stopPropagation(); openCloseModal('${a.id}')" class="inline-flex items-center font-extrabold ${cls}" style="background:#f59e0b; color:#1c1917">⚠ Fechar atendimento</button>`;
+            return `<span class="inline-flex items-center font-bold ${cls}" style="background:rgba(148,163,184,.25); color:#e2e8f0">Passou</span>`;
+        };
+
+        // aviso no topo da agenda com os atendimentos que faltam fechar
+        window.closeBannerHtml = function(role, user) {
+            if (!closeRuleOn()) return '';
+            const list = agendaScope(role, user).filter(a => appPhase(a) === 'toclose').sort((x, y) => (x.date + x.time).localeCompare(y.date + y.time));
+            if (!list.length) return '';
+            const shown = list.slice(-12);
+            return `
+                <div class="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 mb-4 space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-amber-100 p-2 rounded-lg text-amber-700 shrink-0"><i data-lucide="clipboard-check" class="w-5 h-5"></i></div>
+                        <div><p class="text-sm font-black text-amber-900">${list.length} ${list.length === 1 ? 'atendimento precisa' : 'atendimentos precisam'} ser fechado${list.length === 1 ? '' : 's'}</p><p class="text-[11px] text-amber-800">Feche com serviços, produtos e pagamento, ou marque Não compareceu / Cancelar.</p></div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        ${shown.map(a => `<button onclick="openCloseModal('${a.id}')" class="text-[11px] font-bold bg-white border border-amber-300 text-amber-900 rounded-full px-3 py-1.5 hover:bg-amber-100">${formatDateBR(a.date)} ${esc(a.time)} · ${esc(a.clientName)}</button>`).join('')}
+                        ${list.length > shown.length ? `<span class="text-[11px] font-bold text-amber-800 self-center">+${list.length - shown.length} mais antigos</span>` : ''}
+                    </div>
+                </div>`;
+        };
+
+        // bloco dentro dos "Detalhes do Agendamento"
+        window.closeInfoHtml = function(app) {
+            const cl = app.closed;
+            if (cl) {
+                const money = (v) => canSeeValues() ? brl(v) : '';
+                const sv = (cl.services || []).map(x => `<div class="flex justify-between gap-3"><span>${esc(x.name)}</span><span class="font-bold">${money(x.price)}</span></div>`).join('');
+                const pr = (cl.products || []).map(x => `<div class="flex justify-between gap-3"><span>${esc(x.name)}${x.qty > 1 ? ' × ' + x.qty : ''}${x.type === 'consumo' ? ' <span class="text-[10px] font-bold text-sky-700">(consumo)</span>' : ''}</span><span class="font-bold">${x.type === 'consumo' ? '' : money(x.price * x.qty)}</span></div>`).join('');
+                return `
+                    <div class="rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-4 space-y-2 text-xs">
+                        <p class="text-sm font-black text-emerald-900">✔ Atendimento fechado • Comanda #${esc(cl.number)}</p>
+                        <div class="text-slate-700 space-y-1">${sv}${pr}</div>
+                        ${canSeeValues() ? `<div class="flex justify-between border-t border-emerald-200 pt-2 text-sm font-extrabold text-emerald-800"><span>Total${cl.payment ? ' • ' + esc(cl.payment) : ''}</span><span>${brl(cl.total)}</span></div>` : (cl.payment ? `<p class="text-slate-600">${esc(cl.payment)}</p>` : '')}
+                        ${cl.notes ? `<p class="text-slate-600">Obs.: ${esc(cl.notes)}</p>` : ''}
+                        <button onclick="openCloseModal('${app.id}')" class="w-full bg-white border border-emerald-300 text-emerald-800 font-bold py-2 rounded-xl text-xs">Editar fechamento</button>
+                    </div>`;
+            }
+            const can = closeRuleOn() && app.status !== 'cancelado' && app.status !== 'nao_compareceu' && app.status !== 'pendente' && new Date(app.date + 'T' + app.time) <= new Date();
+            if (!can) return '';
+            return `<button onclick="openCloseModal('${app.id}')" class="w-full btn-theme-primary font-bold py-3 rounded-xl text-sm flex items-center justify-center"><i data-lucide="clipboard-check" class="w-4 h-4 mr-2"></i>Fechar atendimento</button>`;
+        };
+
+        // ---------- PRODUTOS (venda e consumo) ----------
+        window.editProductId = null; window.productFilter = 'all'; window.prodDraft = null;
+        function stashProd() {
+            const g = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+            const forId = editProductId || '';
+            const prev = (prodDraft && prodDraft.forId === forId) ? prodDraft : {};
+            prodDraft = Object.assign({}, prev, { forId, name: g('pr-name'), price: g('pr-price') });
+        }
+        window.setProdType = function(ty) { stashProd(); prodDraft.type = ty; render(); };
+        window.setProdFilter = function(f) { productFilter = f; render(); };
+        function prodTypeNow() {
+            const pr = editProductId ? (t.products || []).find(p => p.id === editProductId) : null;
+            const pd = (prodDraft && prodDraft.forId === (editProductId || '')) ? prodDraft : null;
+            return (pd && pd.type) || (pr ? pr.type : 'venda');
+        }
+        window.productsPageHtml = function() {
+            const list = t.products || [];
+            const prToEdit = editProductId ? list.find(p => p.id === editProductId) : null;
+            const pd = (prodDraft && prodDraft.forId === (editProductId || '')) ? prodDraft : null;
+            const pv = (k, fb) => (pd && k in pd) ? pd[k] : fb;
+            const typ = prodTypeNow();
+            const pName = pv('name', prToEdit ? prToEdit.name : '');
+            const pPrice = pv('price', prToEdit ? prToEdit.price : '');
+            const cnt = { all: list.length, venda: list.filter(p => p.type === 'venda').length, consumo: list.filter(p => p.type === 'consumo').length };
+            const shown = list.filter(p => productFilter === 'all' || p.type === productFilter).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+            const usedIn = (id) => (t.procedures || []).filter(p => toList(p.consumableIds).map(String).includes(String(id))).length;
+            const typeBtn = (v, label, icon) => `<button type="button" onclick="setProdType('${v}')" class="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-bold border transition-colors ${typ === v ? 'btn-theme-primary border-transparent' : 'bg-white text-slate-600 hover:bg-slate-50'}"><i data-lucide="${icon}" class="w-4 h-4"></i>${label}</button>`;
+            const filterBtn = (v, label) => `<button onclick="setProdFilter('${v}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${productFilter === v ? 'bg-theme-secondary text-theme-primary' : 'text-slate-500 hover:text-slate-900'}">${label} <span class="opacity-60">${cnt[v]}</span></button>`;
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in">
+                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm h-fit">
+                        <h3 class="font-bold text-lg mb-4">${prToEdit ? 'Editar Produto' : 'Adicionar Produto'}</h3>
+                        <form onsubmit="saveProduct(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Tipo do produto</label>
+                                <div class="flex gap-2">${typeBtn('venda', 'Para venda', 'shopping-bag')}${typeBtn('consumo', 'Consumo', 'droplets')}</div>
+                                <p class="text-[11px] text-slate-500 mt-1.5">${typ === 'venda' ? 'Vendido ao cliente. O valor entra no total ao fechar o atendimento.' : 'Usado nos procedimentos (pente, descartáveis, etc). Não é cobrado do cliente: você liga cada consumível ao serviço na tela de Serviços.'}</p>
+                            </div>
+                            <div><label class="block text-xs font-semibold mb-1">Nome do produto</label><input type="text" id="pr-name" value="${esc(pName)}" required class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>
+                            <div><label class="block text-xs font-semibold mb-1">${typ === 'venda' ? 'Valor de venda (R$)' : 'Custo por uso (R$) — opcional'}</label><input type="number" id="pr-price" value="${esc(pPrice)}" ${typ === 'venda' ? 'required' : ''} min="0" step="0.01" class="w-full px-4 py-3 border rounded-xl text-sm outline-none"></div>
+                            <div class="flex space-x-3 mt-4">
+                                ${prToEdit ? `<button type="button" onclick="editProductId=null;prodDraft=null;render()" class="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-xl text-sm font-bold">Cancelar</button>` : ''}
+                                <button type="submit" class="flex-1 btn-theme-primary py-3.5 rounded-xl text-sm font-bold shadow-md">${prToEdit ? 'Salvar Alterações' : 'Salvar Produto'}</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                        <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+                            <h3 class="font-bold text-lg">Lista de Produtos</h3>
+                            <div class="flex space-x-1 bg-white/90 rounded-lg p-1 border">${filterBtn('all', 'Todos')}${filterBtn('venda', 'Venda')}${filterBtn('consumo', 'Consumo')}</div>
+                        </div>
+                        <div class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                            ${shown.length === 0 ? '<p class="text-xs text-slate-400">Nenhum produto cadastrado.</p>' : shown.map(p => `
+                                <div class="p-4 border rounded-xl flex items-center justify-between gap-3 bg-slate-50 hover:bg-white transition-all">
+                                    <div class="min-w-0">
+                                        <p class="font-bold text-sm text-slate-900 truncate">${esc(p.name)}</p>
+                                        <div class="flex items-center gap-2 mt-1 flex-wrap">
+                                            <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${p.type === 'venda' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}">${p.type === 'venda' ? 'Para venda' : 'Consumo'}</span>
+                                            <span class="text-xs text-slate-500">${p.type === 'venda' ? '<b class="text-emerald-600">R$ ' + (Number(p.price) || 0).toFixed(2) + '</b>' : (Number(p.price) > 0 ? 'custo R$ ' + Number(p.price).toFixed(2) : 'sem custo informado')}${p.type === 'consumo' ? ' • usado em ' + usedIn(p.id) + (usedIn(p.id) === 1 ? ' serviço' : ' serviços') : ''}</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2 shrink-0">
+                                        <button onclick="editProductId='${p.id}'; prodDraft=null; render()" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                                        <button onclick="deleteProduct('${p.id}')" class="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                    </div>
+                                </div>`).join('')}
+                        </div>
+                    </div>
+                </div>`;
+        };
+        window.saveProduct = function(e) {
+            e.preventDefault();
+            const name = (document.getElementById('pr-name').value || '').trim();
+            const raw = document.getElementById('pr-price').value;
+            const price = raw === '' ? 0 : parseFloat(raw);
+            const typ = prodTypeNow();
+            if (!name) return showModal('Atenção', 'Informe o nome do produto.', 'error');
+            if (isNaN(price) || price < 0) return showModal('Atenção', 'Informe um valor válido.', 'error');
+            if (typ === 'venda' && raw === '') return showModal('Atenção', 'Informe o valor de venda do produto.', 'error');
+            const keys = ['products'];
+            if (editProductId) {
+                const p = t.products.find(x => x.id === editProductId);
+                if (p) {
+                    p.name = name; p.price = price;
+                    if (p.type !== typ && typ !== 'consumo') {   // deixou de ser consumo: tira dos serviços
+                        (t.procedures || []).forEach(pr => { pr.consumableIds = toList(pr.consumableIds).filter(i => String(i) !== String(p.id)); });
+                        keys.push('procedures');
+                    }
+                    p.type = typ;
+                }
+            } else {
+                t.products.push({ id: 'pr-' + Date.now(), name, type: typ, price });
+            }
+            editProductId = null; prodDraft = null;
+            saveDB(keys);
+        };
+        window.deleteProduct = function(id) {
+            showModal('Excluir Produto', 'Tem certeza que deseja excluir este produto? Ele também sai dos serviços em que era consumível. Fechamentos antigos não mudam.', 'error', () => {
+                t.products = (t.products || []).filter(p => p.id !== id);
+                (t.procedures || []).forEach(pr => { pr.consumableIds = toList(pr.consumableIds).filter(i => String(i) !== String(id)); });
+                saveDB(['products', 'procedures']);
+            });
+        };
+        // consumíveis dentro do cadastro de serviço
+        window.toggleProcCons = function(id) {
+            stashProcInputs();
+            const proc = editProcedureId ? t.procedures.find(p => p.id === editProcedureId) : null;
+            const cur = ('cons' in procDraft) ? procDraft.cons.map(String) : (proc ? toList(proc.consumableIds).map(String) : []);
+            procDraft.cons = cur.includes(String(id)) ? cur.filter(x => x !== String(id)) : cur.concat(String(id));
+            render();
+        };
+
+        // ---------- JANELA "FECHAR ATENDIMENTO" (comanda) ----------
+        const PAY_METHODS = ['Dinheiro', 'Pix', 'Cartão de crédito', 'Cartão de débito', 'Transferência', 'Outro'];
+        window.__cm = null;
+        function nextCloseNumber() { return Math.max(0, ...(t.appointments || []).map(a => (a.closed && Number(a.closed.number)) || 0)) + 1; }
+        window.closeCloseModal = function() { const el = document.getElementById('close-modal'); if (el) el.remove(); window.__cm = null; };
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCloseModal(); });
+
+        // liga/desliga sozinho os consumíveis dos serviços marcados
+        function cmSyncAuto() {
+            const cm = __cm, need = new Set();
+            (t.procedures || []).filter(p => cm.svcIds.has(p.id)).forEach(p => toList(p.consumableIds).forEach(i => need.add(String(i))));
+            const known = new Set((t.products || []).filter(p => p.type === 'consumo').map(p => String(p.id)));
+            Array.from(cm.auto).forEach(id => { if (!need.has(id)) { cm.auto.delete(id); delete cm.prods[id]; } });
+            need.forEach(id => { if (known.has(id) && !cm.removed.has(id) && !(id in cm.prods)) { cm.prods[id] = 1; cm.auto.add(id); } });
+        }
+        function cmCalc() {
+            const cm = __cm, procs = t.procedures || [], prodsAll = t.products || [];
+            const services = procs.filter(p => cm.svcIds.has(p.id)).map(p => ({ id: p.id, name: p.name, price: Number(p.price) || 0 }))
+                .concat(cm.custom.map((c, i) => ({ id: 'custom-' + i, name: c.name, price: Number(c.price) || 0 })));
+            const products = prodsAll.filter(p => cm.prods[p.id]).map(p => ({ id: p.id, name: p.name, type: p.type, price: p.type === 'venda' ? (Number(p.price) || 0) : 0, qty: cm.prods[p.id] }))
+                .concat(cm.extraProds || []);
+            const total = services.reduce((s, x) => s + x.price, 0) + products.reduce((s, x) => s + x.price * x.qty, 0);
+            return { services, products, total: Math.round(total * 100) / 100 };
+        }
+        window.openCloseModal = function(appId) {
+            const app = (t.appointments || []).find(a => a.id === appId); if (!app) return;
+            if (typeof closeModal === 'function') closeModal();
+            closeCloseModal();
+            const procs = t.procedures || [], prodsAll = t.products || [], prev = app.closed || null, names = app.proceduresNames || [];
+            let svcIds = [], custom = [], extraProds = [];
+            const prods = {};
+            if (prev) {
+                svcIds = (prev.services || []).filter(x => procs.some(p => p.id === x.id)).map(x => x.id);
+                custom = (prev.services || []).filter(x => !procs.some(p => p.id === x.id)).map(x => ({ name: x.name, price: Number(x.price) || 0 }));
+                (prev.products || []).forEach(x => { if (prodsAll.some(p => p.id === x.id)) prods[x.id] = x.qty || 1; else extraProds.push({ id: x.id, name: x.name, type: x.type, price: Number(x.price) || 0, qty: x.qty || 1 }); });
+            } else {
+                const matched = procs.filter(p => names.includes(p.name));
+                svcIds = matched.map(p => p.id);
+                const orphans = names.filter(n => !procs.some(p => p.name === n));
+                if (orphans.length) {
+                    const rest = Math.max(0, (Number(app.totalPrice) || 0) - matched.reduce((s, p) => s + (Number(p.price) || 0), 0));
+                    custom = orphans.map(n => ({ name: n, price: Math.round(rest / orphans.length * 100) / 100 }));
+                }
+            }
+            window.__cm = { appId, svcIds: new Set(svcIds), custom, prods, extraProds, auto: new Set(), removed: new Set(), payment: prev ? (prev.payment || '') : '', notes: prev ? (prev.notes || '') : '', number: prev ? prev.number : nextCloseNumber(), isEdit: !!prev };
+            if (!prev) cmSyncAuto();
+            const el = document.createElement('div');
+            el.id = 'close-modal';
+            el.className = 'fixed inset-0 z-[150] bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4 fade-in';
+            el.innerHTML = `
+                <div class="cm-box w-full sm:max-w-xl max-h-[96vh] sm:max-h-[92vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+                    <div class="shrink-0 px-5 py-4 border-b flex items-center justify-between gap-3">
+                        <div><h3 class="font-extrabold text-lg">${prev ? 'Editar fechamento' : 'Fechar atendimento'}</h3><p class="text-[11px] text-slate-500">Confira os serviços, produtos e o pagamento.</p></div>
+                        <button type="button" onclick="closeCloseModal()" class="p-2 rounded-xl hover:bg-slate-100" aria-label="Fechar"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                    <div id="cm-body" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-4 space-y-5"></div>
+                    <div id="cm-foot" class="cm-sticky shrink-0 px-5 py-4 border-t"></div>
+                </div>`;
+            document.body.appendChild(el);
+            cmRender();
+        };
+        window.cmRender = function() {
+            const cm = __cm; if (!cm) return;
+            const app = (t.appointments || []).find(a => a.id === cm.appId); if (!app) return closeCloseModal();
+            const body = document.getElementById('cm-body'), foot = document.getElementById('cm-foot'); if (!body || !foot) return;
+            const sc = body.scrollTop;
+            const emp = app.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e => e.id === app.employeeId);
+            const procs = t.procedures || [], prodsAll = (t.products || []).slice().sort((a, b) => (a.type === b.type ? (a.name || '').localeCompare(b.name || '', 'pt-BR') : (a.type === 'venda' ? -1 : 1)));
+            const booked = new Set(app.proceduresNames || []);
+            const calc = cmCalc();
+            const money = (v) => canSeeValues() ? brl(v) : '';
+            const askPay = !(t.rules && t.rules.closeService) || t.rules.closeService.askPayment !== false;
+            const paid = (app.depositRequired && app.status !== 'pendente') ? (Number(app.paidAmount != null ? app.paidAmount : (app.depositAmount || 0)) || 0) : 0;
+            const lab = (x) => `<p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 mb-1.5">${x}</p>`;
+            const fld = (l, v) => `<div class="min-w-0">${lab(l)}<div class="px-3 py-2.5 border rounded-xl bg-slate-50 text-sm font-semibold truncate">${v}</div></div>`;
+            const allOn = procs.length > 0 && procs.every(p => cm.svcIds.has(p.id));
+            const chk = 'class="w-4 h-4 shrink-0" style="accent-color:var(--theme-primary)"';
+            const svcRows = procs.map(p => `
+                <label class="flex items-center gap-3 px-3 py-2.5 border-b last:border-0 cursor-pointer">
+                    <input type="checkbox" ${cm.svcIds.has(p.id) ? 'checked' : ''} onchange="cmToggleSvc('${p.id}')" ${chk}>
+                    <span class="flex-1 min-w-0 text-sm font-semibold">${esc(p.name)}${booked.has(p.name) ? '<span class="ml-2 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-theme-secondary text-theme-primary align-middle">agendado</span>' : ''}</span>
+                    <span class="text-xs font-bold text-slate-500 shrink-0">${money(p.price)}</span>
+                </label>`).join('');
+            const customRows = cm.custom.map((c, i) => `
+                <div class="flex items-center gap-3 px-3 py-2.5 border-b last:border-0">
+                    <input type="checkbox" checked disabled ${chk}>
+                    <span class="flex-1 min-w-0 text-sm font-semibold">${esc(c.name)} <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 align-middle">agendado</span></span>
+                    <span class="text-xs font-bold text-slate-500 shrink-0">${money(c.price)}</span>
+                    <button type="button" onclick="cmRemoveCustom(${i})" class="text-rose-600 text-xs font-bold px-1" title="Remover">✕</button>
+                </div>`).join('');
+            const prodRow = (p) => {
+                const on = !!cm.prods[p.id], q = cm.prods[p.id] || 1;
+                const tag = p.type === 'venda'
+                    ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Venda</span>'
+                    : `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">Consumo${cm.auto.has(String(p.id)) ? ' · do serviço' : ''}</span>`;
+                return `
+                <div class="flex items-center gap-3 px-3 py-2.5 border-b last:border-0">
+                    <input type="checkbox" ${on ? 'checked' : ''} onchange="cmToggleProd('${p.id}')" ${chk}>
+                    <div class="flex-1 min-w-0"><p class="text-sm font-semibold truncate">${esc(p.name)}</p><div class="flex items-center gap-2 mt-0.5">${tag}<span class="text-[11px] text-slate-500">${p.type === 'venda' ? money(p.price) : 'sem cobrança'}</span></div></div>
+                    ${on ? `<div class="flex items-center gap-1 shrink-0"><button type="button" onclick="cmQty('${p.id}', -1)" class="w-7 h-7 rounded-lg border font-bold leading-none">−</button><span class="w-6 text-center text-sm font-bold">${q}</span><button type="button" onclick="cmQty('${p.id}', 1)" class="w-7 h-7 rounded-lg border font-bold leading-none">+</button></div>` : ''}
+                </div>`;
+            };
+            const sumLine = (n, v, sub) => `<div class="flex justify-between gap-3 text-sm"><span class="min-w-0">${n}${sub ? ` <span class="text-[10px] font-bold text-sky-700">${sub}</span>` : ''}</span><span class="font-bold shrink-0">${v}</span></div>`;
+            body.innerHTML = `
+                <div class="grid grid-cols-2 gap-3">
+                    ${fld('ID', '#' + esc(cm.number))}
+                    ${fld('Data', formatDateBR(app.date) + ' · ' + esc(app.time))}
+                    ${fld('Profissional', esc(emp ? emp.name : 'Profissional'))}
+                    ${fld('Cliente', esc(app.clientName))}
+                </div>
+                <div>
+                    ${lab('Serviços *')}
+                    <div class="border rounded-xl max-h-56 overflow-y-auto custom-scrollbar">
+                        <label class="flex items-center gap-3 px-3 py-2.5 border-b cursor-pointer bg-slate-50"><input type="checkbox" ${allOn ? 'checked' : ''} onchange="cmToggleAllSvc()" ${chk}><span class="text-sm font-bold">Todos</span></label>
+                        ${customRows}${svcRows || '<p class="px-3 py-3 text-xs text-slate-400">Nenhum serviço cadastrado.</p>'}
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-1.5">Os serviços agendados já vêm marcados. Marque outros para juntar ao atendimento.</p>
+                </div>
+                <div>
+                    ${lab('Produtos (consumidos ou vendidos)')}
+                    ${prodsAll.length ? `<div class="border rounded-xl max-h-60 overflow-y-auto custom-scrollbar">${prodsAll.map(prodRow).join('')}</div>` : '<div class="border border-dashed rounded-xl p-3 text-xs text-slate-500">Nenhum produto cadastrado. Cadastre na aba Produtos.</div>'}
+                    ${(cm.extraProds || []).length ? `<p class="text-[11px] text-slate-500 mt-1.5">Também no fechamento: ${(cm.extraProds || []).map(x => esc(x.name)).join(', ')} (produto removido do cadastro).</p>` : ''}
+                </div>
+                ${askPay ? `<div>${lab('Forma de pagamento *')}<select onchange="__cm.payment = this.value" class="w-full px-4 py-3 border rounded-xl text-sm font-semibold outline-none"><option value="">Selecione</option>${PAY_METHODS.map(m => `<option ${cm.payment === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>` : ''}
+                <div>${lab('Observações (opcional)')}<textarea rows="2" maxlength="300" oninput="__cm.notes = this.value" class="w-full px-4 py-3 border rounded-xl text-sm outline-none">${esc(cm.notes)}</textarea></div>
+                <div class="rounded-2xl border bg-slate-50 p-4 space-y-2">
+                    <p class="text-sm font-extrabold">Resumo</p>
+                    <p class="text-[11px] font-bold uppercase text-slate-500">Serviços</p>
+                    ${calc.services.length ? calc.services.map(x => sumLine(esc(x.name), money(x.price))).join('') : '<p class="text-xs text-slate-400">Nenhum serviço marcado.</p>'}
+                    ${calc.products.length ? `<p class="text-[11px] font-bold uppercase text-slate-500 pt-1">Produtos</p>${calc.products.map(x => sumLine(esc(x.name) + (x.qty > 1 ? ' × ' + x.qty : ''), x.type === 'consumo' ? '' : money(x.price * x.qty), x.type === 'consumo' ? '(consumo)' : '')).join('')}` : ''}
+                    ${canSeeValues() ? `
+                        <div class="border-t pt-2 flex justify-between items-center"><span class="font-extrabold">Total</span><span class="text-lg font-extrabold text-emerald-600">${brl(calc.total)}</span></div>
+                        ${paid > 0 ? `<div class="flex justify-between text-xs text-slate-600"><span>Sinal já pago</span><span class="font-bold">− ${brl(paid)}</span></div><div class="flex justify-between text-sm font-extrabold"><span>A receber agora</span><span>${brl(Math.max(0, calc.total - paid))}</span></div>` : ''}` : ''}
+                </div>
+                <p id="cm-err" class="hidden text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3"></p>
+                ${cm.isEdit ? '' : `<div class="flex items-center justify-center gap-4 text-xs font-bold"><button type="button" onclick="cmNoShow()" class="text-amber-700 hover:underline">Cliente não compareceu</button><span class="text-slate-300">•</span><button type="button" onclick="cmCancelApp()" class="text-rose-600 hover:underline">Cancelar agendamento</button></div>`}`;
+            foot.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="min-w-0 flex-1">${canSeeValues() ? `<p class="text-[11px] font-bold uppercase text-slate-500">Total</p><p class="text-xl font-extrabold text-emerald-600 leading-none">${brl(calc.total)}</p>` : ''}</div>
+                    <button type="button" onclick="closeCloseModal()" class="px-4 py-3 rounded-xl text-sm font-bold bg-slate-100 text-slate-700">Voltar</button>
+                    <button type="button" onclick="cmSave()" class="btn-theme-primary px-5 py-3 rounded-xl text-sm font-bold shadow-md flex items-center"><i data-lucide="check" class="w-4 h-4 mr-1.5"></i>${cm.isEdit ? 'Salvar' : 'Fechar atendimento'}</button>
+                </div>`;
+            body.scrollTop = sc;
+            if (window.lucide) lucide.createIcons();
+        };
+        window.cmToggleSvc = function(id) { const cm = __cm; if (!cm) return; if (cm.svcIds.has(id)) cm.svcIds.delete(id); else cm.svcIds.add(id); cmSyncAuto(); cmRender(); };
+        window.cmToggleAllSvc = function() {
+            const cm = __cm; if (!cm) return; const ids = (t.procedures || []).map(p => p.id);
+            if (ids.every(i => cm.svcIds.has(i))) cm.svcIds.clear(); else ids.forEach(i => cm.svcIds.add(i));
+            cmSyncAuto(); cmRender();
+        };
+        window.cmRemoveCustom = function(i) { const cm = __cm; if (!cm) return; cm.custom.splice(i, 1); cmRender(); };
+        window.cmToggleProd = function(id) {
+            const cm = __cm; if (!cm) return; id = String(id);
+            if (cm.prods[id]) { delete cm.prods[id]; if (cm.auto.has(id)) { cm.auto.delete(id); cm.removed.add(id); } }
+            else { cm.prods[id] = 1; cm.removed.delete(id); }
+            cmRender();
+        };
+        window.cmQty = function(id, d) { const cm = __cm; if (!cm || !cm.prods[id]) return; cm.prods[id] = Math.min(99, Math.max(1, cm.prods[id] + d)); cmRender(); };
+        window.cmNoShow = function() { const cm = __cm; if (!cm) return; const id = cm.appId; closeCloseModal(); confirmAppStatus(id, 'nao_compareceu'); };
+        window.cmCancelApp = function() { const cm = __cm; if (!cm) return; const id = cm.appId; closeCloseModal(); confirmAppStatus(id, 'cancelado'); };
+        window.cmSave = function() {
+            const cm = __cm; if (!cm) return;
+            const app = (t.appointments || []).find(a => a.id === cm.appId); if (!app) return closeCloseModal();
+            const err = (m) => { const el = document.getElementById('cm-err'); if (el) { el.textContent = m; el.classList.remove('hidden'); el.scrollIntoView({ block: 'nearest' }); } };
+            const calc = cmCalc();
+            if (!calc.services.length) return err('Marque ao menos um serviço realizado.');
+            const askPay = !(t.rules && t.rules.closeService) || t.rules.closeService.askPayment !== false;
+            if (askPay && !cm.payment) return err('Escolha a forma de pagamento.');
+            const paid = (app.depositRequired && app.status !== 'pendente') ? (Number(app.paidAmount != null ? app.paidAmount : (app.depositAmount || 0)) || 0) : 0;
+            const closed = {
+                at: new Date().toISOString(), by: (window.session && session.id) || '', number: cm.number,
+                services: calc.services.map(x => ({ id: x.id, name: x.name, price: x.price })),
+                products: calc.products.map(x => ({ id: x.id, name: x.name, type: x.type, price: x.price, qty: x.qty })),
+                total: calc.total, paid, payment: cm.payment || '', notes: (cm.notes || '').trim()
+            };
+            const extra = {
+                closed: JSON.parse(JSON.stringify(closed)), closedAt: closed.at,
+                originalPrice: app.originalPrice != null ? app.originalPrice : (Number(app.totalPrice) || 0),
+                totalPrice: calc.total, proceduresNames: calc.services.map(x => x.name)
+            };
+            const wasEdit = cm.isEdit;
+            setAppStatusDB(app.id, 'realizado', extra)
+                .then(() => { closeCloseModal(); showModal(wasEdit ? 'Fechamento atualizado' : 'Atendimento fechado', `Comanda #${closed.number} registrada${canSeeValues() ? ' • ' + brl(closed.total) : ''}.`, 'success'); })
+                .catch(() => err('Não foi possível salvar. Verifique a conexão e tente novamente.'));
         };
 
         window.cancelarAgendamento = function(id) { updateAppStatus(id, 'cancelado'); };
