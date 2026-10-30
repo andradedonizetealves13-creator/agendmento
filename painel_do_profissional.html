@@ -2643,8 +2643,124 @@
                 </div>`;
         }
 
+
+        // ---------- Lista no PC: kanban da semana (domingo a sábado), ocupando a tela ----------
+        window.listCardCompact = function(a) {
+            const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
+            const empName = emp ? emp.name : 'Profissional';
+            const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
+            const cliUrl = clientAvatarUrl(a);
+            const cliAvatar = cliUrl
+                ? `<img src="${esc(cliUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover shrink-0" style="border:2px solid #2a2a30">`
+                : `<div class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-bold text-xs" style="background:#2a2a30; color:#e5e7eb; border:2px solid #34343b">${esc((a.clientName || '?').trim().charAt(0).toUpperCase())}</div>`;
+            const empAvatar = (emp && emp.avatar)
+                ? `<img src="${esc(emp.avatar)}" alt="" class="w-5 h-5 rounded-full object-cover shrink-0" style="border:1.5px solid ${empColor}">`
+                : `<div class="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold text-white" style="background:${empColor}">${esc(empName.charAt(0).toUpperCase())}</div>`;
+            const procs = (a.proceduresNames || []).map(n => esc(n)).join(' <span style="opacity:.55">•</span> ');
+            const fmtMins = (m) => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+            const endTime = fmtMins(timeToMins(a.time) + (a.totalDuration || 0));
+            const chips = [
+                a.status === 'pendente' ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(245,158,11,.15); color:#fbbf24; border:1px dashed rgba(245,158,11,.55)">⏳ Aguardando sinal</span>` : '',
+                a.rescheduledAt ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(56,189,248,.14); color:#7dd3fc">↻ Reagendado</span>` : '',
+                a.paymentAlert && !a.paymentAlertResolved ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(244,63,94,.15); color:#fda4af">🚨 Pagamento</span>` : ''
+            ].join('');
+            return `
+            <div onclick="showAppDetails('${a.id}')" class="cursor-pointer rounded-xl p-3 transition-all hover:-translate-y-0.5 hover:shadow-lg" style="background:#17171b; border:1px solid #26262c; border-left:3px solid ${empColor}; box-shadow:0 2px 8px rgba(0,0,0,.15)">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="font-extrabold text-base leading-none tracking-tight" style="color:#fff">${esc(a.time)}</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style="background:#26262c; color:#a1a1aa">até ${endTime}</span>
+                </div>
+                <div class="flex items-center gap-2 mt-2.5">
+                    ${cliAvatar}
+                    <p class="font-bold text-[13px] leading-tight min-w-0" style="color:#fff; word-break:break-word">${esc(a.clientName)}</p>
+                </div>
+                <p class="text-[11px] font-semibold mt-1.5 leading-snug" style="color:#60a5fa">${procs || '—'}</p>
+                ${chips ? `<div class="flex flex-wrap gap-1 mt-2">${chips}</div>` : ''}
+                <div class="flex items-center justify-between gap-2 mt-2.5 pt-2" style="border-top:1px solid #26262c">
+                    <div class="flex items-center gap-1.5 min-w-0">${empAvatar}<span class="text-[11px] font-semibold truncate" style="color:#d4d4d8">${esc(empName)}</span></div>
+                    ${canSeeValues() ? `<span class="text-[11px] font-bold shrink-0" style="color:#a1a1aa">R$ ${Number(a.totalPrice || 0).toFixed(2).replace('.', ',')}</span>` : ''}
+                </div>
+            </div>`;
+        };
+
+        function renderListKanban(role, user) {
+            const today = new Date(), todayStr = localDateStr(today);
+            const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + (currentWeekOffset * 7));
+            const weekDays = []; for (let i = 0; i < 7; i++) { const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i); weekDays.push(d); }
+            const d0 = localDateStr(weekDays[0]), d6 = localDateStr(weekDays[6]);
+            const viewMonth = weekDays[3].getMonth(), viewYear = weekDays[3].getFullYear();
+            const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            const mesesCurtos = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+            const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+            const rangeLabel = `${weekDays[0].getDate()} ${mesesCurtos[weekDays[0].getMonth()]} – ${weekDays[6].getDate()} ${mesesCurtos[weekDays[6].getMonth()]}`;
+
+            const weekApps = agendaScope(role, user).filter(a => a.date >= d0 && a.date <= d6);
+            const filteredProfile = (role === 'admin' && agendaFilterEmp !== 'all') ? [t.admin, ...t.employees].find(p => p.id === agendaFilterEmp) : null;
+            const currentProfile = role === 'admin' ? (filteredProfile || t.admin) : user;
+
+            const pickerYear = calPickerYear !== null ? calPickerYear : viewYear;
+            const monthPicker = calPickerOpen ? `
+                <div class="date-pop absolute top-full left-0 mt-2 w-64 border rounded-2xl shadow-xl p-3 z-[70] fade-in">
+                    <div class="flex items-center justify-between mb-3">
+                        <button onclick="changePickerYear(-1)" class="p-2 bg-slate-50 border rounded-lg hover:bg-slate-100"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                        <span class="font-bold text-sm text-slate-800">${pickerYear}</span>
+                        <button onclick="changePickerYear(1)" class="p-2 bg-slate-50 border rounded-lg hover:bg-slate-100"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        ${monthNames.map((n, i) => `<button onclick="jumpToMonthYear(${pickerYear}, ${i})" class="px-2 py-2.5 rounded-xl text-xs font-bold transition-colors ${(i === viewMonth && pickerYear === viewYear) ? 'btn-theme-primary' : 'bg-slate-50 text-slate-700 hover:bg-theme-secondary'}">${n.slice(0,3)}</button>`).join('')}
+                    </div>
+                </div>` : '';
+
+            const cols = weekDays.map(d => {
+                const ds = localDateStr(d), isToday = ds === todayStr, works = doesEmployeeWorkOnDate(currentProfile, ds);
+                const items = weekApps.filter(a => a.date === ds).sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+                const pn = items.filter(a => a.status === 'pendente').length;
+                return `
+                <div class="flex flex-col min-h-0 min-w-0 rounded-2xl border ${isToday ? 'border-2' : ''} ${works ? 'bg-slate-100/80' : 'bg-slate-200/60'}" style="${isToday ? 'border-color:var(--theme-primary)' : ''}">
+                    <div class="shrink-0 px-3 py-3 border-b flex items-center justify-between gap-2 ${isToday ? 'btn-theme-primary rounded-t-[13px]' : ''}">
+                        <div class="min-w-0">
+                            <p class="text-[11px] uppercase font-bold tracking-wide ${isToday ? '' : 'text-slate-500'}">${diasSemana[d.getDay()]}</p>
+                            <p class="text-2xl font-extrabold leading-none mt-0.5 ${isToday ? '' : 'text-slate-800'}">${d.getDate()}<span class="text-[11px] font-bold ml-1 opacity-70">${mesesCurtos[d.getMonth()]}</span></p>
+                        </div>
+                        <div class="flex flex-col items-end gap-1 shrink-0">
+                            ${items.length ? `<span class="text-[11px] font-extrabold px-2 py-0.5 rounded-full ${isToday ? 'bg-white/25' : 'bg-white border text-slate-700'}">${items.length}</span>` : ''}
+                            ${pn ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">${pn} pend.</span>` : ''}
+                            ${!works ? '<span class="text-[9px] bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded uppercase">Folga</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-2">
+                        ${items.length ? items.map(listCardCompact).join('') : `<p class="text-center text-[11px] font-semibold text-slate-400 py-8">${works ? 'Sem atendimentos' : 'Dia de folga'}</p>`}
+                    </div>
+                </div>`;
+            }).join('');
+
+            return `
+                <div class="bg-white/90 backdrop-blur-md border rounded-2xl shadow-sm flex flex-col ${isCalendarFullscreen ? 'calendar-fullscreen p-4' : 'p-4'}" style="${isCalendarFullscreen ? '' : 'height:calc(100vh - 14rem); min-height:520px'}">
+                    <div class="shrink-0 flex items-center justify-between gap-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <button onclick="calShiftWeek(-1)" title="Semana anterior" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                            <div class="relative">
+                                <button onclick="toggleMonthPicker(${viewYear})" title="Escolher mês" class="h-full flex items-center px-4 bg-white border rounded-xl font-bold hover:bg-slate-100 cursor-pointer">${monthNames[viewMonth]}&nbsp;${viewYear}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
+                                ${monthPicker}
+                            </div>
+                            <button onclick="calShiftWeek(1)" title="Próxima semana" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                            <span class="ml-2 text-sm font-bold text-slate-600">${rangeLabel}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-bold text-slate-500 bg-white border px-3 py-2 rounded-xl">${weekApps.length} ${weekApps.length === 1 ? 'atendimento' : 'atendimentos'} na semana</span>
+                            <button onclick="calGoToday()" class="bg-theme-secondary text-theme-primary px-4 py-2.5 rounded-xl font-bold">Hoje</button>
+                            <button onclick="toggleFullscreen()" title="Tela cheia" class="p-2.5 bg-slate-800 text-white rounded-xl"><i data-lucide="${isCalendarFullscreen ? 'minimize' : 'maximize'}" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-h-0 overflow-x-auto">
+                        <div class="grid gap-3 h-full" style="grid-template-columns:repeat(7, minmax(160px, 1fr)); min-width:1180px">${cols}</div>
+                    </div>
+                </div>`;
+        }
+
         function renderListView(role, user) {
-            return renderListViewMobile(role, user);
+            if (window.innerWidth <= 768) return renderListViewMobile(role, user);
+            return renderListKanban(role, user);
             let apps = t.appointments || [];
             if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
             else if(agendaFilterEmp !== 'all') apps = apps.filter(a => a.employeeId === agendaFilterEmp);
