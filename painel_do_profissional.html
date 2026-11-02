@@ -245,7 +245,6 @@
         .dt-wrap { position: relative; }
         .dt-ico { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--theme-primary); pointer-events: none; z-index: 1; }
         .dt-input { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-width: 0; height: 48px; padding: 0 12px 0 40px; border-radius: 14px; border: 1.5px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 15px; font-weight: 700; font-family: inherit; outline: none; text-align: left; transition: border-color .15s, box-shadow .15s; }
-        .dt-input::-webkit-date-and-time-value { text-align: left; }
         .dt-input:focus { border-color: var(--theme-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 22%, transparent); }
         .dt-date .dt-input { height: 52px; font-size: 16px; }
         .dt-times { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 8px; margin-top: 14px; }
@@ -256,6 +255,18 @@
         .dt-chip:hover { background: var(--theme-secondary); color: var(--theme-primary); border-color: var(--theme-primary); }
         .dt-dur { font-size: 12px; font-weight: 800; color: var(--theme-primary); background: var(--theme-secondary); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
         .dt-dur:empty { display: none; }
+
+        /* ===== Modal de agendamento manual: rolagem + centralização ===== */
+        #create-modal { align-items: flex-start !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px) !important; touch-action: pan-y; }
+        #create-modal > div { margin: auto !important; }
+        #create-modal #manual-procedures-list { max-height: none !important; overflow: visible !important; }
+        .dt-label { text-align: center; margin-left: 0 !important; }
+        .dt-input { display: flex !important; align-items: center; justify-content: center; text-align: center !important; padding: 0 40px !important; line-height: 1.2; box-sizing: border-box; }
+        .dt-input::-webkit-date-and-time-value { text-align: center !important; margin: 0 !important; width: auto; min-height: 1.2em; line-height: 1.2; }
+        .dt-input::-webkit-datetime-edit { padding: 0 !important; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: auto; }
+        .dt-input::-webkit-datetime-edit-fields-wrapper { padding: 0 !important; }
+        .dt-foot { flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .dt-chips { justify-content: center; }
         html[data-mode="dark"] .dt-card { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.12); }
         html[data-mode="dark"] .dt-label { color: #a1a1aa; }
         html[data-mode="dark"] .dt-input { background: color-mix(in srgb, var(--theme-primary) 10%, #131317); border-color: color-mix(in srgb, var(--theme-primary) 35%, rgba(255,255,255,.15)); color: #fff; color-scheme: dark; }
@@ -453,7 +464,7 @@
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'entrar';
+                window.location.href = '/entrar';
             } else {
                 ensureStaffClaims(user);
             }
@@ -470,7 +481,7 @@
         }
 
         const sessionStr = localStorage.getItem('agendaProSession');
-        if (!sessionStr) { window.location.href = 'entrar'; }
+        if (!sessionStr) { window.location.href = '/entrar'; }
         const session = JSON.parse(sessionStr || '{}');
 
         const basePath = 'agendapro_saas/tenants/' + (session.slug || 'demo');
@@ -556,8 +567,9 @@
         onValue(tenantRef, (snapshot) => {
             const data = snapshot.val();
             if (!data) {
+                console.warn('[Primstav] Empresa não encontrada no banco para o slug:', session.slug);
                 localStorage.removeItem('agendaProSession');
-                window.location.href = 'entrar';
+                document.getElementById('app').innerHTML = '<div class="p-6 text-center"><p class="font-bold text-rose-600 mb-3">Não encontramos os dados da sua empresa.</p><a href="/entrar" class="inline-block px-5 py-3 rounded-xl bg-amber-600 text-white font-bold">Voltar ao login</a></div>';
                 return;
             }
             window.t = data;
@@ -797,7 +809,7 @@
             const u = clientAvatarUrl(a);
             return u ? `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" class="${cls} rounded-full object-cover border-2 border-white shadow-sm shrink-0">` : '';
         };
-        window.logout = async function() { await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = 'entrar'; };
+        window.logout = async function() { try { if (window.pushState && pushState() === 'on') await disablePush(true); } catch (_) {} await signOut(auth); localStorage.removeItem('agendaProSession'); window.location.href = '/entrar'; };
 
         window.render = function() {
             if(!window.t) return;
@@ -2068,7 +2080,7 @@
                 return `
                     <div class="space-y-6 max-w-5xl mx-auto fade-in">
                         ${tabsHtml}
-                        ${profileTab === 'aparencia' ? aparenciaHtml : (profileTab === 'empresa' ? empresaHtml : (profileTab === 'regras' ? rulesPanelHtml() : (profileTab === 'dev' ? devPortalHtml() : perfilHtml)))}
+                        ${profileTab === 'aparencia' ? aparenciaHtml : (profileTab === 'empresa' ? empresaHtml : (profileTab === 'regras' ? rulesPanelHtml() : (profileTab === 'dev' ? devPortalHtml() : (perfilHtml + (window.notifCardHtml ? notifCardHtml() : '')))))}
                     </div>`;
             }
 
@@ -3285,27 +3297,69 @@
         }
         function mpCall(name, data) { return httpsCallable(getFunctions(getApp()), name)(Object.assign({ slug: session.slug }, data || {})); }
 
-        const VAPID_KEY = 'COLE_AQUI_A_CHAVE_VAPID';
+        const VAPID_KEY = 'BFtdpQkpNjH6_GlZwSNW-Gf4faRRCgTrSADy81h7sdabIAJJ_ElRs3J0tPgfWJwXnzm5hPPb67Hh8gLRFlZ09v0';
+        const PUSH_PREF = 'primstav_push_pref';
+        const PUSH_TOKEN = 'primstav_push_token';
+        const lsGet = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+        const lsSet = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} };
         window.pushSupported = () => 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+        window.pushConfigured = () => !VAPID_KEY.startsWith('COLE');
+        window.pushState = function () {
+            if (!pushSupported()) return 'unsupported';
+            if (!pushConfigured()) return 'unconfigured';
+            if (Notification.permission === 'denied') return 'blocked';
+            if (Notification.permission === 'granted' && lsGet(PUSH_PREF) !== 'off') return 'on';
+            return 'off';
+        };
         window.enablePush = async function (manual) {
             try {
                 if (!pushSupported()) { if (manual) alert('Este aparelho não aceita notificações. No iPhone, instale o app na Tela de Início e abra por lá.'); return; }
-                if (VAPID_KEY.startsWith('COLE')) { console.warn('Chave VAPID não configurada'); if (manual) alert('Falta configurar a chave VAPID do Firebase. Avise o suporte.'); return; }
+                if (!pushConfigured()) { if (manual) alert('Falta configurar a chave VAPID do Firebase. Avise o suporte.'); return; }
                 const perm = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
-                if (perm !== 'granted') { if (manual) alert('As notificações não foram permitidas. Libere nas configurações do navegador para este site.'); return; }
+                if (perm !== 'granted') { if (manual) alert('As notificações não foram permitidas. Libere nas configurações do navegador para este site.'); if (typeof render === 'function') render(); return; }
                 const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js');
                 const reg = await navigator.serviceWorker.ready;
                 const token = await getToken(getMessaging(getApp()), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
                 if (!token) return;
                 await mpCall('registerPushToken', { token });
-                if (manual) { alert('Notificações ativadas neste aparelho.'); if (typeof render === 'function') render(); }
+                lsSet(PUSH_TOKEN, token); lsSet(PUSH_PREF, 'on');
+                if (typeof render === 'function') render();
+                if (manual) alert('Notificações ativadas neste aparelho.');
             } catch (e) { console.warn('push:', e); if (manual) alert('Não foi possível ativar as notificações: ' + (e && e.message || e)); }
         };
+        window.disablePush = async function (keepPref) {
+            const token = lsGet(PUSH_TOKEN);
+            if (keepPref !== true) lsSet(PUSH_PREF, 'off');
+            try {
+                const { getMessaging, deleteToken } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js');
+                await deleteToken(getMessaging(getApp()));
+            } catch (e) { console.warn('push deleteToken:', e); }
+            try { if (token) await mpCall('unregisterPushToken', { token }); }
+            catch (e) { console.warn('push unregister (opcional):', e && e.message); }
+            lsSet(PUSH_TOKEN, null);
+            if (typeof render === 'function') render();
+        };
+        window.togglePush = function () { return pushState() === 'on' ? disablePush(false) : enablePush(true); };
         window.notifBannerHtml = function () {
-            if (!pushSupported() || VAPID_KEY.startsWith('COLE')) return '';
-            if (Notification.permission === 'granted') { if (!window.__pushAuto) { window.__pushAuto = 1; setTimeout(() => enablePush(false), 800); } return ''; }
-            if (Notification.permission === 'denied') return '';
-            return `<div class="mb-4 p-4 rounded-2xl border flex items-center justify-between gap-3" style="background:var(--theme-secondary)"><p class="text-sm font-semibold" style="color:var(--theme-text-primary)">🔔 Ative as notificações para saber de novos agendamentos e ser avisado 10 min antes de cada atendimento.</p><button onclick="enablePush(true)" class="btn-theme-primary px-4 py-2.5 rounded-xl text-sm font-bold shrink-0">Ativar</button></div>`;
+            const st = pushState();
+            if (st === 'unsupported' || st === 'unconfigured' || st === 'blocked') return '';
+            if (st === 'on') { if (!window.__pushAuto) { window.__pushAuto = 1; setTimeout(() => enablePush(false), 800); } return ''; }
+            if (lsGet(PUSH_PREF) === 'off') return '';
+            return `<div class="mb-4 p-4 rounded-2xl border flex items-center justify-between gap-3" style="background:var(--theme-secondary)"><p class="text-sm font-semibold" style="color:var(--theme-text-primary)">🔔 Ative as notificações para ser avisado de novos agendamentos, cancelamentos e quando faltar 15 min para o sinal expirar.</p><button onclick="enablePush(true)" class="btn-theme-primary px-4 py-2.5 rounded-xl text-sm font-bold shrink-0">Ativar</button></div>`;
+        };
+        window.notifCardHtml = function () {
+            const st = pushState();
+            const msgs = {
+                unsupported: 'Este aparelho/navegador não aceita notificações. No iPhone (iOS 16.4+), instale o app na Tela de Início e abra por lá.',
+                unconfigured: 'As notificações ainda não foram configuradas neste sistema. Avise o suporte.',
+                blocked: 'As notificações estão bloqueadas no navegador. Libere em Configurações do navegador > este site > Notificações e volte aqui.',
+                on: 'Ativadas neste aparelho: você é avisado de novos agendamentos, cancelamentos e quando faltar 15 min para o sinal expirar.',
+                off: 'Desativadas neste aparelho. Ligue para receber avisos de novos agendamentos, cancelamentos e sinal expirando.'
+            };
+            const can = st === 'on' || st === 'off';
+            const on = st === 'on';
+            const sw = `<button type="button" role="switch" aria-checked="${on}" aria-label="Notificações" ${can ? '' : 'disabled'} onclick="togglePush()" style="width:52px;height:30px;border-radius:999px;border:0;position:relative;flex-shrink:0;transition:background .2s;background:${on ? '#16a34a' : '#cbd5e1'};opacity:${can ? 1 : .5};cursor:${can ? 'pointer' : 'not-allowed'}"><span style="position:absolute;top:3px;left:${on ? '25px' : '3px'};width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .2s"></span></button>`;
+            return `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl"><div class="flex items-center justify-between gap-4"><div><h3 class="font-bold text-lg">🔔 Notificações</h3><p class="text-xs text-slate-500 mt-1">${msgs[st]}</p></div>${sw}</div><p class="text-[11px] text-slate-400 mt-3">Vale só para este aparelho. Em outro celular ou computador, ative por lá também.</p></div>`;
         };
         window.mpConnectClick = async function() {
             if (window.mpBusy) return;
