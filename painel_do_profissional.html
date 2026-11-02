@@ -7,7 +7,7 @@
     <title>Primstav - Painel de Controle</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // mostra a URL sem ".html" na barra de endereço
+
         (function () { try { var p = location.pathname; if (/\.html$/i.test(p)) history.replaceState(null, '', p.replace(/\.html$/i, '') + location.search + location.hash); } catch (_) {} })();
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -25,10 +25,10 @@
             --bg-pos: 50% 50%;
             --bg-zoom: 1;
         }
-        html, body { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            font-family: 'Inter', sans-serif; background-color: var(--theme-bg) !important; 
-            overflow: hidden; transition: background-color 0.3s ease; 
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            font-family: 'Inter', sans-serif; background-color: var(--theme-bg) !important;
+            overflow: hidden; transition: background-color 0.3s ease;
             position: relative;
         }
         #custom-bg-layer {
@@ -49,13 +49,13 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
+
         .calendar-grid { display: grid; grid-template-columns: 60px repeat(7, minmax(140px, 1fr)); background: #e2e8f0; gap: 1px; border: 1px solid #e2e8f0; user-select: none; position: relative; }
         @media (max-width: 768px) { .calendar-grid { grid-template-columns: 50px repeat(7, minmax(calc(50vw - 30px), 1fr)); } }
         .calendar-header-cell { background: rgba(255,255,255,0.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); padding: 12px 4px; text-align: center; }
         .calendar-time-col { background: #f8fafc; text-align: right; padding-right: 6px; font-size: 11px; color: #64748b; font-weight: 500; }
         .calendar-day-column { background: #ffffff; position: relative; cursor: crosshair; }
-        
+
         .drag-selection-box {
             position: absolute; left: 2px; right: 2px; background-color: var(--theme-secondary);
             border: 2px solid var(--theme-primary); border-radius: 6px; pointer-events: none; z-index: 30;
@@ -67,11 +67,11 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.2); color: #fff; z-index: 10; cursor: pointer; transition: all 0.2s ease;
             white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center;
         }
-        .appointment-postit:hover { 
+        .appointment-postit:hover {
             transform: scale(1.02); z-index: 50 !important; box-shadow: 0 6px 14px rgba(0,0,0,0.35);
             width: auto !important; min-width: 140px; max-width: 250px !important;
         }
-        /* ----- Agendamento PENDENTE (aguardando confirmação do sinal) ----- */
+
         .appointment-postit.pending {
             background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.30) 0 6px, rgba(255,255,255,0) 6px 12px);
             border: 2px dashed #fff; outline: 2px solid #f59e0b; outline-offset: -2px;
@@ -80,7 +80,6 @@
         @keyframes pendingPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,.75); } 50% { box-shadow: 0 0 0 6px rgba(245,158,11,0); } }
         .pending-chip { margin-left: 4px; background: #fef3c7; color: #92400e; font-weight: 800; font-size: 8px; padding: 1px 5px; border-radius: 999px; flex-shrink: 0; letter-spacing: .04em; }
 
-        /* ----- Selo pulsante de pendentes (ao lado do título da agenda) + lista de pendentes ----- */
         .pend-pill { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px; border: 0; cursor: pointer; overflow: hidden; font-size: 12px; font-weight: 800; letter-spacing: .01em; color: #2b1700; background: linear-gradient(120deg,#fbbf24,#f59e0b 55%,#f97316); box-shadow: 0 0 0 0 rgba(245,158,11,.65), 0 6px 16px -6px rgba(245,158,11,.9); animation: pendRing 2s ease-out infinite; transition: transform .15s ease; }
         .pend-pill:hover { transform: translateY(-1px) scale(1.04); }
         .pend-pill:active { transform: scale(.97); }
@@ -117,7 +116,7 @@
         html[data-mode="dark"] .pm-item { background: rgba(245,158,11,.12); border-color: rgba(252,211,77,.5); }
         html[data-mode="dark"] .pm-item:hover { background: rgba(245,158,11,.24); }
         html[data-mode="dark"] .pm-when { background: rgba(252,211,77,.16); color: #fde68a; }
-        /* ----- Regras: ordem das etapas (arrastar) ----- */
+
         .flow-item { position: relative; transition: box-shadow .15s ease; }
         .flow-dragging { z-index: 20; box-shadow: 0 14px 30px rgba(15,23,42,.25) !important; opacity: .95; cursor: grabbing; }
         .flow-drop-before { box-shadow: 0 -4px 0 0 var(--theme-primary); }
@@ -125,13 +124,12 @@
         .touch-none { touch-action: none; }
         .calendar-fullscreen { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: var(--theme-bg); height: 100vh !important; border-radius: 0 !important; }
         @media (min-width: 768px) { .calendar-fullscreen { left: 5rem !important; } }
-        
+
         .btn-theme-primary { background-color: var(--theme-primary); color: #ffffff; }
         .btn-theme-primary:hover { background-color: var(--theme-primary-hover); }
         .bg-theme-secondary { background-color: var(--theme-secondary); }
         .text-theme-primary { color: var(--theme-primary); }
 
-        /* Faz as cores "índigo" fixas acompanharem o tema escolhido */
         .text-indigo-600, .text-indigo-700 { color: var(--theme-primary) !important; }
         .bg-indigo-600 { background-color: var(--theme-primary) !important; }
         .bg-indigo-50, .bg-indigo-100, .hover\:bg-indigo-50:hover, .hover\:bg-indigo-100:hover { background-color: var(--theme-secondary) !important; }
@@ -140,24 +138,19 @@
         .peer:checked ~ .peer-checked\:bg-indigo-600 { background-color: var(--theme-primary) !important; }
         .border-t-transparent { border-top-color: transparent !important; }
         .toast-item { animation: fadeIn 0.25s ease-in-out; }
-        /* botão lua/sol no topo do painel (substitui o botão de copiar link, que agora fica em Configurações > Empresa) */
+
         #mode-toggle { width: 2.25rem; height: 2.25rem; flex-shrink: 0; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background-color: var(--theme-secondary); border: 1px solid rgba(15,23,42,.1); box-shadow: 0 1px 2px rgba(15,23,42,.08); transition: transform .2s; cursor: pointer; }
         #mode-toggle:hover { transform: scale(1.08) rotate(-8deg); }
         html[data-mode="dark"] #mode-toggle { color: #fcd34d; background-color: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); box-shadow: none; }
 
-        /* modo noturno acompanha SEMPRE o tema escolhido pela empresa (igual ao agendamento do cliente); sem tema escolhido, o tema padrão é o âmbar Primstav */
         html[data-mode="dark"] { color-scheme: dark; --dk-bg: color-mix(in srgb, var(--theme-primary) 8%, #07070a); }
         html[data-mode="dark"] :is(.bg-theme-secondary, .bg-indigo-50, .bg-indigo-100, .hover\:bg-indigo-50:hover, .hover\:bg-indigo-100:hover) { background-color: color-mix(in srgb, var(--theme-primary) 30%, #0b0b0f) !important; }
         html[data-mode="dark"] .drag-selection-box { background-color: color-mix(in srgb, var(--theme-primary) 35%, #0b0b0f); color: #fff; }
 
-        /* ===== Modo noturno (só cores; não muda posição, tamanho nem configuração de nada) =====
-           Visual padrão Primstav (igual ao index e ao entrar): fundo #07070a, brilho âmbar e cartões de vidro.
-           Os dados e o tema salvo da empresa não são alterados: o modo claro continua exatamente como era. */
         html[data-mode="dark"], html[data-mode="dark"] body { background-color: var(--dk-bg) !important; }
         html[data-mode="dark"] body { color: #e4e4e7; }
         html[data-mode="dark"] body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--theme-primary) 40%, transparent), transparent 70%), radial-gradient(50% 45% at 10% 95%, color-mix(in srgb, var(--theme-primary) 28%, transparent), transparent 70%); }
 
-        /* textos */
         html[data-mode="dark"] :is(.text-slate-900, .text-slate-800, .text-slate-700) { color: #f4f4f5; }
         html[data-mode="dark"] :is(.text-slate-600, .text-slate-500) { color: #a1a1aa; }
         html[data-mode="dark"] .text-slate-400 { color: #8b8b94; }
@@ -169,7 +162,6 @@
         html[data-mode="dark"] :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900, .text-yellow-700) { color: #fde68a; }
         html[data-mode="dark"] :is(.text-sky-600, .text-sky-700, .text-sky-800) { color: #7dd3fc; }
 
-        /* superfícies: cartões de vidro */
         html[data-mode="dark"] #app .bg-white { background-color: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); }
         html[data-mode="dark"] :is(#create-modal, #custom-modal, #toast-container) .bg-white { background-color: #1c1c22; border: 1px solid rgba(255,255,255,.12); }
         html[data-mode="dark"] :is(.bg-white\/80, .bg-white\/90, .bg-white\/95) { background-color: rgba(20,20,26,.8) !important; }
@@ -191,7 +183,6 @@
         html[data-mode="dark"] .bg-sky-100 { background-color: rgba(56,189,248,.22); }
         html[data-mode="dark"] :is(.btn-theme-primary, .bg-indigo-600) { box-shadow: 0 0 0 1px rgba(255,255,255,.22), 0 8px 22px -8px color-mix(in srgb, var(--theme-primary) 70%, #fff); }
 
-        /* bordas */
         html[data-mode="dark"] :is(.border, .border-t, .border-b, .border-l, .border-r, .border-x, .border-y):not([class*="border-rose"]):not([class*="border-amber"]):not([class*="border-emerald"]):not([class*="border-sky"]):not([class*="border-indigo"]):not([class*="border-white"]) { border-color: rgba(255,255,255,.12); }
         html[data-mode="dark"] :is(.border-slate-100, .border-slate-100\/80, .border-slate-200, .border-slate-300, .hover\:border-slate-400:hover) { border-color: rgba(255,255,255,.14); }
         html[data-mode="dark"] :is(.border-rose-100, .border-rose-200, .border-rose-300, .hover\:border-rose-200:hover) { border-color: rgba(244,63,94,.35); }
@@ -199,18 +190,16 @@
         html[data-mode="dark"] :is(.border-amber-200, .border-amber-300, .border-amber-400) { border-color: rgba(252,211,77,.45); }
         html[data-mode="dark"] :is(.border-sky-200) { border-color: rgba(56,189,248,.35); }
 
-        /* campos de formulário */
         html[data-mode="dark"] :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]) { background-color: rgba(255,255,255,.07); color: #fff; border-color: rgba(255,255,255,.15); }
         html[data-mode="dark"] :is(input, textarea)::placeholder { color: #71717a; }
         html[data-mode="dark"] select option { background: #18181b; color: #fff; }
 
-        /* agenda (calendário) */
         html[data-mode="dark"] .calendar-grid { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.12); }
         html[data-mode="dark"] .calendar-header-cell { background: rgba(255,255,255,.05); }
         html[data-mode="dark"] .calendar-time-col { background: rgba(255,255,255,.05); color: #a1a1aa; }
         html[data-mode="dark"] #app .calendar-day-column { background-color: rgba(255,255,255,.02); }
         html[data-mode="dark"] .calendar-fullscreen { background: var(--dk-bg); }
-        /* ----- Lista / Kanban da semana ----- */
+
         .kb-col { background: rgba(241,245,249,.85); border-color: #e2e8f0; }
         .kb-col.kb-col-off { background: rgba(226,232,240,.7); }
         .kb-head { border-bottom: 1px solid #e2e8f0; }
@@ -224,7 +213,7 @@
         html[data-mode="dark"] .lst-card { background: #202028 !important; border-top-color: #34343e !important; border-right-color: #34343e !important; border-bottom-color: #34343e !important; box-shadow: 0 4px 14px rgba(0,0,0,.35) !important; }
         html[data-mode="dark"] .lst-card:not(.lst-compact) { border-left-color: #34343e !important; }
         html[data-mode="dark"] .lst-card:hover { background: #26262f !important; }
-        /* estados do atendimento: passou (cinza), para fechar (âmbar), fechado (verde) */
+
         .lst-card.lst-past { --lc: #5b606b; background: #3d414a !important; box-shadow: none !important; }
         .lst-card.lst-past > * { opacity: .7; }
         .lst-card.lst-closed { --lc: #15755a; background: #0e2a22 !important; }
@@ -238,22 +227,18 @@
         .appointment-postit.past { filter: grayscale(.9) brightness(.9); opacity: .7; }
         .appointment-postit.past.closed { filter: none; opacity: .85; background-image: linear-gradient(rgba(5,150,105,.78), rgba(5,150,105,.78)); }
         .appointment-postit.past.toclose { outline: 2px solid #f59e0b; outline-offset: -2px; animation: pendingPulse 1.8s ease-in-out infinite; }
-        /* janela de fechar atendimento */
+
         #close-modal .cm-box { background: #fff; color: #0f172a; }
         html[data-mode="dark"] #close-modal .cm-box { background: #1c1c22; color: #f4f4f5; border: 1px solid rgba(255,255,255,.12); }
         html[data-mode="dark"] #close-modal .cm-sticky { background: #1c1c22; }
         #close-modal .cm-sticky { background: #fff; }
         html[data-mode="dark"] .pending-chip { background: rgba(252,211,77,.2); color: #fde68a; }
 
-
-        /* ===== Modo noturno: cores que não são de status seguem o tema escolhido (igual ao agendamento do cliente) ===== */
         html[data-mode="dark"] :is(.border-indigo-100, .border-indigo-300, .border-indigo-600, .hover\:border-indigo-300:hover, .hover\:border-indigo-400:hover, .focus\:border-indigo-500:focus) { border-color: color-mix(in srgb, var(--theme-primary) 60%, transparent) !important; }
         html[data-mode="dark"] .bg-indigo-50\/30, html[data-mode="dark"] .bg-indigo-50\/20 { background-color: color-mix(in srgb, var(--theme-primary) 14%, transparent) !important; }
         html[data-mode="dark"] #app .bg-white.rounded-2xl, html[data-mode="dark"] #app .bg-white.rounded-3xl { box-shadow: 0 30px 90px -25px color-mix(in srgb, var(--theme-primary) 45%, transparent), 0 10px 30px rgba(0,0,0,.5); }
         html[data-mode="dark"] #mode-toggle { box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 45%, transparent); }
 
-
-        /* ===== Seletores e campos de data: mesmo visual em todo o painel, fundo sólido (sem ver o que está atrás) ===== */
         .date-pop { background-color: #ffffff; }
         .date-field { border-radius: 12px; font-weight: 600; transition: border-color .15s, box-shadow .15s; }
         .date-field:focus { border-color: var(--theme-primary) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 22%, transparent); }
@@ -264,8 +249,6 @@
         html[data-mode="dark"] .date-field { background-color: color-mix(in srgb, var(--theme-primary) 10%, #131317) !important; border-color: color-mix(in srgb, var(--theme-primary) 35%, rgba(255,255,255,.15)) !important; color: #fff; color-scheme: dark; }
         html[data-mode="dark"] .date-field::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .8; cursor: pointer; }
 
-
-        /* contador de agendamentos no topo de cada dia (só PC): número em pílula; ponto âmbar pulsando = tem pendente */
         .day-count { display: inline-flex; align-items: center; gap: 5px; min-width: 26px; height: 22px; padding: 0 9px; justify-content: center; border-radius: 999px; font-size: 13px; font-weight: 800; line-height: 1; letter-spacing: .01em; color: color-mix(in srgb, var(--theme-primary) 65%, #000); background: color-mix(in srgb, var(--theme-primary) 22%, #fff); border: 1px solid color-mix(in srgb, var(--theme-primary) 45%, #fff); box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--theme-primary) 60%, transparent); }
         .day-count-sm { min-width: 22px; height: 18px; padding: 0 6px; gap: 4px; font-size: 11px; }
         .day-count-sm .day-count-dot { width: 6px; height: 6px; }
@@ -273,7 +256,6 @@
         .day-count-dot::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: #f59e0b; animation: dayPing 1.6s ease-out infinite; }
         @keyframes dayPing { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.8); opacity: 0; } }
 
-        /* barra de rolagem */
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
     </style>
@@ -296,7 +278,6 @@
         <p class="text-sm text-slate-500 font-medium">Sincronizando com a sua empresa...</p>
     </div>
 
-    <!-- MODAL DE CRIAÇÃO MANUAL -->
     <div id="create-modal" class="hidden fixed inset-0 z-[115] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 relative">
             <button onclick="closeCreateModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
@@ -342,7 +323,6 @@
         </div>
     </div>
 
-    <!-- MODAL CUSTOMIZADO DE AVISOS -->
     <div id="custom-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div id="modal-icon-container" class="mb-4 flex items-center justify-center w-12 h-12 rounded-full mx-auto"></div>
@@ -382,7 +362,6 @@
         const secondaryApp = initializeApp(firebaseConfig, "Secondary");
         const secondaryAuth = getAuth(secondaryApp);
 
-        // ---------- TELEFONE (obrigatório no cadastro de profissional e de cliente) ----------
         window.formatPhoneInput = function(input) {
             let v = input.value.replace(/\D/g, '').slice(0, 11);
             if (v.length > 10) v = v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
@@ -393,8 +372,6 @@
         };
         window.cleanPhone = (p) => String(p || '').replace(/\D/g, '');
 
-        // Cria o login no Firebase Authentication (app secundário, para não derrubar a sessão do admin).
-        // Se o e-mail já tem conta e a senha informada confere, só vincula o cadastro a essa conta.
         async function createAuthUser(email, pass) {
             try {
                 const c = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
@@ -425,8 +402,6 @@
             }
         });
 
-        // Marca o papel (admin/profissional) no próprio login (custom claims). As regras do banco usam isso.
-        // A Cloud Function syncRole confere o cadastro no servidor; aqui só pedimos a atualização.
         async function ensureStaffClaims(user) {
             try {
                 if (!session.slug) return;
@@ -459,7 +434,6 @@
             { id: 'slate_dark', name: 'Grafite Elegante', bg: '#f1f5f9', primary: '#334155', primaryHover: '#1e293b', secondary: '#cbd5e1', dark: '#0f172a', previewBg: '#f1f5f9', previewPrimary: '#334155', previewAccent: '#cbd5e1' }
         ];
 
-        // 10 temas novos (os campos de preview são gerados automaticamente)
         const P = (id, name, bg, primary, primaryHover, secondary, dark) =>
             ({ id, name, bg, primary, primaryHover, secondary, dark, previewBg: bg, previewPrimary: primary, previewAccent: secondary });
 
@@ -493,23 +467,22 @@
         }
 
         window.t = null;
-        window.activeTab = 'agenda'; 
+        window.activeTab = 'agenda';
         window.editEmployeeId = null;
         window.editProcedureId = null;
         window.currentWeekOffset = 0;
-        window.dashboardViewMode = 'list'; 
+        window.dashboardViewMode = 'list';
         window.dashboardFilterMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
         window.dashboardFilterYear = new Date().getFullYear().toString();
         window.listFilterMonth = ''; window.listFilterDate = '';
         window.isSidebarOpenMobile = false; window.isCalendarFullscreen = false;
         window.activeBgMode = 'desktop';
-        window.profileTab = 'aparencia';      // aparencia | empresa | perfil
-        window.agendaFilterEmp = 'all';       // filtro de profissional na agenda (admin)
+        window.profileTab = 'aparencia';
+        window.agendaFilterEmp = 'all';
 
-        // alterações de logo/foto/fundo que só são gravadas ao clicar em Salvar
         window.draft = {};
-        window.procDraft = null;   // rascunho do formulário de serviço (foto/descrição/categoria)
-        // inclui posição (PosX/PosY, em %) e zoom (em %) da imagem de fundo, e a opção de aplicar no painel
+        window.procDraft = null;
+
         const BG_KEYS = ['bgCustomImage','bgCustomOpacity','bgCustomBlur','bgCustomPosX','bgCustomPosY','bgCustomZoom',
                          'bgMobileImage','bgMobileOpacity','bgMobileBlur','bgMobilePosX','bgMobilePosY','bgMobileZoom',
                          'bgApplyPanel'];
@@ -531,7 +504,7 @@
                 return;
             }
             window.t = data;
-            
+
             window.__semTema = !t.themePalette;
             if(!t.themePalette) t.themePalette = 'indigo_classic';
             if(!t.admin.workingHours) t.admin.workingHours = getDefWH();
@@ -543,8 +516,7 @@
             if(!t.appointments) t.appointments = [];
             if(!t.clients) t.clients = [];
             if(!t.products) t.products = [];
-            
-            // o Firebase pode devolver listas como objeto; normaliza
+
             ['requests', 'employees', 'procedures', 'appointments', 'clients', 'products'].forEach(k => { t[k] = toList(t[k]); });
 
             t.employees.forEach((e, idx) => {
@@ -553,7 +525,6 @@
                 if(!e.color) e.color = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
             });
 
-            // papel de acesso vem do BANCO (campo do cadastro do profissional): quem é "Administrador" ganha a visão de admin
             if (!window.__baseRole) window.__baseRole = session.role;
             const __me = t.employees.find(e => e.id === session.id);
             session.role = (window.__baseRole === 'admin' || (__me && (__me.isAdmin || __me.role === 'admin'))) ? 'admin' : 'employee';
@@ -578,13 +549,12 @@
             document.documentElement.style.setProperty('--theme-primary-hover', palette.primaryHover);
             document.documentElement.style.setProperty('--theme-secondary', palette.secondary);
             document.documentElement.style.setProperty('--theme-text-primary', palette.dark);
-            // barra do app (celular e janela do PC) na cor do tema escolhido no perfil
+
             let tc = document.querySelector('meta[name="theme-color"]');
             if (!tc) { tc = document.createElement('meta'); tc.name = 'theme-color'; document.head.appendChild(tc); }
             tc.setAttribute('content', palette.primary);
         }
 
-        // A foto de fundo só aparece no painel se a opção "Aplicar também no painel" estiver marcada (bgApplyPanel)
         function applyBgImageSettings() {
             const isMobile = window.innerWidth <= 768;
             const useMobile = isMobile && !!t.bgMobileImage;
@@ -606,7 +576,7 @@
                 document.documentElement.style.setProperty('--bg-image', 'none');
             }
         }
-        
+
         window.addEventListener('resize', () => {
             if(window.t) applyBgImageSettings();
             const m = window.innerWidth <= 768;
@@ -615,10 +585,6 @@
 
         function toList(v) { return Array.isArray(v) ? v.filter(x => x) : (v ? Object.values(v) : []); }
 
-        // ---------- GRAVAÇÃO SEGURA ----------
-        // 'clients' e 'appointments' recebem escritas dos clientes ao mesmo tempo, então o painel
-        // NUNCA os regrava por inteiro (isso apagaria cadastros e agendamentos novos).
-        // Agendamentos, solicitações e clientes usam transações; o resto grava só os campos da empresa.
         const LIVE_KEYS = ['clients', 'appointments'];
         window.saveDB = function(keys) {
             const list = keys || Object.keys(window.t).filter(k => !LIVE_KEYS.includes(k));
@@ -696,7 +662,7 @@
             if (appDateTime < new Date()) return 'realizado';
             return 'agendado';
         };
-        // prazo do sinal vencido: o horário volta a ficar livre
+
         window.isDepositExpired = function(a) {
             if (!a || a.status !== 'pendente') return false;
             if (a.depositDeadline && new Date(a.depositDeadline) < new Date()) return true;
@@ -715,13 +681,12 @@
                 if (t.admin.exceptions[dateStr].type === 'folga') return false;
                 if (t.admin.exceptions[dateStr].type === 'plantao') return true;
             }
-            const [y, m, d] = dateStr.split('-'); 
-            const dayOfWeek = new Date(y, m - 1, d).getDay(); 
+            const [y, m, d] = dateStr.split('-');
+            const dayOfWeek = new Date(y, m - 1, d).getDay();
             const whSource = emp.workingHours || t.admin.workingHours;
             return whSource?.[dayOfWeek]?.active !== false;
         };
 
-        // ---------- AVISOS (modal para confirmações/erros, toast para sucessos simples) ----------
         window.showToast = function(message, title) {
             const c = document.getElementById('toast-container');
             const el = document.createElement('div');
@@ -756,22 +721,17 @@
         window.toggleDropdown = function(id) { document.querySelectorAll('.custom-dropdown-menu').forEach(el => { if(el.id !== id) el.classList.add('hidden'); }); document.getElementById(id).classList.toggle('hidden'); };
         window.toggleMobileMenu = function() { isSidebarOpenMobile = !isSidebarOpenMobile; render(); };
 
-        // fecha dropdowns ao clicar fora
         document.addEventListener('click', (e) => {
             if (e.target.closest('.custom-dropdown-menu') || e.target.closest('[onclick^="toggleDropdown"]')) return;
             document.querySelectorAll('.custom-dropdown-menu').forEach(m => m.classList.add('hidden'));
         });
-        
 
-
-        // quem vê valores (R$): administrador, ou profissional com "Dashboard completo" liberado no cadastro
         window.canSeeValues = function() {
             if (session.role === 'admin') return true;
             const me = (window.t && t.employees || []).find(e => e.id === session.id);
             return !!(me && me.canSeeDashboard);
         };
 
-        // foto de perfil do cliente (quando ele cadastrou uma)
         window.clientAvatarUrl = function(a) {
             const c = (t.clients || []).find(x => x.id === a.clientId);
             return (c && c.avatar) ? String(c.avatar) : '';
@@ -799,7 +759,7 @@
             document.getElementById('app').innerHTML = `
                 <div class="flex h-screen w-screen fade-in relative overflow-hidden">
                     ${overlayMobile}
-                    
+
                     <aside class="${sidebarClasses} border-r border-slate-200">
                         <div onclick="activeTab='dashboard'; render()" class="p-5 md:p-4 border-b border-slate-100 flex items-center space-x-3 bg-slate-50/50 w-full h-20 cursor-pointer hover:bg-slate-100/80 transition-colors shrink-0 overflow-hidden">
                             ${logoHtml}
@@ -858,19 +818,18 @@
         };
 
         window.__linkCliente = function() { return window.location.href.replace(/painel_do_profissional(\.html)?/, 'cliente').split('?')[0] + '?org=' + session.slug; };
-        window.copiarLinkCliente = function() { 
+        window.copiarLinkCliente = function() {
             const baseUrl = window.location.href.replace(/painel_do_profissional(\.html)?/, 'cliente').split('?')[0];
-            const link = baseUrl + '?org=' + session.slug; 
-            navigator.clipboard.writeText(link); 
-            showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success'); 
+            const link = baseUrl + '?org=' + session.slug;
+            navigator.clipboard.writeText(link);
+            showModal('Link Copiado!', 'Envie este link aos clientes:<br><br><div class="bg-slate-100 p-3 rounded-lg mt-2 break-all"><a href="'+link+'" target="_blank" class="text-indigo-600 font-semibold text-sm">'+link+'</a></div>', 'success');
         };
 
-        // ---------- CALENDÁRIO: arrastar com mouse / tocar no celular ----------
         function attachDragHandlers() {
             const msc = document.getElementById('cal-mob-sc');
             if (msc) { msc.scrollTop = window.__calMobTop != null ? window.__calMobTop : 2 * 56; msc.addEventListener('scroll', () => { window.__calMobTop = msc.scrollTop; }, { passive: true }); }
             const dayColumns = document.querySelectorAll('.calendar-day-column');
-            
+
             dayColumns.forEach(col => {
                 col.addEventListener('pointerdown', (e) => {
                     if (e.pointerType !== 'mouse' || col.dataset.px) return;
@@ -878,7 +837,7 @@
                     isDragging = true;
                     activeColumnEl = col;
                     dragDateStr = col.getAttribute('data-date');
-                    
+
                     const rect = col.getBoundingClientRect();
                     startY = e.clientY - rect.top;
                     currentY = startY;
@@ -895,7 +854,6 @@
                     }
                 });
 
-                // toque no celular: abre o modal no horário tocado (1h de duração)
                 col.addEventListener('click', (e) => {
                     if (e.pointerType !== 'touch' && e.pointerType !== 'pen' && !col.dataset.px) return;
                     if (e.target.closest('.appointment-postit')) return;
@@ -907,18 +865,17 @@
             });
         }
 
-        // registrado uma única vez (antes era recriado a cada render)
         document.addEventListener('pointerup', (e) => {
             if (e.pointerType !== 'mouse') return;
             if (isDragging && activeColumnEl) {
                 isDragging = false;
-                
+
                 const topY = Math.min(startY, currentY);
                 const bottomY = Math.max(startY, currentY);
-                
+
                 const startMinsTotal = Math.floor((topY / 51) * 60) + CAL_START_HOUR * 60;
                 let endMinsTotal = Math.floor((bottomY / 51) * 60) + CAL_START_HOUR * 60;
-                
+
                 if (endMinsTotal - startMinsTotal < 15) {
                     endMinsTotal = startMinsTotal + 30;
                 }
@@ -970,7 +927,7 @@
                 (t.employees || []).forEach(e => {
                     empSelect.innerHTML += `<option value="${e.id}">${esc(e.name)}</option>`;
                 });
-                // se a agenda está filtrada por um profissional, já vem selecionado
+
                 if (agendaFilterEmp !== 'all') empSelect.value = agendaFilterEmp;
             } else {
                 const userProfile = t.employees.find(e => e.id === session.id);
@@ -978,7 +935,6 @@
                 empSelect.disabled = true;
             }
 
-            // data local (toISOString usava UTC e, à noite no Brasil, sugeria o dia seguinte)
             document.getElementById('manual-date').value = defaultDate || localDateStr();
             document.getElementById('manual-start-time').value = defaultStart;
             document.getElementById('manual-end-time').value = defaultEnd;
@@ -1063,7 +1019,6 @@
             doSave();
         };
 
-        // ---------- AGENDA: escopo, resumo do dia e legenda por profissional ----------
         function agendaScope(role, user) {
             let apps = (t.appointments || []).filter(a => isBusyApp(a));
             if (role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
@@ -1084,17 +1039,12 @@
             return `<div class="flex flex-wrap gap-2 mb-4">${chip('all', 'Todos', '')}${people.map(p => chip(p.id, p.name, p.color)).join('')}</div>`;
         }
 
-        // ---------- PRÉ-VISUALIZAÇÃO DA TELA DO CLIENTE (réplica da tela de agendamento) ----------
-        // IMPORTANTE: a imagem (data URL) é colocada entre ASPAS SIMPLES porque este CSS vai dentro de style="...".
-        // Com aspas duplas o atributo quebrava e a imagem nunca aparecia.
         function bgLayerCss(o) {
             return `background-image:${o.url ? `url('${o.url}')` : 'none'}; background-repeat:no-repeat; background-size:cover; background-position:${o.x}% ${o.y}%; opacity:${o.op}; filter:blur(${o.blur}px); transform:scale(${o.zoom / 100}); transform-origin:${o.x}% ${o.y}%;`;
         }
 
-        // Tamanho "real" da tela do cliente que a pré-visualização simula
         const PV = { desktop: { w: 1280, h: 720 }, mobile: { w: 390, h: 844 } };
 
-        // guarda o tamanho original da imagem (necessário para o arraste acompanhar o dedo/mouse)
         let _dim = { url: null, w: 0, h: 0 };
         function ensureImgDims(url) {
             if (!url || _dim.url === url) return;
@@ -1194,7 +1144,6 @@
                 </div>` : `<p class="text-center text-[11px] font-bold text-slate-400 mt-3">Sem imagem de fundo — envie uma imagem para ajustar.</p>`}`;
         }
 
-        // reduz a tela "real" para caber no painel, e refaz o cálculo se o tamanho mudar
         let _pvObserver = null;
         function fitPreviews() {
             const frame = document.getElementById('preview-frame');
@@ -1210,7 +1159,6 @@
             if (window.ResizeObserver) { _pvObserver = new ResizeObserver(apply); _pvObserver.observe(frame); }
         }
 
-        // atualiza a pré-visualização e os sliders sem refazer a tela (para o arraste ficar fluido)
         function refreshPreviewDom() {
             const x = bgGet(bgK('PosX')) ?? 50, y = bgGet(bgK('PosY')) ?? 50, z = bgGet(bgK('Zoom')) ?? 100;
             const layer = document.getElementById('preview-bg-box');
@@ -1225,8 +1173,6 @@
             });
         }
 
-        // arrastar a imagem diretamente na pré-visualização (mouse ou toque)
-        // A imagem acompanha exatamente o mouse/dedo, mesmo com zoom.
         let bgDrag = null;
 
         function bgOverflow() {
@@ -1249,7 +1195,7 @@
             const ov = bgOverflow();
             bgDrag = {
                 sx: e.clientX, sy: e.clientY,
-                k: r.width / ov.W,                 // pixels da tela por pixel "real"
+                k: r.width / ov.W,
                 ex: ov.ex, ey: ov.ey,
                 px: bgGet(bgK('PosX')) ?? 50, py: bgGet(bgK('PosY')) ?? 50
             };
@@ -1268,7 +1214,6 @@
         window.addEventListener('pointerup', () => { bgDrag = null; });
         window.addEventListener('pointercancel', () => { bgDrag = null; });
 
-        // zoom direto na pré-visualização (roda do mouse e botões − / +)
         window.nudgeBgZoom = function(d) {
             const z = Math.max(100, Math.min(300, (bgGet(bgK('Zoom')) ?? 100) + d));
             draft[bgK('Zoom')] = z;
@@ -1280,13 +1225,6 @@
             nudgeBgZoom(e.deltaY < 0 ? 5 : -5);
         };
 
-        // ================= REGRAS DA ORGANIZAÇÃO =================
-        // Gravadas em t.rules (e t.cancelMinHours, que já existia). A tela do cliente deve ler estes campos:
-        //  rules.deposit        { enabled, all, procedureIds[], percent, pixKeyType, pixKey }
-        //  rules.openingWindow  { enabled, mode: weekly|monthly|yearly|always, amount }
-        //  rules.bookingFlow    { enabled, steps: ['date','professional','procedure','time'] na ordem escolhida }
-        //  rules.closeService   { enabled, askPayment } — exige fechar o atendimento (comanda) depois do horário
-        // Agendamento com sinal obrigatório deve ser criado com status 'pendente' (+ depositAmount, pixKeyType, pixKey).
         const PIX_TYPES = [
             ['cpf', 'CPF', '000.000.000-00'], ['cnpj', 'CNPJ', '00.000.000/0000-00'],
             ['email', 'E-mail', 'nome@email.com'], ['telefone', 'Telefone', '(00) 00000-0000'],
@@ -1328,14 +1266,12 @@
         }
         window.getRules = () => normalizeRules(t.rules);
 
-        // rascunho: as mudanças só são gravadas ao clicar em "Salvar Regras"
         function rd() {
             if (!window.rulesDraft) { window.rulesDraft = normalizeRules(t.rules); window.rulesDraft.hours = Number(t.cancelMinHours) || 0; }
             return window.rulesDraft;
         }
         window.rd = rd;
 
-        // aceita link do WhatsApp (wa.me, api.whatsapp.com...) ou só o número; devolve o link seguro ou null
         function waNormalize(v) {
             v = String(v || '').trim();
             if (!v) return '';
@@ -1420,7 +1356,6 @@
                     </div>`}
                 </div>`;
         }
-
 
         function depositBodyHtml(d) {
             const procs = t.procedures || [];
@@ -1544,7 +1479,6 @@
                 <button type="button" onclick="resetFlow()" class="text-xs font-bold text-slate-600 bg-white border px-3 py-2 rounded-xl hover:bg-slate-100">Restaurar ordem padrão</button>`;
         }
 
-        // cada regra é uma seção: clica no título para abrir/fechar; o botão ao lado liga/desliga a regra
         window.rulesOpen = window.rulesOpen || {};
         window.toggleRuleOpen = function(key) { rulesOpen[key] = !rulesOpen[key]; render(); };
         function ruleSection(key, icon, title, desc, on, handler, body) {
@@ -1602,7 +1536,6 @@
                 </div>`;
         }
 
-        // ---- agendamentos pendentes (aviso acima da agenda) ----
         function pendingList(role, user) {
             return agendaScope(role, user).filter(a => getEffectiveAppStatus(a) === 'pendente').sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
         }
@@ -1633,7 +1566,7 @@
                 </div>`;
         }
         function pendingBannerHtml(role, user) { return payAlertBannerHtml(role, user); }
-        // selo pulsante ao lado do título da agenda; ao clicar abre a lista de pendentes
+
         function pendingPillHtml(role, user) {
             window.__pendCtx = { role, user };
             const n = pendingList(role, user).length;
@@ -1680,7 +1613,6 @@
         window.closePendingList = function() { const el = document.getElementById('pending-modal'); if (el) el.remove(); };
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closePendingList(); });
 
-        // ---- arrastar as etapas (mouse e toque) ----
         let stepDrag = null;
         window.startStepDrag = function(e) {
             const item = e.currentTarget.closest('.flow-item'), list = document.getElementById('flow-list');
@@ -1740,7 +1672,7 @@
             if(activeTab === 'dashboard') {
                 return renderDashboardAnalytics(role, user);
             }
-            
+
             if(activeTab === 'horarios') {
                 const isAdm = role === 'admin';
                 const daysMap = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -1893,7 +1825,6 @@
                         ${tabs.map(([id, icon, label]) => `<button onclick="${id === 'dev' ? '' : 'devLock();'}profileTab='${id}'; render()" class="px-4 py-2.5 rounded-xl text-sm font-bold flex items-center transition-all ${profileTab === id ? 'bg-theme-secondary text-theme-primary' : 'text-slate-500 hover:text-slate-900'}"><i data-lucide="${icon}" class="w-4 h-4 mr-2"></i>${label}</button>`).join('')}
                     </div>`;
 
-                // OBS: o primeiro card tem "relative z-20" para o menu de temas ficar POR CIMA do card seguinte
                 const aparenciaHtml = `
                     <div class="relative z-20 bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm">
                         <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center"><i data-lucide="palette" class="w-5 h-5 mr-2 text-theme-primary"></i> Estilos e Tema da Organização</h3>
@@ -1914,7 +1845,6 @@
                         </div>
                     </div>
 
-                    <!-- IMAGENS DE FUNDO COM SELEÇÃO MOBILE / DESKTOP -->
                     <div class="relative z-10 bg-white/90 backdrop-blur-md p-6 rounded-3xl border shadow-sm space-y-6">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                             <div>
@@ -2154,7 +2084,7 @@
                     const s = stats[a.clientId] || (stats[a.clientId] = { total: 0, last: '' });
                     s.total++; if (a.date > s.last) s.last = a.date;
                 });
-                const lista = t.clients.map(semSenha).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));   // senha nunca chega à tela
+                const lista = t.clients.map(semSenha).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
                 return `
                 <div class="max-w-5xl mx-auto space-y-4 fade-in">
                     <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl border shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
@@ -2222,7 +2152,6 @@
             render();
         };
 
-        // ---------- FUNDO (rascunho até clicar em Salvar Fundo) ----------
         window.handleBgUpload = function(e) {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -2230,7 +2159,7 @@
                 draft[bgK('Image')] = ev.target.result;
                 if (bgGet(bgK('Opacity')) === undefined || bgGet(bgK('Opacity')) === null) draft[bgK('Opacity')] = 0.35;
                 if (bgGet(bgK('Blur')) === undefined || bgGet(bgK('Blur')) === null) draft[bgK('Blur')] = 0;
-                // imagem nova começa centralizada e sem zoom
+
                 draft[bgK('PosX')] = 50; draft[bgK('PosY')] = 50; draft[bgK('Zoom')] = 100;
                 render();
             };
@@ -2268,11 +2197,10 @@
             showModal('Salvo!', 'Plano de fundo atualizado.', 'success');
         };
 
-        // ---------- DASHBOARD ----------
         function renderDashboardAnalytics(role, user) {
             const meses = [{v:'01',n:'Janeiro'},{v:'02',n:'Fevereiro'},{v:'03',n:'Março'},{v:'04',n:'Abril'},{v:'05',n:'Maio'},{v:'06',n:'Junho'},{v:'07',n:'Julho'},{v:'08',n:'Agosto'},{v:'09',n:'Setembro'},{v:'10',n:'Outubro'},{v:'11',n:'Novembro'},{v:'12',n:'Dezembro'}];
             const isActive = (a) => isBusyApp(a);
-            
+
             let apps = t.appointments || [];
             if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
 
@@ -2296,7 +2224,6 @@
             const avgTicket = completedApps.length ? totalRevenue / completedApps.length : 0;
             const pctOf = (n) => filteredApps.length ? (n / filteredApps.length * 100) : 0;
 
-            // comparação com o mês anterior
             let pm = parseInt(dashboardFilterMonth) - 1, py = parseInt(dashboardFilterYear);
             if (pm === 0) { pm = 12; py--; }
             const pmStr = String(pm).padStart(2, '0');
@@ -2307,7 +2234,6 @@
                 ? `<p class="text-[11px] text-slate-400 mt-0.5">Sem dados no mês anterior</p>`
                 : `<p class="text-[11px] font-bold mt-0.5 ${delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)}% <span class="text-slate-400 font-medium">vs mês anterior (${brl(prevRevenue)})</span></p>`;
 
-            // por serviço (quantidade e faturamento estimado pelo preço atual)
             const procStats = {};
             t.procedures.forEach(p => { procStats[p.name] = 0; });
             completedApps.forEach(a => {
@@ -2318,7 +2244,6 @@
             const priceByName = {}; t.procedures.forEach(p => { priceByName[p.name] = p.price; });
             const procRows = Object.keys(procStats).map(n => ({ name: n, count: procStats[n], revenue: procStats[n] * (priceByName[n] || 0) })).sort((a, b) => b.count - a.count);
 
-            // por profissional
             const staffStats = {};
             if(role === 'admin') {
                 t.employees.forEach(e => {
@@ -2337,14 +2262,12 @@
                 });
             }
 
-            // faturamento por dia
             const [fy, fm] = [parseInt(dashboardFilterYear), parseInt(dashboardFilterMonth)];
             const daysInMonth = new Date(fy, fm, 0).getDate();
             const revByDay = Array(daysInMonth).fill(0);
             completedApps.forEach(a => { const d = parseInt(a.date.split('-')[2]); if (d >= 1 && d <= daysInMonth) revByDay[d - 1] += (a.totalPrice || 0); });
             const maxDay = Math.max(1, ...revByDay);
 
-            // horários e dias de pico (todos os agendamentos ativos do mês)
             const activeMonth = filteredApps.filter(isActive);
             const byHour = {}; const byWeekday = Array(7).fill(0);
             activeMonth.forEach(a => {
@@ -2356,7 +2279,6 @@
             const maxWd = Math.max(1, ...byWeekday);
             const wdNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-            // clientes novos x recorrentes
             const keyOf = (a) => (a.clientId && !String(a.clientId).startsWith('manual-cli-')) ? a.clientId : (a.clientName || '').toLowerCase();
             const monthStart = `${dashboardFilterYear}-${dashboardFilterMonth}-01`;
             const before = new Set(apps.filter(a => isActive(a) && a.date < monthStart).map(keyOf));
@@ -2434,7 +2356,7 @@
                                 const st = getEffectiveAppStatus(a);
                                 const emp = a.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e=>e.id===a.employeeId);
                                 const empName = emp ? emp.name : 'Profissional';
-                                
+
                                 let statusBadge = `<span class="bg-theme-secondary text-theme-primary border text-[10px] font-bold px-2.5 py-1 rounded-full">Agendado</span>`;
                                 if (st === 'realizado') statusBadge = `<span class="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Concluído</span>`;
                                 else if (st === 'expirado') statusBadge = `<span class="bg-slate-100 text-slate-600 border-slate-300 border text-[10px] font-bold px-2.5 py-1 rounded-full">Sinal expirado</span>`;
@@ -2639,7 +2561,6 @@
                 </div>`;
             };
 
-        // ---------- Lista no celular: faixa de dias + seletor de mês, ocupando a tela toda ----------
         window.listMobYM = null; window.listSelDay = null; window.listPickerOpen = false; window.listPickerYear = null;
         window.listPickDay = function(d) { listSelDay = d; listPickerOpen = false; render(); };
         window.listShiftMonth = function(n) {
@@ -2724,8 +2645,6 @@
                 </div>`;
         }
 
-
-        // ---------- Lista no PC: kanban da semana (domingo a sábado), ocupando a tela ----------
         window.listCardCompact = function(a) {
             const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
             const empName = emp ? emp.name : 'Profissional';
@@ -2864,8 +2783,7 @@
                 return ds === todayStr ? `Hoje · ${base}` : (ds === tomorrowStr ? `Amanhã · ${base}` : base);
             };
 
-            // agrupa por dia
-            const groups = []; 
+            const groups = [];
             apps.forEach(a => {
                 let g = groups[groups.length - 1];
                 if (!g || g.date !== a.date) { g = { date: a.date, items: [] }; groups.push(g); }
@@ -2906,7 +2824,7 @@
             currentWeekOffset = Math.floor((tgt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 7)); render();
         };
         window.calPickerOpen = false; window.calPickerYear = null;
-        // Calendário no celular (até 768px): faixa dos 7 dias + agenda de um dia por vez. No PC nada muda.
+
         window.calSelDay = null; window.__calMob = window.innerWidth <= 768; window.__calMobTop = null;
         window.calPickDay = function(d) { calSelDay = d; calPickerOpen = false; render(); };
         window.calShiftWeek = function(n) {
@@ -2935,7 +2853,6 @@
                 const aDate = new Date(a.date + 'T00:00:00'); return aDate >= weekDays[0] && aDate <= weekDays[6];
             });
 
-            // perfil usado para marcar "Folga" no cabeçalho (respeita o filtro de profissional)
             const filteredProfile = (role === 'admin' && agendaFilterEmp !== 'all') ? [t.admin, ...t.employees].find(p => p.id === agendaFilterEmp) : null;
             const currentProfile = role === 'admin' ? (filteredProfile || t.admin) : user;
             const pickerYear = calPickerYear !== null ? calPickerYear : viewYear;
@@ -2951,7 +2868,7 @@
                     </div>
                 </div>` : '';
             const appsByDayAndSlot = {};
-            
+
             weekApps.forEach(a => {
                 const aDate = new Date(a.date + 'T00:00:00'); const dayIdx = aDate.getDay();
                 const [h, m] = a.time.split(':').map(Number);
@@ -2983,7 +2900,7 @@
                     }
 
                     postitsHtmlByDay[dayIdx].push(`
-                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${esc(a.proceduresNames.join(', '))}" class="appointment-postit ${a.status === 'pendente' ? 'pending' : ''}${postClass(a)}" 
+                        <div onclick="showAppDetails('${a.id}')" title="${postitTitle} — ${esc(a.proceduresNames.join(', '))}" class="appointment-postit ${a.status === 'pendente' ? 'pending' : ''}${postClass(a)}"
                              style="top: ${topPixels}px; height: ${heightPixels}px; width: ${styleWidth} !important; left: ${styleLeft}; background-color: ${empColor};">
                             <p class="font-bold truncate text-[10px] text-white flex items-center gap-1">${clientAvatarUrl(a) ? clientAvatarImg(a, 'w-4 h-4 !border') : ''}<span class="truncate">${postitTitle}</span></p>${a.status === 'pendente' ? '<span class="pending-chip">PENDENTE</span>' : postChip(a)}
                         </div>
@@ -2991,12 +2908,10 @@
                 });
             });
 
-            // linha vermelha do horário atual
             const nowD = new Date(); const nowM = nowD.getHours() * 60 + nowD.getMinutes();
             const todayStrNow = localDateStr(nowD);
             const nowInRange = nowM >= CAL_START_HOUR * 60 && nowM <= (CAL_END_HOUR + 1) * 60;
 
-            // ---- corpo do calendário no celular ----
             const isMobCal = window.innerWidth <= 768;
             let mobBody = '';
             if (isMobCal) {
@@ -3055,7 +2970,7 @@
                                 const dayCount = `<div class="hidden md:flex justify-center h-[22px] mb-1">${dayApps.length ? `<span class="day-count${dayPend ? ' has-pending' : ''}" title="${dayTitle}">${dayPend ? '<i class="day-count-dot"></i>' : ''}${dayApps.length}</span>` : ''}</div>`;
                                 return `<div class="calendar-header-cell border-b border-r sticky top-0 ${isWorking?'':'bg-slate-200/50'} z-20">${dayCount}<p class="text-xs text-slate-500 uppercase font-bold">${d.toLocaleDateString('pt-BR', {weekday:'short'})}</p><p class="text-xl font-bold ${dateStr === todayStrNow ? 'text-theme-primary' : 'text-slate-800'}">${d.getDate()}</p>${!isWorking ? `<span class="text-[9px] bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded uppercase">Folga</span>` : ''}</div>`;
                             }).join('')}
-                            
+
                             <div class="flex flex-col border-r bg-slate-50">
                                 ${hours.map(h => `<div class="calendar-time-col h-[51px] border-b pt-1">${h}</div>`).join('')}
                             </div>
@@ -3121,7 +3036,7 @@
                     ${canSeeValues() ? `<div class="flex items-center space-x-3 pt-3 border-t"><div class="bg-emerald-100 p-2 rounded-lg text-emerald-600"><i data-lucide="wallet" class="w-5 h-5"></i></div><span class="font-bold text-emerald-600 text-lg">R$ ${app.totalPrice.toFixed(2)}</span></div>` : ''}
                     ${depSummary}
                     ${closeInfoHtml(app)}
-                    
+
                     <div class="pt-4 border-t flex flex-col sm:flex-row gap-2">
                         <button onclick="confirmAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">${app.status === 'pendente' ? 'Recusar / Cancelar' : 'Cancelar Agendamento'}</button>
                         <button onclick="confirmAppStatus('${app.id}', 'nao_compareceu')" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-100 transition-colors">Não Compareceu</button>
@@ -3144,7 +3059,6 @@
                 .catch(() => showModal('Erro de conexão', 'Não foi possível atualizar o agendamento. Tente novamente.', 'error'));
         };
 
-        // ---------- REGRAS: ações ----------
         window.toggleRule = function(section) { const d = rd(); d[section].enabled = !d[section].enabled; if (d[section].enabled) rulesOpen[section] = true; render(); };
         window.toggleDepAll = function() {
             const dep = rd().deposit;
@@ -3166,7 +3080,7 @@
             const dep = rd().deposit;
             dep[key] = key === 'percent' ? val : (key === 'pixKey' ? val : val);
             if (rerender) { render(); return; }
-            // atualiza só os valores na tela (sem perder o foco do campo)
+
             const pct = Number(dep.percent) || 0;
             document.querySelectorAll('[data-dep-price]').forEach(el => { el.textContent = brl(depAmount(el.dataset.depPrice, pct)); });
             const sample = document.getElementById('dep-sample');
@@ -3249,7 +3163,6 @@
             if (ok) showModal('Sucesso', 'Regras atualizadas!', 'success');
         };
 
-        // ---------- PAGAMENTO AUTOMÁTICO (Mercado Pago): conectar / trocar / desconectar ----------
         async function mpConfirmLogin(passId) {
             const u = auth.currentUser;
             if (!u) throw new Error('Sessão expirada. Entre novamente.');
@@ -3262,12 +3175,10 @@
                 try { await reauthenticateWithPopup(u, new GoogleAuthProvider()); }
                 catch (_) { throw new Error('Não foi possível confirmar o login com o Google. Tente de novo.'); }
             }
-            await u.getIdToken(true);   // o servidor confere que a senha foi digitada agora há pouco
+            await u.getIdToken(true);
         }
         function mpCall(name, data) { return httpsCallable(getFunctions(getApp()), name)(Object.assign({ slug: session.slug }, data || {})); }
 
-        // ---------- NOTIFICAÇÕES (push) ----------
-        // Chave pública VAPID: Firebase > Configurações do projeto > Cloud Messaging > Certificados push da Web > Gerar par de chaves
         const VAPID_KEY = 'COLE_AQUI_A_CHAVE_VAPID';
         window.pushSupported = () => 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
         window.enablePush = async function (manual) {
@@ -3285,7 +3196,7 @@
             } catch (e) { console.warn('push:', e); if (manual) alert('Não foi possível ativar as notificações: ' + (e && e.message || e)); }
         };
         window.notifBannerHtml = function () {
-            if (!pushSupported() || VAPID_KEY.startsWith('COLE')) return '';   // só aparece depois de configurar a chave VAPID
+            if (!pushSupported() || VAPID_KEY.startsWith('COLE')) return '';
             if (Notification.permission === 'granted') { if (!window.__pushAuto) { window.__pushAuto = 1; setTimeout(() => enablePush(false), 800); } return ''; }
             if (Notification.permission === 'denied') return '';
             return `<div class="mb-4 p-4 rounded-2xl border flex items-center justify-between gap-3" style="background:var(--theme-secondary)"><p class="text-sm font-semibold" style="color:var(--theme-text-primary)">🔔 Ative as notificações para saber de novos agendamentos e ser avisado 10 min antes de cada atendimento.</p><button onclick="enablePush(true)" class="btn-theme-primary px-4 py-2.5 rounded-xl text-sm font-bold shrink-0">Ativar</button></div>`;
@@ -3322,9 +3233,6 @@
             });
         };
 
-
-
-        // ================= PORTAL DO DESENVOLVEDOR (só administrador, com senha) =================
         window.devUnlockedAt = 0;
         window.devOpen = window.devOpen || { mp: false, wh: true };
         window.whDraft = null;
@@ -3340,7 +3248,6 @@
             finally { window.mpBusy = false; }
         };
 
-        // ações que disparam um webhook
         const WH_EVENTS = [
             ['pix_gerado', 'Pix gerado (cliente precisa pagar o sinal)'],
             ['agendamento_criado', 'Novo agendamento criado'],
@@ -3348,7 +3255,7 @@
             ['agendamento_cancelado', 'Agendamento cancelado'],
             ['agendamento_realizado', 'Atendimento realizado']
         ];
-        // variáveis que podem ser usadas nas mensagens: {nome}, {data}...
+
         const WH_VARS = [
             ['nome', 'Nome completo do cliente', 'Maria Souza'],
             ['primeiro_nome', 'Primeiro nome do cliente', 'Maria'],
@@ -3402,7 +3309,6 @@
         };
         window.whCancel = function () { window.whDraft = null; render(); };
 
-        // chamadas ao servidor (sempre exigem login recente)
         async function whCall(name, data) {
             if (!devUnlocked()) { render(); throw new Error('Digite a senha do administrador de novo.'); }
             try { return await mpCall(name, data); }
@@ -3539,7 +3445,6 @@
             </div>`;
         };
 
-        // ---------- AGENDAMENTO PENDENTE: confirmar sinal ----------
         window.confirmPendingApp = function(appId) {
             const _a = (t.appointments || []).find(x => x.id === appId);
             const _extra = { depositPaidAt: new Date().toISOString() };
@@ -3549,9 +3454,6 @@
                 .catch(() => showModal('Erro de conexão', 'Não foi possível confirmar o agendamento. Tente novamente.', 'error'));
         };
 
-        // ---------- ORGANIZAÇÃO / PERFIL / PROFISSIONAIS ----------
-        // ===== Página da empresa + catálogo (aparecem na área do cliente) =====
-        // Reduz a foto antes de guardar: o banco carrega tudo de uma vez, então fotos pesadas deixariam o app lento.
         window.compressImage = function(file, maxDim, quality) {
             return new Promise((resolve, reject) => {
                 const fr = new FileReader();
@@ -3599,7 +3501,7 @@
             ['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto', 'companyLat', 'companyLng'].forEach(k => delete draft[k]);
             saveDB(['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto', 'companyLat', 'companyLng']).then(ok => { if (ok) showModal('Sucesso', 'Página da empresa atualizada! Já aparece para os clientes.', 'success'); });
         };
-        // ----- mapa com pino (Leaflet + OpenStreetMap, sem chave de API) -----
+
         window._coMap = null; window._coMarker = null;
         function coLoadLeaflet(cb) {
             if (window.L) return cb();
@@ -3626,7 +3528,7 @@
             if (fly) window._coMap.setView([lat, lng], Math.max(window._coMap.getZoom(), 18));
             if (!noReverse) coReverse(lat, lng);
         }
-        // endereço do ponto marcado (geocodificação reversa) + botão para usar no campo de endereço
+
         let _coRevT = null;
         function coReverse(lat, lng) {
             clearTimeout(_coRevT);
@@ -3679,7 +3581,7 @@
                 setTimeout(() => { if (window._coMap) window._coMap.invalidateSize(); }, 200);
             });
         };
-        // ---- busca de endereço com lista de sugestões (Brasil) ----
+
         window._coResults = []; let _coTypeT = null, _coSeq = 0;
         window.coAddrType = function(v) {
             clearTimeout(_coTypeT);
@@ -3693,13 +3595,13 @@
             const seq = ++_coSeq;
             box.classList.remove('hidden'); box.innerHTML = '<p class="p-3 text-xs text-slate-400">Buscando...</p>';
             const base = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=br&accept-language=pt-BR&dedupe=1';
-            // dá preferência (sem restringir) à região em que o mapa/pino já está
+
             let bias = '';
             if (window._coMap) { const b = window._coMap.getBounds(); const z = window._coMap.getZoom(); if (z >= 11) bias = '&viewbox=' + [b.getWest(), b.getNorth(), b.getEast(), b.getSouth()].join(','); }
             const tryQ = async (text, extra) => { const r = await fetch(base + (extra || '') + '&q=' + encodeURIComponent(text)); return r.json(); };
             try {
                 let j = await tryQ(q, bias);
-                if (!j.length && /\d/.test(q)) {           // número não existe no mapa: busca só a rua
+                if (!j.length && /\d/.test(q)) {
                     const semNum = q.replace(/[,\s-]*\b\d{1,5}\b/, '').trim();
                     if (semNum) { j = await tryQ(semNum, bias); j.forEach(x => x._semNumero = true); }
                 }
@@ -3773,7 +3675,6 @@
             showModal('Sucesso', 'Organização atualizada!', 'success');
         };
 
-        // só pré-visualiza; grava ao clicar em Salvar
         window.handleImageUpload = function(e, type) {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -3811,7 +3712,7 @@
             if (window.__isOwner) {
                 ok = await saveDB(['admin', 'employees']);
             } else {
-                // profissional grava SOMENTE o próprio registro (não reescreve a lista inteira de profissionais)
+
                 const idx = t.employees.findIndex(e => e.id === user.id);
                 const fields = { name: user.name, email: user.email, avatar: user.avatar || '' };
                 if (novoHash) fields.password = novoHash;
@@ -3851,7 +3752,7 @@
                 const emp = t.employees.find(x => x.id === editEmployeeId);
                 emp.name = name; emp.email = email; emp.phone = phoneRaw; emp.procedures = checks; emp.isAdmin = (document.getElementById('e-role') || {}).value === 'admin'; emp.role = emp.isAdmin ? 'admin' : 'employee'; emp.canSeeDashboard = (document.getElementById('e-dash') || {}).value === 'yes';
                 if (senhaHash) emp.password = senhaHash;
-                // horário de trabalho do profissional
+
                 if (document.getElementById('ewh-cb-0')) {
                     const wh = {};
                     for (let i = 0; i < 7; i++) {
@@ -3871,8 +3772,6 @@
             saveDB(['employees']);
         };
 
-
-        // ---------- EXCLUIR PROFISSIONAL ----------
         window.deleteEmployee = function(id) {
             if (session.role !== 'admin') return showModal('Atenção', 'Só o administrador pode excluir profissionais.', 'error');
             const emp = (t.employees || []).find(x => x.id === id);
@@ -3892,8 +3791,6 @@
             });
         };
 
-        // ---------- GESTÃO DE CLIENTES ----------
-        // 'clients' recebe escrita dos clientes ao mesmo tempo, então só por transação
         window.toggleBlockClient = function(id) {
             runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
                 if (!cur) return;
@@ -3937,9 +3834,8 @@
             }).catch(() => showModal('Erro de conexão', 'Não foi possível salvar o cliente.', 'error'));
         };
 
-        // ---------- SERVIÇOS ----------
-        window.saveProcedure = function(e) { 
-            e.preventDefault(); 
+        window.saveProcedure = function(e) {
+            e.preventDefault();
             const name = document.getElementById('p-name').value;
             const duration = parseInt(document.getElementById('p-time').value);
             const price = parseFloat(document.getElementById('p-price').value);
@@ -3972,9 +3868,8 @@
             });
         };
 
-        // ================= FECHAR ATENDIMENTO + PRODUTOS =================
         window.closeRuleOn = function() { return !!(window.t && t.rules && t.rules.closeService && t.rules.closeService.enabled === true); };
-        // future = ainda vai acontecer | past = já passou | toclose = passou e precisa fechar (regra ligada) | closed = fechado
+
         window.appPhase = function(a) {
             if (a.closed) return 'closed';
             const end = new Date(a.date + 'T' + a.time).getTime() + (Number(a.totalDuration) || 0) * 60000;
@@ -4001,7 +3896,6 @@
             return `<span class="inline-flex items-center font-bold ${cls}" style="background:rgba(148,163,184,.25); color:#e2e8f0">Passou</span>`;
         };
 
-        // selo pulsante (mesmo estilo do de "pendentes de sinal") + lista dos atendimentos para fechar
         window.toCloseList = function(role, user) {
             if (!closeRuleOn()) return [];
             return agendaScope(role, user).filter(a => appPhase(a) === 'toclose').sort((x, y) => (y.date + y.time).localeCompare(x.date + x.time));
@@ -4045,7 +3939,6 @@
         window.closeCloseList = function() { const el = document.getElementById('closelist-modal'); if (el) el.remove(); };
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCloseList(); });
 
-        // bloco dentro dos "Detalhes do Agendamento"
         window.closeInfoHtml = function(app) {
             const cl = app.closed;
             if (cl) {
@@ -4066,7 +3959,6 @@
             return `<button onclick="openCloseModal('${app.id}')" class="w-full btn-theme-primary font-bold py-3 rounded-xl text-sm flex items-center justify-center"><i data-lucide="clipboard-check" class="w-4 h-4 mr-2"></i>Fechar atendimento</button>`;
         };
 
-        // ---------- PRODUTOS (venda e consumo) ----------
         window.editProductId = null; window.productFilter = 'all'; window.prodDraft = null;
         function stashProd() {
             const g = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
@@ -4150,7 +4042,7 @@
                 const p = t.products.find(x => x.id === editProductId);
                 if (p) {
                     p.name = name; p.price = price;
-                    if (p.type !== typ && typ !== 'consumo') {   // deixou de ser consumo: tira dos serviços
+                    if (p.type !== typ && typ !== 'consumo') {
                         (t.procedures || []).forEach(pr => { pr.consumableIds = toList(pr.consumableIds).filter(i => String(i) !== String(p.id)); });
                         keys.push('procedures');
                     }
@@ -4169,7 +4061,7 @@
                 saveDB(['products', 'procedures']);
             });
         };
-        // consumíveis dentro do cadastro de serviço
+
         window.toggleProcCons = function(id) {
             stashProcInputs();
             const proc = editProcedureId ? t.procedures.find(p => p.id === editProcedureId) : null;
@@ -4178,14 +4070,12 @@
             render();
         };
 
-        // ---------- JANELA "FECHAR ATENDIMENTO" (comanda) ----------
         const PAY_METHODS = ['Dinheiro', 'Pix', 'Cartão de crédito', 'Cartão de débito', 'Transferência', 'Outro'];
         window.__cm = null;
         function nextCloseNumber() { return Math.max(0, ...(t.appointments || []).map(a => (a.closed && Number(a.closed.number)) || 0)) + 1; }
         window.closeCloseModal = function() { const el = document.getElementById('close-modal'); if (el) el.remove(); window.__cm = null; };
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCloseModal(); });
 
-        // liga/desliga sozinho os consumíveis dos serviços marcados
         function cmSyncAuto() {
             const cm = __cm, need = new Set();
             (t.procedures || []).filter(p => cm.svcIds.has(p.id)).forEach(p => toList(p.consumableIds).forEach(i => need.add(String(i))));
@@ -4371,7 +4261,7 @@
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 </script>
 <script>
-/* modo noturno/claro: lua (vai para o escuro) e sol (volta para o claro). O botão fica no topo do painel; a escolha fica salva neste aparelho */
+
 (function () {
     var H = document.documentElement;
     var A = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
