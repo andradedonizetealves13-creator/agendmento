@@ -10,13 +10,13 @@
                 :root { --a1:#f0b90b; --a2:#d97706; --a3:#b45309; }
         body { font-family: 'Inter', sans-serif; background-color: #07070a; position: relative; }
         html { background:#07070a; overflow-x:hidden; }
-        /* altura = área visível real (dvh acompanha a barra do navegador no celular): só rola se o conteúdo passar da tela */
+
         body.min-h-screen { min-height:100vh; min-height:100dvh; }
         body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
             background:
               radial-gradient(60% 50% at 80% 10%, color-mix(in srgb, var(--a2) 38%, transparent), transparent 70%),
               radial-gradient(50% 45% at 10% 95%, color-mix(in srgb, var(--a3) 28%, transparent), transparent 70%); }
-        /* cartão de vidro escuro */
+
         #app-container { z-index:1; color:#e4e4e7; background:rgba(255,255,255,.06); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
             border:1px solid rgba(255,255,255,.12);
             box-shadow:0 30px 90px -25px color-mix(in srgb, var(--a2) 45%, transparent), 0 10px 30px rgba(0,0,0,.5); }
@@ -117,7 +117,7 @@
     </div>
 
     <script type="module">
-        // Remove .html da barra de endereço
+
         if (window.location.pathname.endsWith('.html')) {
             window.history.replaceState(null, '', window.location.pathname.replace(/\.html$/, '') + window.location.search);
         }
@@ -125,18 +125,18 @@
         import { sendPasswordResetEmail, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
-        import { 
-            auth, 
-            googleProvider, 
-            rtdb, 
-            signInWithEmailAndPassword, 
-            createUserWithEmailAndPassword, 
-            signInWithPopup, 
-            signOut, 
-            ref, 
-            get, 
-            set, 
-            update 
+        import {
+            auth,
+            googleProvider,
+            rtdb,
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            signInWithPopup,
+            signOut,
+            ref,
+            get,
+            set,
+            update
         } from './firebase-config.js';
 
         const TENANTS = 'agendapro_saas/tenants';
@@ -179,7 +179,6 @@
         tabLogin.onclick = () => setMode('login');
         tabReg.onclick = () => setMode('register');
 
-        // Recuperar senha (administrador e profissionais usam este mesmo acesso)
         document.getElementById('btn-forgot').onclick = async () => {
             errorMsg.classList.add('hidden');
             const email = document.getElementById('inp-email').value.trim();
@@ -194,7 +193,6 @@
             errorMsg.textContent = 'Se existir uma conta com este e-mail, enviamos um link para criar uma nova senha. Olhe também o spam.';
         };
 
-        // Pede à Cloud Function para conferir o cadastro no servidor e gravar o papel no login (custom claims).
         async function syncRole(slug) {
             const r = await httpsCallable(getFunctions(getApp()), 'syncRole')(slug ? { slug } : {});
             await auth.currentUser.getIdToken(true);
@@ -205,8 +203,6 @@
             return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
         }
 
-        // Autenticação com Google
-        // Form Submit (E-mail e Senha)
         document.getElementById('auth-form').onsubmit = async (e) => {
             e.preventDefault();
             errorMsg.classList.add('hidden');
@@ -249,13 +245,12 @@
                     const user = userCred.user;
 
                     let found = null;
-                    // 1) caminho seguro: o servidor descobre a organização e grava o papel no login
+
                     try {
                         const r = await syncRole();
                         if (r && r.slug && (r.role === 'admin' || r.role === 'employee')) found = { slug: r.slug, id: r.id, role: r.role };
                     } catch (e) { console.warn('syncRole indisponível, usando busca antiga:', e && e.message); }
 
-                    // 2) alternativa (enquanto a Cloud Function não estiver publicada): busca no banco como antes
                     let tenants = {};
                     if (!found) { try { tenants = (await get(ref(rtdb, TENANTS))).val() || {}; } catch (e) { tenants = {}; } }
 
@@ -289,7 +284,7 @@
                 btnSubmit.disabled = false;
             }
         };
-        // ===== Cadastro em etapas: Conta -> Plano -> Pagamento =====
+
         const qs = new URLSearchParams(location.search);
         const PLANOS = {
             individual: { n: 'Individual', c: '1 profissional (solo)', max: 1, m: 39.90, a: 399.00, am: 33, cp: '39,90' },
@@ -303,7 +298,6 @@
         const brl = n => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const fld = (id, label, type = 'text', extra = '') => `<div><label class="block text-xs font-semibold mb-1 text-slate-700">${label}</label><input id="${id}" type="${type}" ${extra} class="${IN}"></div>`;
 
-        // CPF e CNPJ: máscara no mesmo campo (até 11 números = CPF, acima disso = CNPJ) e validação pelos dígitos verificadores
         function maskDoc(v) { v = v.replace(/\D/g, '').slice(0, 14); const cpf = v.length <= 11, p = cpf ? [3, 3, 3, 2] : [2, 3, 3, 4, 2], s = cpf ? ['.', '.', '-'] : ['.', '.', '/', '-']; let o = '', i = 0; p.forEach((n, k) => { const x = v.slice(i, i + n); if (!x) return; o += (k ? s[k - 1] : '') + x; i += n; }); return o; }
         function cpfOk(c) { if (c.length !== 11 || /^(\d)\1+$/.test(c)) return false; for (let t = 9; t < 11; t++) { let s = 0; for (let i = 0; i < t; i++) s += c[i] * (t + 1 - i); if ((s * 10) % 11 % 10 != c[t]) return false; } return true; }
         function cnpjOk(c) { if (c.length !== 14 || /^(\d)\1+$/.test(c)) return false; for (let t = 12; t < 14; t++) { let s = 0, w = t - 7; for (let i = 0; i < t; i++) { s += c[i] * w--; if (w < 2) w = 9; } if ((s % 11 < 2 ? 0 : 11 - s % 11) != c[t]) return false; } return true; }
@@ -364,7 +358,7 @@
                 if (new Date(d.getFullYear() + 18, d.getMonth(), d.getDate()) > hoje) falha('w-nasc', 'Para criar a conta é preciso ter 18 anos ou mais.');
                 if (pass.length < 6) falha('w-pass', 'A senha é muito curta. Use pelo menos 6 caracteres.');
                 if (pass !== $('w-pass2').value) falha('w-pass2', 'As senhas digitadas não são iguais.');
-                // Nada é gravado agora: só confere se o nome da empresa está livre. A conta é criada no final, se tudo der certo.
+
                 if ((await get(ref(rtdb, `${TENANTS}/${slug}`))).exists()) falha('w-empresa', 'Já existe uma empresa com este nome. Escolha outro nome.');
                 W.dados = { empresa, nome, email, pass, doc, nasc, slug }; W.slug = slug;
                 renderPlanos(); mostrar(2);
@@ -410,8 +404,6 @@
             };
         }
 
-
-        // Cria tudo de uma vez só no final. Se qualquer parte falhar, nada fica gravado (a conta recém-criada é apagada).
         async function finalizar(end) {
             const D = W.dados, p = PLANOS[W.plano], form = $('w-end');
             if (!D) { mostrar(1); return showError('Preencha seus dados para continuar.'); }
@@ -430,7 +422,7 @@
                     criadoEm: Date.now()
                 };
                 if (end) bill.endereco = end;
-                // gravação única e atômica: empresa + dados de cobrança, ou nada
+
                 await update(ref(rtdb, 'agendapro_saas'), {
                     ['tenants/' + D.slug]: { name: D.empresa, admin: { id: u.uid, name: D.nome, email: D.email } },
                     ['billing/' + D.slug]: bill
@@ -447,7 +439,6 @@
             }
         }
 
-        // Quem já tem organização vai direto ao painel; quem é novo completa o cadastro.
         async function acharOrg(user) {
             try { const r = await syncRole(); if (r && r.slug && (r.role === 'admin' || r.role === 'employee')) return { slug: r.slug, id: r.id, role: r.role }; } catch (e) { }
             let t = {}; try { t = (await get(ref(rtdb, TENANTS))).val() || {}; } catch (e) { }
@@ -460,7 +451,6 @@
             }
             return null;
         }
-        // ===== Login com Google (Firebase Authentication) =====
 
         function erroSocial(err, nome) {
             const c = (err && err.code) || '';
@@ -480,7 +470,7 @@
                 W.user = user; setMode('register');
                 $('w-nome').value = user.displayName || '';
                 $('w-email').value = user.email || '';
-                // se o provedor não devolver o e-mail, a pessoa digita
+
                 $('w-email').readOnly = !!user.email;
                 errorMsg.className = 'mb-4 p-3 bg-emerald-50 text-emerald-700 text-sm rounded-lg border border-emerald-100 text-center font-medium';
                 errorMsg.textContent = 'Conectado com ' + nome + '. Complete os dados abaixo' + (user.email ? '' : ' (informe também o seu e-mail)') + ' e crie uma senha para também poder entrar com e-mail e senha.';
