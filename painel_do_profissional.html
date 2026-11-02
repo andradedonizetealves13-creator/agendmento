@@ -481,49 +481,6 @@
         window.agendaFilterEmp = 'all';
 
         window.draft = {};
-
-        window.CO_SOCIALS = [
-            { id: 'instagram', label: 'Instagram', ph: 'instagram.com/seuperfil  ou  @seuperfil' },
-            { id: 'facebook', label: 'Facebook', ph: 'facebook.com/suapagina' },
-            { id: 'x', label: 'X (antigo Twitter)', ph: 'x.com/seuperfil  ou  @seuperfil' }
-        ];
-        window.CO_PAYS = [
-            { id: 'pix', label: 'Pix', pix: true },
-            { id: 'dinheiro', label: 'Dinheiro', icon: 'banknote' },
-            { id: 'credito', label: 'Cartão de crédito', icon: 'credit-card' },
-            { id: 'debito', label: 'Cartão de débito', icon: 'wallet' },
-            { id: 'transferencia', label: 'Transferência', icon: 'landmark' },
-            { id: 'boleto', label: 'Boleto', icon: 'barcode' },
-            { id: 'vale', label: 'Vale / Voucher', icon: 'ticket' }
-        ];
-        window.CO_SVG = {
-            instagram: '<svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>',
-            facebook: '<svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>',
-            x: '<svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
-            pix: '<svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2.5 21.5 12 12 21.5 2.5 12z"/><path d="M8.5 12 12 8.5 15.5 12 12 15.5z" fill="currentColor"/></svg>'
-        };
-        window.coArr = function (v) { return Array.isArray(v) ? v.filter(Boolean) : (v && typeof v === 'object' ? Object.values(v).filter(Boolean) : []); };
-        window.coPhotosNow = function () {
-            if ('companyPhotos' in draft) return draft.companyPhotos;
-            const a = coArr(window.t.companyPhotos);
-            return a.length ? a : (window.t.companyPhoto ? [window.t.companyPhoto] : []);
-        };
-        window.coSocNow = function () {
-            if (draft.companySocials) return draft.companySocials;
-            const o = {}; CO_SOCIALS.forEach(x => { o[x.id] = { on: false, url: '' }; });
-            coArr(window.t.companySocials).forEach(x => { if (x && o[x.type]) o[x.type] = { on: true, url: x.url || '' }; });
-            return o;
-        };
-        window.coPayNow = function () { return draft.companyPayments ? draft.companyPayments : coArr(window.t.companyPayments); };
-        window.coNormSocial = function (type, v) {
-            v = String(v || '').trim(); if (!v) return '';
-            const base = { instagram: 'https://instagram.com/', facebook: 'https://facebook.com/', x: 'https://x.com/' }[type];
-            let u;
-            if (/^https?:\/\//i.test(v)) u = v;
-            else if (/^(www\.)?(instagram\.com|facebook\.com|fb\.com|m\.facebook\.com|x\.com|twitter\.com)\b/i.test(v)) u = 'https://' + v;
-            else u = base + v.replace(/^@/, '').replace(/^\/+/, '');
-            try { const o = new URL(u); return (o.protocol === 'https:' || o.protocol === 'http:') ? o.href : ''; } catch (_) { return ''; }
-        };
         window.procDraft = null;
 
         const BG_KEYS = ['bgCustomImage','bgCustomOpacity','bgCustomBlur','bgCustomPosX','bgCustomPosY','bgCustomZoom',
@@ -1978,8 +1935,11 @@
                     </div>`;
 
                 const linkClienteHtml = `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl"><h3 class="font-bold text-lg mb-1 flex items-center"><i data-lucide="external-link" class="w-5 h-5 mr-2 text-theme-primary"></i> Link de Agendamento do Cliente</h3><p class="text-xs text-slate-500 mb-4">Envie este link aos seus clientes para eles agendarem sozinhos.</p><div class="bg-slate-100 p-3 rounded-lg break-all text-sm font-semibold text-theme-primary mb-4">${esc(window.__linkCliente())}</div><div class="flex gap-2"><button onclick="copiarLinkCliente()" class="flex-1 btn-theme-primary px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2"><i data-lucide="copy" class="w-4 h-4"></i> Copiar Link</button><a href="${esc(window.__linkCliente())}" target="_blank" class="flex-1 bg-theme-secondary text-theme-primary px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2"><i data-lucide="external-link" class="w-4 h-4"></i> Abrir</a></div></div>`;
-                const coPhotoShown = ('companyPhoto' in draft) ? draft.companyPhoto : (t.companyPhoto || '');
-                const coPhotosShown = coPhotosNow(), coSocShown = coSocNow(), coPayShown = coPayNow();
+                const coPhotosShown = (function () { let a = ('companyPhotos' in draft) ? draft.companyPhotos : t.companyPhotos; a = Array.isArray(a) ? a : (a ? Object.values(a) : []); a = a.filter(x => typeof x === 'string' && x); if (!a.length && !('companyPhotos' in draft) && t.companyPhoto) a = [t.companyPhoto]; return a; })();
+                const coPaysShown = (function () { let a = ('companyPayments' in draft) ? draft.companyPayments : t.companyPayments; return Array.isArray(a) ? a : (a ? Object.values(a) : []); })();
+                const coSocShown = ('companySocials' in draft) ? draft.companySocials : (t.companySocials || {});
+                const PAY_OPTS = [['pix','Pix','qr-code'],['dinheiro','Dinheiro','banknote'],['credito','Cartão de crédito','credit-card'],['debito','Cartão de débito','credit-card'],['transferencia','Transferência','landmark'],['boleto','Boleto','file-text'],['vale','Vale / Voucher','ticket']];
+                const SOC_OPTS = [['instagram','Instagram','https://instagram.com/seuperfil','#E1306C'],['facebook','Facebook','https://facebook.com/suapagina','#1877F2'],['x','X (Twitter)','https://x.com/seuperfil','#0f172a']];
                 const coAboutShown = ('companyAbout' in draft) ? draft.companyAbout : (t.companyAbout || '');
                 const coAddrShown = ('companyAddress' in draft) ? draft.companyAddress : (t.companyAddress || '');
                 const coPhoneShown = ('companyPhone' in draft) ? draft.companyPhone : (t.companyPhone || '');
@@ -1987,12 +1947,12 @@
                 const paginaEmpresaHtml = `<div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm max-w-xl mt-6">
                     <h3 class="font-bold text-lg mb-1 flex items-center"><i data-lucide="store" class="w-5 h-5 mr-2 text-theme-primary"></i> Página da Empresa</h3>
                     <p class="text-xs text-slate-500 mb-4">Aparece para o cliente na aba <b>Empresa</b> do link de agendamento.</p>
-                    <label class="block text-xs font-semibold mb-1">Fotos da empresa</label>
-                    <p class="text-[11px] text-slate-500 mb-2">Até 6 fotos. Elas passam sozinhas, trocando a cada 20 segundos, no topo da aba Empresa. A primeira é a capa.</p>
-                    <div class="grid grid-cols-3 gap-2 mb-5">
-                        ${coPhotosShown.map((src, i) => `<div class="relative aspect-video rounded-xl overflow-hidden border border-slate-200 bg-slate-100"><img src="${esc(src)}" class="w-full h-full object-cover"><button type="button" onclick="removeCompanyPhoto(${i})" aria-label="Remover foto" class="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center text-xs font-bold">✕</button>${i === 0 ? '<span class="absolute bottom-1 left-1 text-[9px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">Capa</span>' : ''}</div>`).join('')}
-                        ${coPhotosShown.length < 6 ? `<label class="aspect-video rounded-xl border-2 border-dashed border-slate-300 hover:border-slate-400 cursor-pointer flex flex-col items-center justify-center text-slate-400"><i data-lucide="image-plus" class="w-6 h-6"></i><span class="text-[10px] font-bold mt-0.5">Adicionar</span><input type="file" class="hidden" accept="image/*" multiple onchange="handleCompanyPhoto(event)"></label>` : ''}
+                    <label class="block text-xs font-semibold mb-1">Fotos da empresa <span class="text-slate-400 font-medium">(até 6 — trocam sozinhas a cada 20 segundos)</span></label>
+                    <div class="grid grid-cols-3 gap-2 mb-3">
+                        ${coPhotosShown.map((p, i) => `<div class="relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100"><img src="${esc(p)}" class="w-full h-full object-cover"><span class="absolute bottom-1 left-1 text-[10px] font-black bg-black/60 text-white px-1.5 py-0.5 rounded-full">${i === 0 ? 'Capa' : (i + 1)}</span><button type="button" onclick="removeCompanyPhoto(${i})" class="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-600 text-white text-xs font-black flex items-center justify-center shadow">×</button></div>`).join('')}
+                        ${coPhotosShown.length < 6 ? `<label class="aspect-square rounded-2xl border-2 border-dashed border-slate-300 text-slate-400 hover:text-theme-primary hover:border-slate-400 flex flex-col items-center justify-center cursor-pointer text-center"><i data-lucide="image-plus" class="w-7 h-7 mb-1"></i><span class="text-[11px] font-bold">Adicionar foto</span><input type="file" class="hidden" accept="image/*" multiple onchange="handleCompanyPhoto(event)"></label>` : ''}
                     </div>
+                    <div class="mb-5"></div>
                     <div><label class="block text-xs font-semibold mb-1">Sobre a empresa</label><textarea id="co-about" rows="5" maxlength="1200" placeholder="Conte a história, o diferencial e o que o cliente pode esperar..." class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500">${esc(coAboutShown)}</textarea></div>
                     <div><label class="block text-xs font-semibold mb-1">Endereço (localização)</label><input type="text" id="co-addr" value="${esc(coAddrShown)}" autocomplete="off" oninput="coAddrType(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();coMapSearch();}" placeholder="Rua, número, bairro, cidade - UF" class="w-full px-4 py-3 border rounded-xl text-sm mb-1 outline-none focus:border-indigo-500"><div id="co-suggest" class="hidden border border-slate-200 rounded-xl bg-white shadow-sm max-h-60 overflow-y-auto mb-3"></div><div class="mb-3"></div></div>
                     <div class="mb-4">
@@ -2012,19 +1972,14 @@
                     </div>
                     <div><label class="block text-xs font-semibold mb-1">Telefone / WhatsApp (opcional)</label><input type="text" id="co-phone" value="${esc(coPhoneShown)}" oninput="formatPhoneInput(this)" placeholder="(00) 00000-0000" class="w-full px-4 py-3 border rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></div>
                     <div class="mb-5">
-                        <label class="block text-xs font-semibold mb-1">Redes sociais</label>
-                        <p class="text-[11px] text-slate-500 mb-2">Ative as redes que você usa e cole o link do perfil. O cliente toca e vai direto para lá.</p>
-                        ${CO_SOCIALS.map(sc => { const st = coSocShown[sc.id] || { on: false, url: '' }; return `<div class="border rounded-xl p-3 mb-2 ${st.on ? 'border-indigo-300 bg-indigo-50/40' : 'border-slate-200'}">
-                            <button type="button" onclick="toggleSocial('${sc.id}')" class="w-full flex items-center justify-between"><span class="flex items-center gap-2 text-sm font-bold text-slate-700">${CO_SVG[sc.id]}${sc.label}</span>${`<span class="relative w-10 h-6 rounded-full shrink-0 ${st.on ? 'btn-theme-primary' : 'bg-slate-300'}"><span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${st.on ? 'left-[18px]' : 'left-0.5'}"></span></span>`}</button>
-                            ${st.on ? `<input type="text" id="co-soc-${sc.id}" value="${esc(st.url)}" placeholder="${esc(sc.ph)}" autocomplete="off" class="w-full px-3 py-2.5 border rounded-lg text-sm mt-3 outline-none focus:border-indigo-500">` : ''}
-                        </div>`; }).join('')}
+                        <label class="block text-xs font-semibold mb-1">Formas de pagamento que você aceita</label>
+                        <p class="text-[11px] text-slate-500 mb-2">Marque as que você trabalha. O cliente vê com ícones na aba Empresa.</p>
+                        <div class="flex flex-wrap gap-2">${PAY_OPTS.map(o => `<button type="button" onclick="toggleCompanyPay('${o[0]}')" class="inline-flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-full border-2 transition-all ${coPaysShown.includes(o[0]) ? 'btn-theme-primary border-transparent shadow' : 'bg-white text-slate-500 border-slate-200'}"><i data-lucide="${o[2]}" class="w-4 h-4"></i>${o[1]}</button>`).join('')}</div>
                     </div>
                     <div class="mb-5">
-                        <label class="block text-xs font-semibold mb-1">Formas de pagamento que você aceita</label>
-                        <p class="text-[11px] text-slate-500 mb-2">Marque só as que você trabalha. Elas aparecem com ícone na aba Empresa.</p>
-                        <div class="grid grid-cols-2 gap-2">
-                            ${CO_PAYS.map(pm => { const on = coPayShown.includes(pm.id); return `<button type="button" onclick="togglePayment('${pm.id}')" class="flex items-center gap-2 px-3 py-3 rounded-xl border text-left text-sm font-bold transition-colors ${on ? 'border-indigo-300 bg-indigo-50 text-theme-primary' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}">${pm.pix ? CO_SVG.pix : `<i data-lucide="${pm.icon}" class="w-5 h-5"></i>`}<span class="flex-1 leading-tight">${pm.label}</span>${on ? '<i data-lucide="check" class="w-4 h-4"></i>' : ''}</button>`; }).join('')}
-                        </div>
+                        <label class="block text-xs font-semibold mb-1">Redes sociais</label>
+                        <p class="text-[11px] text-slate-500 mb-2">Escolha as redes e cole o link do seu perfil. Ao clicar, o cliente é levado até lá.</p>
+                        <div class="space-y-2">${SOC_OPTS.map(o => { const on = Object.prototype.hasOwnProperty.call(coSocShown, o[0]); return `<div class="border rounded-xl p-3 ${on ? 'border-slate-300 bg-slate-50' : 'border-slate-200'}"><label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" ${on ? 'checked' : ''} onchange="toggleCompanySoc('${o[0]}', this.checked)"><span class="text-sm font-bold" style="color:${o[3]}">${o[1]}</span></label>${on ? `<input type="url" id="co-soc-${o[0]}" value="${esc(coSocShown[o[0]] || '')}" placeholder="${o[2]}" class="w-full px-3 py-2.5 border rounded-lg text-xs mt-2 outline-none focus:border-indigo-500 bg-white">` : ''}</div>`; }).join('')}</div>
                     </div>
                     <button onclick="salvarPaginaEmpresa()" class="btn-theme-primary px-4 py-3.5 rounded-xl text-sm font-bold w-full shadow-md">Salvar Página da Empresa</button>
                 </div>`;
@@ -3550,49 +3505,57 @@
             if (a !== undefined) draft.companyAbout = a;
             if (b !== undefined) draft.companyAddress = b;
             if (c !== undefined) draft.companyPhone = c;
-            const soc = coSocNow();
-            CO_SOCIALS.forEach(sc => { const v = g('co-soc-' + sc.id); if (v !== undefined) soc[sc.id].url = v; });
+            const soc = Object.assign({}, ('companySocials' in draft) ? draft.companySocials : (t.companySocials || {}));
+            ['instagram', 'facebook', 'x'].forEach(k => { const v = g('co-soc-' + k); if (v !== undefined && Object.prototype.hasOwnProperty.call(soc, k)) soc[k] = v; });
             draft.companySocials = soc;
         }
-        window.handleCompanyPhoto = async function(e) {
-            const files = Array.from(e.target.files || []); if (!files.length) return;
+        function curCoPhotos() { let a = ('companyPhotos' in draft) ? draft.companyPhotos : t.companyPhotos; a = Array.isArray(a) ? a : (a ? Object.values(a) : []); a = a.filter(x => typeof x === 'string' && x); if (!a.length && !('companyPhotos' in draft) && t.companyPhoto) a = [t.companyPhoto]; return a.slice(); }
+        window.toggleCompanyPay = function(id) {
             stashCompanyInputs();
-            const list = coPhotosNow().slice();
-            const room = 6 - list.length;
-            if (files.length > room) showModal('Limite de fotos', 'Você pode ter até 6 fotos. Só as primeiras ' + room + ' foram adicionadas.', 'info');
-            try { for (const f of files.slice(0, Math.max(room, 0))) list.push(await compressImage(f, 1200, 0.78)); }
-            catch (_) { showModal('Erro', 'Não foi possível ler uma das imagens. Tente outra foto.', 'error'); }
-            draft.companyPhotos = list;
+            let a = ('companyPayments' in draft) ? draft.companyPayments : t.companyPayments; a = Array.isArray(a) ? a.slice() : (a ? Object.values(a) : []);
+            const i = a.indexOf(id); if (i >= 0) a.splice(i, 1); else a.push(id);
+            draft.companyPayments = a; render();
+        };
+        window.toggleCompanySoc = function(k, on) {
+            stashCompanyInputs();
+            const soc = Object.assign({}, draft.companySocials || {});
+            if (on) { if (!Object.prototype.hasOwnProperty.call(soc, k)) soc[k] = ''; } else delete soc[k];
+            draft.companySocials = soc; render();
+        };
+        window.handleCompanyPhoto = async function(e) {
+            const file = e.target.files[0]; if (!file) return;
+            stashCompanyInputs();
+            const files = Array.from(e.target.files || []);
+            const list = curCoPhotos();
+            try {
+                for (const f of files) { if (list.length >= 6) break; list.push(await compressImage(f, 1200, 0.78)); }
+            } catch (_) { showModal('Erro', 'Não foi possível ler essa imagem. Tente outra foto.', 'error'); return; }
+            draft.companyPhotos = list; draft.companyPhoto = list[0] || '';
             render();
         };
-        window.removeCompanyPhoto = function(i) { stashCompanyInputs(); const list = coPhotosNow().slice(); list.splice(i, 1); draft.companyPhotos = list; render(); };
-        window.toggleSocial = function(id) { stashCompanyInputs(); draft.companySocials[id].on = !draft.companySocials[id].on; render(); };
-        window.togglePayment = function(id) {
-            stashCompanyInputs();
-            const l = coPayNow().slice(), i = l.indexOf(id);
-            if (i === -1) l.push(id); else l.splice(i, 1);
-            draft.companyPayments = l; render();
-        };
+        window.removeCompanyPhoto = function(i) { stashCompanyInputs(); const list = curCoPhotos(); list.splice(Number(i) || 0, 1); draft.companyPhotos = list; draft.companyPhoto = list[0] || ''; render(); };
         window.salvarPaginaEmpresa = function() {
             stashCompanyInputs();
-            const soc = coSocNow(), socials = [];
-            for (const sc of CO_SOCIALS) {
-                if (!soc[sc.id].on) continue;
-                const u = coNormSocial(sc.id, soc[sc.id].url);
-                if (!u) return showModal('Link inválido', 'Cole o link (ou o @) do seu perfil no ' + sc.label + ', ou desative essa rede.', 'error');
-                socials.push({ type: sc.id, url: u });
-            }
             t.companyAbout = (draft.companyAbout !== undefined ? draft.companyAbout : (t.companyAbout || '')).trim();
             t.companyAddress = (draft.companyAddress !== undefined ? draft.companyAddress : (t.companyAddress || '')).trim();
             t.companyPhone = (draft.companyPhone !== undefined ? draft.companyPhone : (t.companyPhone || '')).trim();
-            const photos = coPhotosNow().slice(0, 6);
-            t.companyPhotos = photos;
-            t.companyPhoto = photos[0] || '';
-            t.companySocials = socials;
-            t.companyPayments = coPayNow();
+            if ('companyPhotos' in draft) { t.companyPhotos = draft.companyPhotos; t.companyPhoto = draft.companyPhotos[0] || ''; }
+            else if ('companyPhoto' in draft) t.companyPhoto = draft.companyPhoto;
+            else if (t.companyPhoto === undefined) t.companyPhoto = '';
+            if ('companyPayments' in draft) t.companyPayments = draft.companyPayments;
+            if ('companySocials' in draft) {
+                const out = {};
+                ['instagram', 'facebook', 'x'].forEach(k => {
+                    if (!Object.prototype.hasOwnProperty.call(draft.companySocials, k)) return;
+                    let v = String(draft.companySocials[k] || '').trim(); if (!v) return;
+                    if (!/^https?:\/\//i.test(v)) v = 'https://' + v.replace(/^\/+/, '');
+                    out[k] = v;
+                });
+                t.companySocials = out;
+            }
             if ('companyLat' in draft) { t.companyLat = draft.companyLat; t.companyLng = draft.companyLng; }
-            ['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto', 'companyPhotos', 'companySocials', 'companyPayments', 'companyLat', 'companyLng'].forEach(k => delete draft[k]);
-            saveDB(['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto', 'companyPhotos', 'companySocials', 'companyPayments', 'companyLat', 'companyLng']).then(ok => { if (ok) { showModal('Sucesso', 'Página da empresa atualizada! Já aparece para os clientes.', 'success'); render(); } });
+            ['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto', 'companyPhotos', 'companyPayments', 'companySocials', 'companyLat', 'companyLng'].forEach(k => delete draft[k]);
+            saveDB(['companyAbout', 'companyAddress', 'companyPhone', 'companyPhoto', 'companyPhotos', 'companyPayments', 'companySocials', 'companyLat', 'companyLng']).then(ok => { if (ok) showModal('Sucesso', 'Página da empresa atualizada! Já aparece para os clientes.', 'success'); });
         };
 
         window._coMap = null; window._coMarker = null;
