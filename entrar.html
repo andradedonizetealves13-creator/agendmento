@@ -286,12 +286,21 @@
         };
 
         const qs = new URLSearchParams(location.search);
-        const PLANOS = {
-            individual: { n: 'Individual', c: '1 profissional (solo)', max: 1, m: 39.90, a: 399.00, am: 33, cp: '39,90' },
-            equipe: { n: 'Equipe Inicial', c: 'Até 3 colaboradores', max: 3, m: 79.90, a: 799.00, am: 66, cp: '26,60' },
-            crescimento: { n: 'Crescimento', c: 'Até 6 colaboradores', max: 6, m: 139.90, a: 1399.00, am: 116, cp: '23,30' },
-            avancado: { n: 'Avançado', c: 'Até 10 colaboradores', max: 10, m: 219.90, a: 2199.00, am: 183, cp: '21,90' }
+        const NIVEL = qs.get('nivel') === 'automacao' ? 'automacao' : 'basico';
+        const TAB = {
+            basico: { individual: [19.99, 199.90], equipe: [39.99, 399.90], crescimento: [69.99, 699.90], avancado: [109.99, 1099.90] },
+            automacao: { individual: [49.99, 499.90], equipe: [99.99, 999.90], crescimento: [179.99, 1799.90], avancado: [279.99, 2799.90] }
         };
+        const BASE = {
+            individual: { n: 'Individual', c: '1 profissional (solo)', max: 1 },
+            equipe: { n: 'Equipe Inicial', c: 'Até 3 colaboradores', max: 3 },
+            crescimento: { n: 'Crescimento', c: 'Até 6 colaboradores', max: 6 },
+            avancado: { n: 'Avançado', c: 'Até 10 colaboradores', max: 10 }
+        };
+        const PLANOS = Object.fromEntries(Object.entries(BASE).map(([id, p]) => {
+            const [m, a] = TAB[NIVEL][id];
+            return [id, { ...p, m, a, am: Math.floor(a / 12), cp: (m / p.max).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }];
+        }));
         const W = { user: null, slug: null, plano: PLANOS[qs.get('plano')] ? qs.get('plano') : 'equipe', ciclo: qs.get('ciclo') === 'anual' ? 'anual' : 'mensal', trialEnd: null };
         const IN = 'w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm outline-none focus:border-amber-500';
         const $ = id => document.getElementById(id);
@@ -384,7 +393,7 @@
 
         function renderPagamento() {
             const p = PLANOS[W.plano], f = new Date(W.trialEnd).toLocaleDateString('pt-BR');
-            $('w3').innerHTML = `<div class="p-3 mb-4 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm rounded-xl text-center">Plano <b>${p.n}</b> com <b>1 mês grátis</b> ativo até <b>${f}</b>.</div>
+            $('w3').innerHTML = `<div class="p-3 mb-4 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm rounded-xl text-center">Plano <b>${p.n}</b> (${NIVEL === 'automacao' ? 'Automação' : 'Básico'}) com <b>1 mês grátis</b> ativo até <b>${f}</b>.</div>
             <h2 class="text-sm font-bold mb-2">Endereço de cobrança</h2><form id="w-end" class="space-y-3" novalidate>${fld('e-cep', 'CEP', 'text', 'inputmode="numeric" maxlength="9"')}${fld('e-rua', 'Rua / Avenida')}
             <div class="grid grid-cols-3 gap-3"><div>${fld('e-num', 'Número')}</div><div class="col-span-2">${fld('e-cidade', 'Cidade')}</div></div>${fld('e-uf', 'Estado (UF)', 'text', 'maxlength="2" style="text-transform:uppercase"')}
             <div class="p-3 bg-slate-50 rounded-xl text-xs text-slate-600"><b>Forma de pagamento:</b> não precisa ser informada agora. Antes de o mês grátis terminar, pediremos a forma de pagamento para a conta continuar ativa.</div>
@@ -418,7 +427,7 @@
                 if ((await get(ref(rtdb, `${TENANTS}/${D.slug}`))).exists()) { const e = new Error('Já existe uma empresa com este nome. Volte e escolha outro nome.'); e.back = true; throw e; }
                 const bill = {
                     responsavel: { nome: D.nome, email: D.email, documento: D.doc, tipoDocumento: D.doc.length === 11 ? 'CPF' : 'CNPJ', nascimento: D.nasc },
-                    assinatura: { plano: W.plano, ciclo: W.ciclo, maxProfissionais: p.max, valor: W.ciclo === 'anual' ? p.a : p.m, status: 'trial', trialInicio: W.ini, trialFim: W.trialEnd },
+                    assinatura: { plano: W.plano, nivel: NIVEL, ciclo: W.ciclo, maxProfissionais: p.max, valor: W.ciclo === 'anual' ? p.a : p.m, status: 'trial', trialInicio: W.ini, trialFim: W.trialEnd },
                     criadoEm: Date.now()
                 };
                 if (end) bill.endereco = end;
