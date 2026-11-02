@@ -2750,14 +2750,14 @@
             return `
                 <div class="bg-white/90 backdrop-blur-md border rounded-2xl shadow-sm flex flex-col ${isCalendarFullscreen ? 'calendar-fullscreen p-4' : 'p-4'}" style="${isCalendarFullscreen ? '' : 'height:calc(100vh - 14rem); min-height:520px'}">
                     <div class="shrink-0 flex items-center justify-between gap-3 mb-4">
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-stretch gap-2">
                             <button onclick="calShiftWeek(-1)" title="Semana anterior" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
                             <div class="relative">
                                 <button onclick="toggleMonthPicker(${viewYear})" title="Escolher mês" class="h-full flex items-center px-4 bg-white border rounded-xl font-bold hover:bg-slate-100 cursor-pointer">${monthNames[viewMonth]}&nbsp;${viewYear}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
                                 ${monthPicker}
                             </div>
                             <button onclick="calShiftWeek(1)" title="Próxima semana" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
-                            <span class="ml-2 text-sm font-bold text-slate-600">${rangeLabel}</span>
+                            <span class="ml-2 self-center text-sm font-bold text-slate-600">${rangeLabel}</span>
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-xs font-bold text-slate-500 bg-white border px-3 py-2 rounded-xl">${weekApps.length} ${weekApps.length === 1 ? 'atendimento' : 'atendimentos'} na semana</span>
