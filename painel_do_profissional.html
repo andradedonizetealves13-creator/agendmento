@@ -2579,23 +2579,33 @@
             const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
             const mesesCurtos = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
             const prefix = `${ym.y}-${String(ym.m + 1).padStart(2, '0')}-`;
-            const daysInMonth = new Date(ym.y, ym.m + 1, 0).getDate();
-            const sel = (listSelDay && listSelDay.startsWith(prefix)) ? listSelDay : (todayStr.startsWith(prefix) ? todayStr : prefix + '01');
+            const firstD = new Date(ym.y, ym.m, 1), lastD = new Date(ym.y, ym.m + 1, 0);
+            const gStart = new Date(ym.y, ym.m, 1 - firstD.getDay());
+            const gEnd = new Date(ym.y, ym.m + 1, 6 - lastD.getDay());
+            const gS = localDateStr(gStart), gE = localDateStr(gEnd);
+            const nWeeks = Math.round(((gEnd - gStart) / 864e5 + 1) / 7);
+            const sel = (listSelDay && listSelDay >= gS && listSelDay <= gE) ? listSelDay : (todayStr.startsWith(prefix) ? todayStr : prefix + '01');
             listSelDay = sel;
 
-            const scoped = agendaScope(role, user).filter(a => a.date.startsWith(prefix));
+            const scoped = agendaScope(role, user).filter(a => a.date >= gS && a.date <= gE);
             const countBy = {}, pendBy = {};
             scoped.forEach(a => { countBy[a.date] = (countBy[a.date] || 0) + 1; if (a.status === 'pendente') pendBy[a.date] = (pendBy[a.date] || 0) + 1; });
 
-            const chips = [];
-            for (let i = 1; i <= daysInMonth; i++) {
-                const ds = prefix + String(i).padStart(2, '0'), d = new Date(ym.y, ym.m, i), on = ds === sel, n = countBy[ds] || 0, pn = pendBy[ds] || 0;
-                const wd = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
-                chips.push(`<button ${on ? 'data-list-sel="1"' : ''} onclick="listPickDay('${ds}')" class="shrink-0 w-[54px] flex flex-col items-center py-2 rounded-2xl border transition-colors ${on ? 'btn-theme-primary border-transparent shadow-md' : 'bg-white text-slate-700'}">
-                    <span class="text-[10px] uppercase font-bold ${on ? '' : 'text-slate-500'}">${wd}</span>
-                    <span class="text-xl font-extrabold leading-tight ${on ? '' : (ds === todayStr ? 'text-theme-primary' : 'text-slate-800')}">${i}</span>
-                    <span class="h-[6px] mt-0.5 flex items-center justify-center">${n ? `<i class="block w-1.5 h-1.5 rounded-full" style="background:${on ? '#fff' : (pn ? '#f59e0b' : 'var(--theme-primary)')}"></i>` : ''}</span>
-                </button>`);
+            const weekPages = []; let selWeek = 0;
+            for (let w = 0; w < nWeeks; w++) {
+                const cells = [];
+                for (let k = 0; k < 7; k++) {
+                    const d = new Date(gStart.getFullYear(), gStart.getMonth(), gStart.getDate() + w * 7 + k);
+                    const ds = localDateStr(d), on = ds === sel, inM = ds.startsWith(prefix), n = countBy[ds] || 0, pn = pendBy[ds] || 0;
+                    if (on) selWeek = w;
+                    const wd = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+                    cells.push(`<button onclick="listPickDay('${ds}')" class="w-full min-w-0 flex flex-col items-center py-2 rounded-2xl border transition-colors ${on ? 'btn-theme-primary border-transparent shadow-md' : 'bg-white text-slate-700'} ${inM ? '' : 'opacity-50'}">
+                        <span class="text-[10px] uppercase font-bold ${on ? '' : 'text-slate-500'}">${wd}</span>
+                        <span class="text-xl font-extrabold leading-tight ${on ? '' : (ds === todayStr ? 'text-theme-primary' : 'text-slate-800')}">${d.getDate()}</span>
+                        <span class="h-[6px] mt-0.5 flex items-center justify-center">${n ? `<i class="block w-1.5 h-1.5 rounded-full" style="background:${on ? '#fff' : (pn ? '#f59e0b' : 'var(--theme-primary)')}"></i>` : ''}</span>
+                    </button>`);
+                }
+                weekPages.push(`<div class="w-full shrink-0 grid grid-cols-7 gap-1.5" style="scroll-snap-align:start;scroll-snap-stop:always">${cells.join('')}</div>`);
             }
 
             const pickerYear = listPickerYear !== null ? listPickerYear : ym.y;
@@ -2617,30 +2627,32 @@
             const label = sel === todayStr ? `Hoje · ${baseLabel}` : baseLabel;
 
             setTimeout(() => {
-                const sc = document.getElementById('list-day-strip'), el = sc && sc.querySelector('[data-list-sel]');
-                if (sc && el) sc.scrollLeft = el.offsetLeft - sc.clientWidth / 2 + el.offsetWidth / 2;
+                const sc = document.getElementById('list-day-strip');
+                if (sc) sc.scrollLeft = selWeek * sc.clientWidth;
             }, 0);
 
             return `
                 <div class="-mx-4 -mb-4 md:mx-0 md:mb-0 md:bg-white/90 md:backdrop-blur-md md:border md:rounded-2xl md:shadow-sm md:py-5 ${isCalendarFullscreen ? 'calendar-fullscreen' : ''}">
                     <div class="px-3 md:px-6 flex items-center justify-between gap-2 mb-3">
-                        <div class="flex items-center gap-2">
-                            <button onclick="listShiftMonth(-1)" class="p-2.5 bg-white border rounded-xl"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                        <div class="flex items-stretch gap-2">
+                            <button onclick="listShiftMonth(-1)" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
                             <div class="relative">
-                                <button onclick="listToggleMonthPicker(${ym.y})" title="Escolher mês" class="h-full flex items-center px-3 bg-white border rounded-xl font-bold"><span class="md:hidden">${monthNames[ym.m].slice(0,3)}</span><span class="hidden md:inline">${monthNames[ym.m]}</span>&nbsp;${ym.y}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
+                                <button onclick="listToggleMonthPicker(${ym.y})" title="Escolher mês" class="h-full flex items-center px-3 md:px-4 bg-white border rounded-xl font-bold hover:bg-slate-100 cursor-pointer"><span class="md:hidden">${monthNames[ym.m].slice(0,3)}</span><span class="hidden md:inline">${monthNames[ym.m]}</span>&nbsp;${ym.y}<i data-lucide="chevron-down" class="w-4 h-4 ml-2 text-slate-400"></i></button>
                                 ${monthPicker}
                             </div>
-                            <button onclick="listShiftMonth(1)" class="p-2.5 bg-white border rounded-xl"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                            <button onclick="listShiftMonth(1)" class="p-2.5 bg-white border rounded-xl hover:bg-slate-100"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                         </div>
-                        <button onclick="listGoToday()" class="bg-theme-secondary text-theme-primary px-4 py-2.5 rounded-xl font-bold text-sm">Hoje</button>
+                        <button onclick="listGoToday()" class="bg-theme-secondary text-theme-primary px-3 md:px-4 py-2.5 rounded-xl font-bold">Hoje</button>
                     </div>
-                    <div id="list-day-strip" class="flex gap-2 overflow-x-auto px-3 md:px-6 pb-2 custom-scrollbar" style="scrollbar-width:none">${chips.join('')}</div>
-                    <div class="px-3 md:px-6 mt-3 mb-2 flex items-center justify-between">
-                        <h3 class="text-sm font-extrabold text-slate-800">${label}</h3>
-                        <span class="text-[11px] font-bold text-slate-500 bg-white border px-2 py-0.5 rounded-full">${dayApps.length} ${dayApps.length === 1 ? 'atendimento' : 'atendimentos'}</span>
-                    </div>
-                    <div class="px-3 md:px-6 pb-4 md:pb-0 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        ${dayApps.length ? dayApps.map(listCardHtml).join('') : '<div class="md:col-span-2 xl:col-span-3 text-center py-14 bg-white/80 rounded-2xl border border-dashed"><p class="text-sm text-slate-500 font-medium">Nenhum atendimento neste dia.</p></div>'}
+                    <div class="px-3 md:px-6"><div id="list-day-strip" class="flex overflow-x-auto" style="scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain">${weekPages.join('')}</div></div>
+                    <div class="mx-3 md:mx-6 mt-3 p-3 md:p-4 bg-white/90 backdrop-blur-md border rounded-2xl shadow-sm">
+                        <div class="mb-3 flex items-center justify-between">
+                            <h3 class="text-sm font-extrabold text-slate-800">${label}</h3>
+                            <span class="text-[11px] font-bold text-slate-500 bg-white border px-2 py-0.5 rounded-full">${dayApps.length} ${dayApps.length === 1 ? 'atendimento' : 'atendimentos'}</span>
+                        </div>
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            ${dayApps.length ? dayApps.map(listCardHtml).join('') : '<div class="md:col-span-2 xl:col-span-3 text-center py-14 bg-white/80 rounded-2xl border border-dashed"><p class="text-sm text-slate-500 font-medium">Nenhum atendimento neste dia.</p></div>'}
+                        </div>
                     </div>
                 </div>`;
         }
