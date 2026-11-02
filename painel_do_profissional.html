@@ -310,6 +310,14 @@
                     </div>
                 </div>
 
+                <label class="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer">
+                    <input type="checkbox" id="manual-courtesy" class="w-4 h-4 mt-0.5 shrink-0" style="accent-color:var(--theme-primary)">
+                    <span>
+                        <span class="block text-xs font-bold text-slate-800">🎁 Cortesia</span>
+                        <span class="block text-[11px] text-slate-500 mt-0.5">Só ocupa o horário na agenda. Não entra no dashboard (faturamento, atendimentos, ticket) e não aparece para o cliente.</span>
+                    </span>
+                </label>
+
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-2">Serviços</label>
                     <div id="manual-procedures-list" class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar border p-3 rounded-2xl bg-slate-50"></div>
@@ -939,6 +947,7 @@
             document.getElementById('manual-start-time').value = defaultStart;
             document.getElementById('manual-end-time').value = defaultEnd;
             document.getElementById('manual-client-name').value = '';
+            document.getElementById('manual-courtesy').checked = false;
 
             const procList = document.getElementById('manual-procedures-list');
             procList.innerHTML = (t.procedures || []).map(p => `
@@ -987,7 +996,8 @@
 
             const selectedProcs = t.procedures.filter(p => selectedProcIds.includes(p.id));
             const totalDuration = endMins - startMins;
-            const totalPrice = selectedProcs.reduce((s, p) => s + p.price, 0);
+            const isCourtesy = document.getElementById('manual-courtesy').checked;
+            const totalPrice = isCourtesy ? 0 : selectedProcs.reduce((s, p) => s + p.price, 0);
 
             const doSave = () => {
                 const newApp = {
@@ -1003,6 +1013,7 @@
                     totalPrice: totalPrice,
                     createdAt: new Date().toISOString()
                 };
+                if (isCourtesy) newApp.courtesy = true;
                 addAppointmentDB(newApp).then(res => {
                     if (!res.ok) {
                         return showModal('Horário ocupado', 'Alguém acabou de agendar esse horário para este profissional. Escolha outro horário.', 'error');
@@ -2214,6 +2225,7 @@
             const isActive = (a) => isBusyApp(a);
 
             let apps = t.appointments || [];
+            apps = apps.filter(a => !a.courtesy);
             if(role === 'employee') apps = apps.filter(a => a.employeeId === user.id);
 
             const filteredApps = apps.filter(a => {
@@ -2544,6 +2556,7 @@
                 const chips = [
                     phaseChip(a, false),
                     a.status === 'pendente' ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(245,158,11,.15); color:#fbbf24; border:1px dashed rgba(245,158,11,.55)">⏳ Aguardando sinal</span>` : '',
+                    a.courtesy ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(168,85,247,.18); color:#d8b4fe">🎁 Cortesia</span>` : '',
                     a.rescheduledAt ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(56,189,248,.14); color:#7dd3fc">↻ Reagendado</span>` : '',
                     a.paymentAlert && !a.paymentAlertResolved ? `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md" style="background:rgba(244,63,94,.15); color:#fda4af">🚨 Pagamento</span>` : ''
                 ].join('');
@@ -2686,6 +2699,7 @@
             const chips = [
                 phaseChip(a, true),
                 a.status === 'pendente' ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(245,158,11,.15); color:#fbbf24; border:1px dashed rgba(245,158,11,.55)">⏳ Aguardando sinal</span>` : '',
+                a.courtesy ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(168,85,247,.18); color:#d8b4fe">🎁 Cortesia</span>` : '',
                 a.rescheduledAt ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(56,189,248,.14); color:#7dd3fc">↻ Reagendado</span>` : '',
                 a.paymentAlert && !a.paymentAlertResolved ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:rgba(244,63,94,.15); color:#fda4af">🚨 Pagamento</span>` : ''
             ].join('');
@@ -2915,7 +2929,7 @@
 
                     const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId);
                     const empColor = emp ? (emp.color || '#dc2626') : '#dc2626';
-                    const reschedMark = (a.status === 'pendente' ? '⏳ ' : '') + (a.rescheduledAt ? '↻ ' : '');
+                    const reschedMark = (a.courtesy ? '🎁 ' : '') + (a.status === 'pendente' ? '⏳ ' : '') + (a.rescheduledAt ? '↻ ' : '');
                     const postitTitle = (role === 'admin' && t.employees.length > 0) ? `${reschedMark}${a.time} - ${esc(emp?emp.name:'Profissional')} - ${esc(a.clientName)}` : `${reschedMark}${a.time} - ${esc(a.clientName)}`;
 
                     let styleWidth = 'calc(100% - 6px)'; let styleLeft = '3px';
@@ -2952,7 +2966,7 @@
                     const ov = L.filter(o => a.startMins < o.endMins && a.endMins > o.startMins), n = ov.length, ix = ov.findIndex(o => o.id === a.id), q = 100 / n;
                     const top = (a.startMins - CAL_START_HOUR * 60) / 60 * PXV, h = Math.max(a.totalDuration / 60 * PXV - 2, 28), pd = a.status === 'pendente';
                     const emp = a.employeeId === t.admin.id ? t.admin : t.employees.find(e => e.id === a.employeeId), col = emp ? (emp.color || '#dc2626') : '#dc2626';
-                    const ttl = (pd ? '⏳ ' : '') + (a.rescheduledAt ? '↻ ' : '') + a.time + ' · ' + esc(a.clientName);
+                    const ttl = (a.courtesy ? '🎁 ' : '') + (pd ? '⏳ ' : '') + (a.rescheduledAt ? '↻ ' : '') + a.time + ' · ' + esc(a.clientName);
                     return `<div onclick="showAppDetails('${a.id}')" class="appointment-postit ${pd ? 'pending' : ''}${postClass(a)}" style="top:${top}px;height:${h}px;left:calc(${ix * q}% + 2px);width:calc(${q}% - 4px) !important;background-color:${col}"><div class="min-w-0 flex-1"><p class="font-bold truncate text-[11px] text-white">${ttl}</p>${h >= 42 ? `<p class="truncate text-[10px] text-white/90">${esc(emp ? emp.name : '')} · ${esc(a.proceduresNames.join(', '))}</p>` : ''}</div>${pd ? '<span class="pending-chip">PEND.</span>' : postChip(a)}</div>`;
                 }).join('');
                 const nl = (sel === todayStrNow && nowInRange) ? `<div class="absolute left-0 right-0 z-20 pointer-events-none" style="top:${(nowM - CAL_START_HOUR * 60) / 60 * PXV}px;height:2px;background:#ef4444"><span class="absolute -left-1 -top-[3px] w-2 h-2 rounded-full bg-red-500"></span></div>` : '';
@@ -3046,8 +3060,10 @@
                         <button onclick="confirmPendingApp('${app.id}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center"><i data-lucide="check-circle" class="w-4 h-4 mr-2"></i>${app.pixProvider === 'mercadopago' ? 'Confirmar manualmente (já conferi o pagamento)' : 'Confirmar agendamento (sinal recebido)'}</button>
                     </div>` : '';
             const payAlertInfo = (app.paymentAlert && !app.paymentAlertResolved) ? `<div class="rounded-2xl border-2 border-rose-400 bg-rose-50 p-4 space-y-2"><p class="text-sm font-black text-rose-900">🚨 ${payAlertText(app)}</p><button onclick="resolvePayAlert('${app.id}')" class="w-full bg-white border border-rose-300 text-rose-800 font-bold py-2.5 rounded-xl text-xs">Já devolvi / resolvi</button></div>` : '';
+            const courtesyInfo = app.courtesy ? `<div class="rounded-xl border border-purple-200 bg-purple-50 p-3 text-xs font-bold text-purple-800">🎁 Cortesia: ocupa o horário, não entra no dashboard e não aparece para o cliente.</div>` : '';
             const msg = `
                 <div class="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border shadow-inner">
+                    ${courtesyInfo}
                     ${payAlertInfo}
                     ${pendingInfo}
                     ${expiredInfo}
@@ -4141,10 +4157,12 @@
         }
         function cmCalc() {
             const cm = __cm, procs = t.procedures || [], prodsAll = t.products || [];
+            const _ap = (t.appointments || []).find(a => a.id === cm.appId), cz = !!(_ap && _ap.courtesy);
             const services = procs.filter(p => cm.svcIds.has(p.id)).map(p => ({ id: p.id, name: p.name, price: Number(p.price) || 0 }))
                 .concat(cm.custom.map((c, i) => ({ id: 'custom-' + i, name: c.name, price: Number(c.price) || 0 })));
             const products = prodsAll.filter(p => cm.prods[p.id]).map(p => ({ id: p.id, name: p.name, type: p.type, price: p.type === 'venda' ? (Number(p.price) || 0) : 0, qty: cm.prods[p.id] }))
                 .concat(cm.extraProds || []);
+            if (cz) { services.forEach(x => x.price = 0); products.forEach(x => x.price = 0); }
             const total = services.reduce((s, x) => s + x.price, 0) + products.reduce((s, x) => s + x.price * x.qty, 0);
             return { services, products, total: Math.round(total * 100) / 100 };
         }
