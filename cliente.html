@@ -16,37 +16,36 @@
             --theme-primary-hover: #4338ca;
             --theme-secondary: #e0e7ff;
             --theme-text-primary: #1e1b4b;
-            
-            /* BACKGROUND DEFAULTS */
+
             --bg-image: none;
             --bg-opacity: 0.15;
             --bg-blur: 0px;
             --bg-pos: 50% 50%;
             --bg-zoom: 1;
         }
-        html, body { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--theme-bg) !important; 
-            transition: background-color 0.3s ease; 
-            overflow: hidden; 
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--theme-bg) !important;
+            transition: background-color 0.3s ease;
+            overflow: hidden;
         }
-        /* ===== RESPONSIVIDADE: adapta a qualquer tamanho de tela ===== */
+
         html {
             -webkit-text-size-adjust: 100%;
             text-size-adjust: 100%;
-            /* telas pequenas escalam a fonte base (tudo em rem encolhe junto, sem aparência de "zoom") */
+
             font-size: clamp(13px, 4.1vw, 16px);
         }
         @media (min-width: 390px) { html { font-size: 16px; } }
-        /* acompanha a barra do navegador no celular */
+
         @supports (height: 100dvh) { html, body { height: 100dvh; } }
         @supports (height: 100lvh) { #custom-bg-layer { height: calc(100lvh + var(--bg-blur) * 4 + 4px); } }
         html, body { overscroll-behavior: none; }
-        /* respeita notch / barra de início sem deixar faixas vazias: o fundo continua por baixo */
+
         #app {
             padding-top: env(safe-area-inset-top, 0px);
             padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -66,7 +65,7 @@
         }
         #custom-bg-layer {
             position: fixed;
-            /* vai além das bordas (blur esmaece as pontas) e cobre notch + barras do navegador */
+
             left: calc(var(--bg-blur) * -2 - 2px);
             right: calc(var(--bg-blur) * -2 - 2px);
             top: calc(var(--bg-blur) * -2 - 2px);
@@ -90,25 +89,24 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .btn-theme-primary { 
-            background-color: var(--theme-primary) !important; 
-            color: #ffffff !important; 
+
+        .btn-theme-primary {
+            background-color: var(--theme-primary) !important;
+            color: #ffffff !important;
         }
-        .btn-theme-primary:hover { 
-            background-color: var(--theme-primary-hover) !important; 
+        .btn-theme-primary:hover {
+            background-color: var(--theme-primary-hover) !important;
         }
-        .bg-theme-secondary { 
-            background-color: var(--theme-secondary) !important; 
+        .bg-theme-secondary {
+            background-color: var(--theme-secondary) !important;
         }
-        .text-theme-primary { 
-            color: var(--theme-primary) !important; 
+        .text-theme-primary {
+            color: var(--theme-primary) !important;
         }
         .border-theme-primary {
             border-color: var(--theme-primary) !important;
         }
 
-        /* Faz as cores "índigo" fixas acompanharem o tema escolhido */
         .text-indigo-600, .text-indigo-700 { color: var(--theme-primary) !important; }
         .bg-indigo-600 { background-color: var(--theme-primary) !important; }
         .hover\:bg-indigo-700:hover { background-color: var(--theme-primary-hover) !important; }
@@ -116,7 +114,6 @@
         .border-indigo-600, .hover\:border-indigo-600:hover, .focus\:border-indigo-500:focus { border-color: var(--theme-primary) !important; }
         .border-t-transparent { border-top-color: transparent !important; }
 
-        /* ESTILOS DO CROPPER (CORTADOR DE FOTO) */
         #cropper-img {
             max-width: none;
             touch-action: none;
@@ -125,7 +122,6 @@
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
         }
 
-        /* ===== Modo noturno / claro (só cores; não muda posição de nada). Vale sobre qualquer tema ===== */
         #mode-toggle { position: fixed; top: calc(.75rem + env(safe-area-inset-top, 0px)); right: calc(.75rem + env(safe-area-inset-right, 0px)); z-index: 60; width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: var(--theme-primary); background: rgba(255,255,255,.75); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.7); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--theme-primary) 45%, transparent); transition: transform .2s; }
         #mode-toggle:hover { transform: scale(1.08) rotate(-8deg); }
         html[data-mode="dark"] { color-scheme: dark; --dk-bg: color-mix(in srgb, var(--theme-primary) 8%, #07070a); }
@@ -162,12 +158,10 @@
         html[data-mode="dark"] #custom-modal .bg-white { background-color: #1c1c22 !important; border: 1px solid rgba(255,255,255,.12); }
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
 
-        /* ===== Calendário (modo noturno): dias fechados apagados, dias disponíveis em destaque. Só cores ===== */
         html[data-mode="dark"] #app .grid-cols-7 > div.select-none { background: transparent !important; border: 1px dashed rgba(255,255,255,.08); color: #4a4a55 !important; }
         html[data-mode="dark"] #app .grid-cols-7 > button:not(.btn-theme-primary) { background-color: rgba(255,255,255,.12) !important; border-color: color-mix(in srgb, var(--theme-primary) 60%, transparent) !important; color: #fff !important; font-weight: 800; box-shadow: 0 0 14px -6px color-mix(in srgb, var(--theme-primary) 70%, transparent); transition: background-color .15s, transform .15s; }
         html[data-mode="dark"] #app .grid-cols-7 > button:not(.btn-theme-primary):hover { background-color: color-mix(in srgb, var(--theme-primary) 30%, transparent) !important; transform: translateY(-1px); }
 
-        /* ===== Empresa + Catálogo ===== */
         @keyframes riseIn { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
         @keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
         @keyframes shine { to { transform: translateX(260%) skewX(-18deg); } }
@@ -230,10 +224,9 @@
         </div>
     </div>
 
-    <!-- MODAL DE CORTE DE FOTO ESTILO WHATSAPP -->
     <div id="cropper-modal" class="hidden fixed inset-0 z-[150] flex flex-col items-center justify-center bg-slate-900 fade-in touch-none">
         <h3 class="text-white font-bold mb-6 text-lg tracking-wide">Mova e Ajuste</h3>
-        
+
         <div class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center rounded-full cropper-mask z-20 pointer-events-none border-2 border-white/50"></div>
 
         <div id="cropper-container" class="absolute inset-0 flex items-center justify-center z-10 cursor-move overflow-hidden">
@@ -253,27 +246,27 @@
     </div>
 
     <script type="module">
-        // Remove .html da barra de endereço
+
         if (window.location.pathname.endsWith('.html')) {
             window.history.replaceState(null, '', window.location.pathname.replace(/\.html$/, '') + window.location.search);
         }
 
-        import { 
-            auth, 
-            rtdb, 
+        import {
+            auth,
+            rtdb,
             googleProvider,
-            signInWithEmailAndPassword, 
-            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
             signInWithPopup,
-            signOut, 
-            onAuthStateChanged, 
-            ref, 
-            onValue, 
-            runTransaction 
+            signOut,
+            onAuthStateChanged,
+            ref,
+            onValue,
+            runTransaction
         } from './firebase-config.js';
-        import { 
-            updatePassword, 
-            reauthenticateWithCredential, 
+        import {
+            updatePassword,
+            reauthenticateWithCredential,
             EmailAuthProvider,
             sendPasswordResetEmail
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -301,12 +294,12 @@
 
         function getDefWH() {
             return {
-                0: { active: false, start: '09:00', end: '13:00' }, 
+                0: { active: false, start: '09:00', end: '13:00' },
                 1: { active: true,  start: '09:00', end: '18:00' },
-                2: { active: true,  start: '09:00', end: '18:00' }, 
+                2: { active: true,  start: '09:00', end: '18:00' },
                 3: { active: true,  start: '09:00', end: '18:00' },
-                4: { active: true,  start: '09:00', end: '18:00' }, 
-                5: { active: true,  start: '09:00', end: '18:00' }, 
+                4: { active: true,  start: '09:00', end: '18:00' },
+                5: { active: true,  start: '09:00', end: '18:00' },
                 6: { active: true,  start: '09:00', end: '14:00' }
             };
         }
@@ -352,8 +345,7 @@
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     saveClientId(user.uid);
-                    // Ter conta no Firebase NÃO basta (ex.: administrador/profissional de outra organização).
-                    // O acesso só vale se existir cadastro de cliente DESTA organização.
+
                     const freshClient = (window.t && window.t.clients) ? window.t.clients.find(c => c.id === user.uid || (c.email && c.email.toLowerCase() === (user.email || '').toLowerCase())) : null;
                     if (freshClient) { freshClient.id = user.uid; currentClient = freshClient; }
                     else currentClient = null;
@@ -406,18 +398,18 @@
                     if (!e.workingHours) e.workingHours = t.admin.workingHours || getDefWH();
                     if (!e.exceptions) e.exceptions = {};
                 });
-                
+
                 applyThemeCSS(t.themePalette || 'primstav');
                 applyBgImageSettings();
                 if (window.checkPaymentConfirmed) window.checkPaymentConfirmed();
-                
+
                 if (auth.currentUser) {
                     const freshClient = t.clients.find(c => c.id === auth.currentUser.uid || (c.email && c.email.toLowerCase() === (auth.currentUser.email || '').toLowerCase()));
                     if (freshClient) {
                         freshClient.id = auth.currentUser.uid;
                         currentClient = freshClient;
                     } else {
-                        currentClient = null;   // logado, mas sem cadastro nesta organização
+                        currentClient = null;
                     }
                 }
 
@@ -509,7 +501,7 @@
             window.formatPhoneInput = function(input) {
                 let v = input.value.replace(/\D/g, '');
                 if (v.length > 11) v = v.slice(0, 11);
-                
+
                 if (v.length > 10) {
                     v = v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
                 } else if (v.length > 6) {
@@ -546,8 +538,8 @@
                     if (t.admin.exceptions[dateStr].type === 'folga') return false;
                     if (t.admin.exceptions[dateStr].type === 'plantao') return true;
                 }
-                const [y, m, d] = dateStr.split('-'); 
-                const dayOfWeek = new Date(y, m - 1, d).getDay(); 
+                const [y, m, d] = dateStr.split('-');
+                const dayOfWeek = new Date(y, m - 1, d).getDay();
                 const whSource = emp.workingHours || (t.admin ? t.admin.workingHours : null) || getDefWH();
                 return whSource?.[dayOfWeek]?.active !== false;
             };
@@ -608,7 +600,7 @@
             window.getAvailableTimeSlots = function(empId, dateStr, durationMins) {
                 const emp = (t.admin && empId === t.admin.id) ? t.admin : ((t.employees || []).find(e => e.id === empId) || t.admin);
                 if(!emp || !doesEmployeeWorkOnDate(emp, dateStr)) return [];
-                
+
                 let start = '09:00', end = '18:00';
                 const excEmp = emp.exceptions?.[dateStr];
                 const excAdmin = t.admin?.exceptions?.[dateStr];
@@ -616,14 +608,14 @@
                 if (excEmp && excEmp.type === 'plantao') { start = excEmp.start; end = excEmp.end; }
                 else if (excAdmin && excAdmin.type === 'plantao') { start = excAdmin.start; end = excAdmin.end; }
                 else {
-                    const [y, m, d] = dateStr.split('-'); 
+                    const [y, m, d] = dateStr.split('-');
                     const dayOfWeek = new Date(y, m - 1, d).getDay();
                     const def = getDefWH();
                     const wh = emp.workingHours?.[dayOfWeek] || (t.admin ? t.admin.workingHours?.[dayOfWeek] : null) || def[dayOfWeek];
                     if(wh && wh.active) { start = wh.start; end = wh.end; } else return [];
                 }
 
-                const startMins = timeToMins(start); 
+                const startMins = timeToMins(start);
                 const endMins = timeToMins(end);
                 const reschedId = clientBooking.resched ? clientBooking.resched.id : null;
                 const empApps = (t.appointments || []).filter(a => a.employeeId === empId && a.date === dateStr && isBusyStatus(a) && a.id !== reschedId);
@@ -638,9 +630,9 @@
 
                     let overlap = false;
                     const slotEnd = m + durationMins;
-                    
+
                     for(let a of empApps) {
-                        const aStart = timeToMins(a.time); 
+                        const aStart = timeToMins(a.time);
                         const aEnd = aStart + a.totalDuration;
                         if(m < aEnd && slotEnd > aStart) { overlap = true; break; }
                     }
@@ -679,11 +671,9 @@
                 return found ? found.id : null;
             };
 
-            // ================= REGRAS DA ORGANIZAÇÃO (configuradas no painel: t.rules) =================
             const LEGACY_FLOW = ['date', 'procedure', 'professional', 'time'];
             const PIX_LABELS = { cpf: 'CPF', cnpj: 'CNPJ', email: 'E-mail', telefone: 'Telefone', aleatoria: 'Chave aleatória' };
 
-            // só aceita links do WhatsApp (evita qualquer outro tipo de link vindo dos dados)
             function safeWaLink(v) {
                 try {
                     const u = new URL(String(v || '').trim());
@@ -710,7 +700,6 @@
                 };
             };
 
-            // ---- janela de abertura da agenda ----
             window.winEndDate = function(w) {
                 const d = new Date(); d.setHours(0, 0, 0, 0);
                 if (w.mode === 'weekly') d.setDate(d.getDate() + 7 * w.amount);
@@ -720,13 +709,13 @@
             };
             window.isDateAllowedByMonthlyRule = function(cellDate) {
                 const w = getRules().openingWindow;
-                if (!w.enabled) return legacyDateAllowed(cellDate);   // sem regra: comportamento antigo (mês atual + mês seguinte na última semana)
+                if (!w.enabled) return legacyDateAllowed(cellDate);
                 const today = new Date(); today.setHours(0, 0, 0, 0);
                 if (cellDate < today) return false;
                 if (w.mode === 'always') return true;
                 return cellDate <= winEndDate(w);
             };
-            window.getCalLimit = function() {   // último mês navegável no calendário
+            window.getCalLimit = function() {
                 const w = getRules().openingWindow, now = new Date();
                 if (!w.enabled) { const n = new Date(now.getFullYear(), now.getMonth() + 1, 1); return { y: n.getFullYear(), m: n.getMonth() }; }
                 if (w.mode === 'always') { const n = new Date(now.getFullYear(), now.getMonth() + 60, 1); return { y: n.getFullYear(), m: n.getMonth() }; }
@@ -741,7 +730,6 @@
                 return `${base} A agenda está aberta para os próximos ${w.amount} ${unit} (até ${formatDateBR(localDateStr(winEndDate(w)))}).`;
             };
 
-            // ---- ordem das etapas ----
             window.bookingOrder = function() {
                 if (clientBooking.resched) return ['date', 'time'];
                 const rules = getRules();
@@ -750,7 +738,7 @@
                 LEGACY_FLOW.forEach(s => { if (!steps.includes(s)) steps.push(s); });
                 if (!(t.employees && t.employees.length)) steps = steps.filter(s => s !== 'professional');
                 const di = steps.indexOf('date'), ti = steps.indexOf('time');
-                if (ti < di) { steps.splice(ti, 1); steps.splice(steps.indexOf('date') + 1, 0, 'time'); }   // o horário depende do dia
+                if (ti < di) { steps.splice(ti, 1); steps.splice(steps.indexOf('date') + 1, 0, 'time'); }
                 return steps;
             };
             window.clientNext = function() {
@@ -766,13 +754,12 @@
             };
             window.backToTime = function() { clientBooking.time = null; clientBooking.step = 'time'; render(); };
 
-            // ---- contexto do agendamento em andamento (as etapas podem vir em qualquer ordem) ----
             function bkProcs() { return (t.procedures || []).filter(p => clientBooking.procedures.includes(p.id)); }
             function bkEmp() { return (t.employees && t.employees.length) ? clientBooking.employeeId : t.admin.id; }
             function bkDuration() {
                 if (clientBooking.resched) return clientBooking.resched.totalDuration;
                 const sel = bkProcs();
-                return sel.length ? sel.reduce((s, p) => s + p.duration, 0) : 30;   // sem serviço escolhido ainda: menor bloco (30 min)
+                return sel.length ? sel.reduce((s, p) => s + p.duration, 0) : 30;
             }
             function bkSlots() {
                 let slots = getBookingSlots(bkEmp() || 'any', clientBooking.date, bkDuration(), clientBooking.procedures);
@@ -802,7 +789,6 @@
                 return !ids.some(id => getAvailableTimeSlots(id, dateStr, dur).filter(sl => !resched || !sl.hasClientCollision).length > 0);
             }
 
-            // ---- sinal ----
             window.providerActive = function() {
                 return !!(window.providerInfo && window.providerInfo.active === true && window.providerInfo.type === 'mercadopago');
             };
@@ -817,7 +803,7 @@
                 if (!(amount > 0)) return null;
                 return { amount, percent: dep.percent, base, auto, pixKeyType: dep.pixKeyType, pixKey: dep.pixKey, whatsappLink: dep.whatsappLink, expiryHours: dep.expiryHours };
             };
-            // ---- Pix "copia e cola" (BR Code estático, padrão do Banco Central) ----
+
             function crc16(str) {
                 let crc = 0xFFFF;
                 for (let i = 0; i < str.length; i++) {
@@ -857,7 +843,7 @@
                 return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             };
             const WA_SVG = '<svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>';
-            // QR + copia e cola (a chave Pix principal não é mostrada ao cliente)
+
             function pixQrBlock(amount, payload) {
                 return `<div class="bg-slate-50 border rounded-2xl p-4">
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor do sinal</p>
@@ -873,7 +859,7 @@
                 const dl = fmtDeadline(deadline);
                 return dl ? `<p class="text-xs font-bold text-rose-700 bg-rose-50 border border-dashed border-rose-300 rounded-xl p-3">⏰ Pague até <b>${dl}</b>. Depois desse prazo o horário é liberado para outras pessoas.</p>` : '';
             }
-            // Pix manual (chave estática): profissional confirma na mão
+
             window.pixHtml = function(date, time, amount, type, key, wa, deadline) {
                 wa = safeWaLink(wa);
                 const payload = buildPixPayload(type, key, amount, t.name);
@@ -885,7 +871,7 @@
                     <p class="text-xs font-bold text-amber-800 bg-amber-50 border border-dashed border-amber-300 rounded-xl p-3">⏳ Depois de pagar, aguarde: o agendamento aparece como pendente até o profissional confirmar o pagamento.</p>
                 </div>`;
             };
-            // Pix automático (provedor): confirma sozinho, sem comprovante
+
             window.pixAutoHtml = function(date, time, amount, payload, deadline) {
                 return `<div class="text-left space-y-3">
                     <p class="text-sm text-slate-600">Seu horário em <b>${formatDateBR(date)} às ${esc(time)}</b> está reservado. Pague o sinal por Pix para confirmar.</p>
@@ -1022,7 +1008,7 @@
                 if (!currentClient) {
                     if (window.clientBusy) appDiv.innerHTML = '<div class="m-auto flex flex-col items-center"><div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div><p class="text-sm text-slate-500 font-medium">Carregando...</p></div>';
                     else appDiv.innerHTML = auth.currentUser ? renderClientComplete() : renderClientAuth();
-                } 
+                }
                 else { appDiv.innerHTML = renderClientApp(); }
                 window.hasRendered = true;
                 if(window.lucide) lucide.createIcons();
@@ -1048,7 +1034,7 @@
                             ${clientAuthMode==='register' ? `<label class="flex items-start gap-2 text-xs text-slate-600 cursor-pointer pt-1"><input type="checkbox" id="c-auth-aceite" class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer" style="accent-color:var(--theme-primary, #4f46e5)"><span>Li e estou ciente da <a href="/privacidade.html" target="_blank" rel="noopener" class="font-bold text-theme-primary underline">Política de Privacidade</a> e concordo com o tratamento dos meus dados para criar a conta. *</span></label>` : ''}
                             <button type="submit" class="w-full btn-theme-primary font-bold py-3.5 rounded-xl shadow-md mt-4">${clientAuthMode==='login'?'Entrar na Conta':'Criar Minha Conta'}</button>
                         </form>
-                        
+
                         <div class="mt-5 text-center">
                             <div class="flex items-center gap-3 mb-3">
                                 <div class="flex-1 h-px bg-slate-200"></div>
@@ -1067,7 +1053,6 @@
                     </div></div>`;
             }
 
-            // Se já existe cadastro nesta organização (ex.: criado pelo painel) só vincula o login (uid). NUNCA cria cadastro sozinho.
             async function linkExistingClient(user) {
                 const email = (user.email || '').toLowerCase();
                 await runTransaction(ref(rtdb, basePath + '/clients'), (cur) => {
@@ -1081,7 +1066,6 @@
                 });
             }
 
-            // ===== Login com Google (Firebase Authentication) =====
             const SOCIAL = {
                 google:   { provider: googleProvider,   nome: 'Google' },
             };
@@ -1172,7 +1156,6 @@
                 }
             };
 
-            // cria o cadastro de cliente desta organização (sempre com telefone)
             async function addClientRecord(user, name, phoneRaw) {
                 const email = (user.email || '').toLowerCase();
                 const newClient = { id: user.uid, name, email, phone: phoneRaw, avatar: user.photoURL || '' };
@@ -1185,7 +1168,6 @@
                 });
             }
 
-            // usuário já logado (ex.: administrador de outra organização) que ainda não tem cadastro aqui
             function renderClientComplete() {
                 const u = auth.currentUser || {};
                 const logoHtml = t.logo ? `<img src="${esc(t.logo)}" class="w-24 h-24 rounded-2xl object-cover mx-auto mb-4 border-2 border-white shadow-md">` : `<div class="w-24 h-24 rounded-2xl btn-theme-primary flex items-center justify-center font-bold mx-auto mb-4 shadow-md text-4xl">O</div>`;
@@ -1218,11 +1200,11 @@
                 finally { window.clientBusy = false; safeRender(); }
             };
 
-            window.clientLogout = async function() { 
-                await signOut(auth); 
-                localStorage.removeItem(storageKey); 
-                currentClient = null; 
-                render(); 
+            window.clientLogout = async function() {
+                await signOut(auth);
+                localStorage.removeItem(storageKey);
+                currentClient = null;
+                render();
             };
 
             function renderClientApp() {
@@ -1234,14 +1216,14 @@
                             <div class="flex md:flex-col items-center justify-around md:justify-start w-full md:space-y-6">
                                 <button onclick="clientActiveTab='profile';render()" class="flex flex-col items-center" title="Meu Perfil">
                                     <span class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl border-2 transition-all flex items-center justify-center overflow-hidden font-black text-sm shadow-sm bg-slate-100 ${clientActiveTab==='profile'?'border-indigo-600 shadow-md ring-2 ring-indigo-200':'border-slate-200 hover:border-slate-400'}">
-                                    ${currentClient.avatar 
-                                        ? `<img src="${esc(currentClient.avatar)}" class="w-full h-full object-cover">` 
+                                    ${currentClient.avatar
+                                        ? `<img src="${esc(currentClient.avatar)}" class="w-full h-full object-cover">`
                                         : `<span class="btn-theme-primary w-full h-full flex items-center justify-center text-xs sm:text-sm">${esc(currentClient.name.charAt(0).toUpperCase())}</span>`
                                     }
                                     </span>
                                     <span class="text-[10px] font-semibold text-slate-500 mt-0.5 md:hidden">Perfil</span>
                                 </button>
-                                
+
                                 <button onclick="openBookTab()" class="flex flex-col items-center p-1.5 sm:p-2 md:p-3 rounded-2xl transition-all ${clientActiveTab==='book'?'bg-theme-secondary text-theme-primary font-bold shadow-sm':'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}" title="Novo Agendamento">
                                     <i data-lucide="calendar-plus" class="w-5 h-5 sm:w-6 sm:h-6"></i>
                                     <span class="text-[10px] font-semibold mt-0.5 md:hidden">Agendar</span>
@@ -1281,9 +1263,6 @@
                     </div>`;
             }
 
-            // ===== EMPRESA + CATÁLOGO =====
-            // Campos lidos do cadastro da empresa (preenchidos pelo painel):
-            //   t.companyPhoto, t.companyAbout, t.companyAddress, t.companyPhone  |  procedimento: p.photo, p.description, p.category
             function coPhoto() { return t.companyPhoto || t.coverImage || t.companyImage || ''; }
             function coAbout() { return t.companyAbout || t.about || t.description || ''; }
             function coAddress() { return t.companyAddress || t.address || t.location || ''; }
@@ -1294,12 +1273,11 @@
             function brl(v) { return 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ','); }
             function fmtDur(m) { m = Number(m) || 0; if (m < 60) return m + ' min'; const h = Math.floor(m / 60), r = m % 60; return h + 'h' + (r ? String(r).padStart(2, '0') : ''); }
 
-            // ===== Horário de funcionamento em tempo real (segue horários + exceções: folga, plantão / hora extra) =====
             const CO_DAYS_LONG = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
             function coFmt(m) { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
             function coDateOffset(off, base) { const b = base ? new Date(base) : new Date(); const d = new Date(b.getFullYear(), b.getMonth(), b.getDate() + off); return localDateStr(d); }
             function coToMins(v) { return /^\d{1,2}:\d{2}$/.test(String(v || '')) ? timeToMins(v) : null; }
-            // Mesma regra de prioridade usada para gerar os horários de agendamento.
+
             function coDayIntervals(dateStr) {
                 const admin = t.admin || {};
                 const provs = (t.employees && t.employees.length) ? t.employees : [admin];
@@ -1322,7 +1300,7 @@
                     }
                     let a = coToMins(st), b = coToMins(en);
                     if (a === null || b === null) return;
-                    if (b <= a) b += 1440;           // vira a noite (ex.: plantão até 02:00)
+                    if (b <= a) b += 1440;
                     raw.push([a, b]); if (plant) usedPlantao = true;
                 });
                 raw.sort((x, y) => x[0] - y[0]);
@@ -1333,7 +1311,7 @@
             function coStatus(now) {
                 now = now || new Date();
                 const nowM = now.getHours() * 60 + now.getMinutes();
-                // sobra da noite anterior (plantão que passou da meia-noite)
+
                 const prev = coDayIntervals(coDateOffset(-1, now)).iv;
                 for (const x of prev) if (x[1] > 1440 && nowM < x[1] - 1440) return { open: true, closes: x[1] - 1440 };
                 const today = coDayIntervals(coDateOffset(0, now)).iv;
@@ -1368,7 +1346,7 @@
                 if (st.off === null) return '<span class="w-2 h-2 rounded-full bg-rose-400"></span> Fechado no momento';
                 return '<span class="w-2 h-2 rounded-full bg-rose-400"></span> Fechado · abre ' + coWhen(st) + ' às ' + coFmt(st.start);
             };
-            // atualiza o selo sozinho conforme o relógio avança (sem recarregar a página)
+
             setInterval(function () { const el = document.getElementById('co-status'); if (el && window.t) el.innerHTML = coStatusHtml(); }, 30000);
 
             function renderClientCompanyTab() {
@@ -1560,11 +1538,11 @@
 
                             <div class="p-4 sm:p-5 bg-slate-50 border rounded-2xl mb-6 flex flex-col items-center justify-center">
                                 <label class="block text-xs font-bold text-slate-700 mb-3 text-center">Foto do Perfil</label>
-                                
+
                                 <div class="relative mb-4">
                                     <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white shadow-md bg-slate-200 flex items-center justify-center font-bold text-3xl text-slate-500 overflow-hidden shrink-0">
-                                        ${currentClient.avatar 
-                                            ? `<img src="${esc(currentClient.avatar)}" class="w-full h-full object-cover">` 
+                                        ${currentClient.avatar
+                                            ? `<img src="${esc(currentClient.avatar)}" class="w-full h-full object-cover">`
                                             : `<span>${esc(currentClient.name.charAt(0).toUpperCase())}</span>`
                                         }
                                     </div>
@@ -1626,9 +1604,6 @@
                     </div>`;
             }
 
-            // ==========================================
-            // LÓGICA DO CROPPER ESTILO WHATSAPP (VANILLA)
-            // ==========================================
             let cropScale = 1;
             let cropX = 0;
             let cropY = 0;
@@ -1638,22 +1613,22 @@
             window.handleClientAvatarUpload = function(e) {
                 const file = e.target.files[0];
                 if (!file) return;
-                
+
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const img = document.getElementById('cropper-img');
                     img.src = event.target.result;
-                    
+
                     img.onload = () => {
-                        cropScale = 1; 
-                        cropX = 0; 
+                        cropScale = 1;
+                        cropX = 0;
                         cropY = 0;
                         document.getElementById('cropper-zoom').value = 1;
-                        
+
                         const container = document.getElementById('cropper-container');
                         const iRatio = img.naturalWidth / img.naturalHeight;
                         const cRatio = container.offsetWidth / container.offsetHeight;
-                        
+
                         if (iRatio > cRatio) {
                             img.style.height = '100%';
                             img.style.width = 'auto';
@@ -1685,13 +1660,13 @@
             }
 
             const cropperContainer = document.getElementById('cropper-container');
-            
+
             function startDragCrop(clientX, clientY) {
                 isDraggingCrop = true;
                 startX = clientX - cropX;
                 startY = clientY - cropY;
             }
-            
+
             function dragCrop(clientX, clientY) {
                 if(!isDraggingCrop) return;
                 cropX = clientX - startX;
@@ -1699,8 +1674,8 @@
                 updateCropperTransform();
             }
 
-            function stopDragCrop() { 
-                isDraggingCrop = false; 
+            function stopDragCrop() {
+                isDraggingCrop = false;
             }
 
             if(cropperContainer) {
@@ -1709,10 +1684,10 @@
                 window.addEventListener('mouseup', stopDragCrop);
 
                 cropperContainer.addEventListener('touchstart', e => startDragCrop(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
-                cropperContainer.addEventListener('touchmove', e => { 
+                cropperContainer.addEventListener('touchmove', e => {
                     if(isDraggingCrop) {
                         e.preventDefault();
-                        dragCrop(e.touches[0].clientX, e.touches[0].clientY); 
+                        dragCrop(e.touches[0].clientX, e.touches[0].clientY);
                     }
                 }, {passive: false});
                 cropperContainer.addEventListener('touchend', stopDragCrop);
@@ -1725,35 +1700,35 @@
             window.applyCrop = function() {
                 const mask = document.querySelector('.cropper-mask');
                 const img = document.getElementById('cropper-img');
-                
+
                 const cRect = mask.getBoundingClientRect();
                 const iRect = img.getBoundingClientRect();
-                
+
                 const canvas = document.createElement('canvas');
                 const SIZE = 400;
                 canvas.width = SIZE;
                 canvas.height = SIZE;
                 const ctx = canvas.getContext('2d');
-                
+
                 const scaleX = img.naturalWidth / iRect.width;
                 const scaleY = img.naturalHeight / iRect.height;
-                
+
                 let cropX_img = (cRect.left - iRect.left) * scaleX;
                 let cropY_img = (cRect.top - iRect.top) * scaleY;
                 let cropW_img = cRect.width * scaleX;
                 let cropH_img = cRect.height * scaleY;
-                
-                ctx.fillStyle = '#ffffff'; 
+
+                ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, cropX_img, cropY_img, cropW_img, cropH_img, 0, 0, SIZE, SIZE);
-                
+
                 const base64 = canvas.toDataURL('image/jpeg', 0.85);
                 currentClient.avatar = base64;
-                
-                delete currentClient.avatarScale; 
+
+                delete currentClient.avatarScale;
                 delete currentClient.avatarPosX;
                 delete currentClient.avatarPosY;
-                
+
                 updateClientInDatabase()
                     .then(() => {
                         closeCropper();
@@ -1869,7 +1844,7 @@
                                     ` : historyApps.map(a => {
                                         const st = getEffectiveAppStatus(a);
                                         const emp = a.employeeId === t.admin.id ? t.admin : (t.employees || []).find(e=>e.id===a.employeeId);
-                                        
+
                                         let statusTag = `<span class="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Concluído</span>`;
                                         if (st === 'cancelado') statusTag = `<span class="bg-rose-50 text-rose-700 border-rose-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Cancelado</span>`;
                                         else if (st === 'expirado') statusTag = `<span class="bg-slate-100 text-slate-600 border-slate-200 border text-[10px] font-bold px-2.5 py-1 rounded-full">Não confirmado</span>`;
@@ -2168,18 +2143,18 @@
                 }
                 const depInfo = getDepositInfo(selectedProcs);
 
-                const newApp = { 
-                    id: 'app-' + Date.now(), 
-                    clientId: currentClient.id, 
+                const newApp = {
+                    id: 'app-' + Date.now(),
+                    clientId: currentClient.id,
                     clientName: currentClient.name,
                     beneficiaryName: finalBeneficiary,
-                    clientPhone: currentClient.phone || '', 
-                    employeeId: finalEmpId, 
-                    date: clientBooking.date, 
-                    time: clientBooking.time, 
-                    proceduresNames: serviceNames, 
-                    totalDuration, 
-                    totalPrice, 
+                    clientPhone: currentClient.phone || '',
+                    employeeId: finalEmpId,
+                    date: clientBooking.date,
+                    time: clientBooking.time,
+                    proceduresNames: serviceNames,
+                    totalDuration,
+                    totalPrice,
                     createdAt: new Date().toISOString(),
                     procedureIds: clientBooking.procedures.map(String),
                     ...(depInfo ? { status: 'pendente', depositRequired: true, depositAmount: depInfo.amount, depositPercent: depInfo.percent, ...(depInfo.auto ? { pixProvider: 'mercadopago' } : { pixKeyType: depInfo.pixKeyType, pixKey: depInfo.pixKey, whatsappLink: depInfo.whatsappLink || '' }), ...(depInfo.expiryHours > 0 ? { depositDeadline: new Date(Date.now() + depInfo.expiryHours * 3600000).toISOString() } : {}) } : {})
@@ -2207,18 +2182,18 @@
                     if (depInfo) return showModal('Quase lá! Falta o sinal', pixHtml(bookedDate, bookedTime, depInfo.amount, depInfo.pixKeyType, depInfo.pixKey, depInfo.whatsappLink, newApp.depositDeadline) + link, 'success', () => { resetBooking(); clientActiveTab = 'appointments'; render(); });
                     showModal('Sucesso!', `Agendamento confirmado para ${formatDateBR(bookedDate)} às ${esc(bookedTime)}${forOther ? ` (Para: ${esc(finalBeneficiary)})` : ''}!<br>${link}`, 'success', () => {
                         resetBooking();
-                        clientActiveTab = 'appointments'; 
+                        clientActiveTab = 'appointments';
                         render();
                     });
                 }).catch(() => showModal('Erro de conexão', 'Não foi possível confirmar o agendamento. Verifique sua internet e tente de novo.', 'error'));
             };
-            // desenha o QR Code do Pix sempre que um modal for aberto
+
             const _showModalBase = window.showModal;
             window.showModal = function() { _showModalBase.apply(this, arguments); setTimeout(window.drawPixQr, 0); };
         }
     </script>
 <script>
-/* modo noturno/claro: lua (vai para o escuro) e sol (volta para o claro). Escolha manual fica salva no aparelho */
+
 (function () {
     var H = document.documentElement, b = document.createElement('button'); b.id = 'mode-toggle'; b.type = 'button';
     var A = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
@@ -2227,7 +2202,7 @@
     function saved() { try { return localStorage.getItem('cliente_mode'); } catch (e) { return null; } }
     function paint() { var d = H.getAttribute('data-mode') === 'dark'; b.innerHTML = d ? SUN : MOON; b.title = d ? 'Modo claro' : 'Modo noturno'; b.setAttribute('aria-label', b.title); }
     b.onclick = function () { var d = H.getAttribute('data-mode') === 'dark'; if (d) H.removeAttribute('data-mode'); else H.setAttribute('data-mode', 'dark'); try { localStorage.setItem('cliente_mode', d ? 'light' : 'dark'); } catch (e) {} paint(); };
-    /* chamado ao aplicar o tema: sem tema próprio => noturno (padrão Primstav); com tema próprio => claro, o tema da empresa como está */
+
     window.__autoMode = function (isDefault) {
         try { localStorage.setItem('cliente_pal_default', isDefault ? '1' : '0'); } catch (e) {}
         if (saved()) return;
