@@ -72,6 +72,11 @@ async function requireFreshAdmin(request, rawSlug) {
   }
   return { slug, tenant };
 }
+// plano Básico não inclui pagamento automático (legado sem registro de assinatura continua liberado)
+async function requireAutomationPlan(slug) {
+  const nivel = (await admin.database().ref(`agendapro_saas/billing/${slug}/assinatura/nivel`).get()).val();
+  if (nivel === 'basico') throw new HttpsError('permission-denied', 'O pagamento automático faz parte do plano Automação.');
+}
 // o token só é guardado se o banco estiver protegido (sem leitura pública da pasta de segredos)
 async function assertDatabaseIsLocked() {
   let url = (admin.app().options && admin.app().options.databaseURL) || '';
@@ -150,6 +155,7 @@ async function mutateAppointment(slug, appId, fn) {
 // ------------------------------------------------------------------ conectar / desconectar
 exports.mpConnect = onCall(opts, async (request) => {
   const { slug } = await requireFreshAdmin(request, request.data && request.data.slug);
+  await requireAutomationPlan(slug);
   const accessToken = String((request.data && request.data.accessToken) || '').trim();
   if (!/^APP_USR-[A-Za-z0-9_-]{20,}$/.test(accessToken)) {
     throw new HttpsError('invalid-argument', 'Cole o Access Token de PRODUÇÃO do Mercado Pago (começa com APP_USR-).');
