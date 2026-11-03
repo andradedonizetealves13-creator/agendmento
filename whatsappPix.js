@@ -21,17 +21,28 @@ const toBR = (d) => (d.length <= 11 ? '55' + d : d);
 const dateBR = (iso) => String(iso || '').split('-').reverse().join('/');
 const money = (n) => 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',');
 
-// ---------- segurança: só admin, com a senha digitada agora há pouco ----------
+// ---------- segurança: só o ADMIN da empresa, com a senha digitada há pouco ----------
+// (mesma regra do mpConnect em pagamentos.js)
+const SLUG_RE = /^[^.$#\[\]\/]+$/;
+function isTenantAdmin(request, slug, tenant) {
+  const tok = request.auth.token || {};
+  const uid = request.auth.uid;
+  const claim = tok.staff && tok.staff[slug];
+  if (claim === 'admin' || (claim && typeof claim === 'object' && claim.role === 'admin')) return true;
+  const a = (tenant && tenant.admin) || {};
+  if ([a.id, a.uid, a.authUid].some((v) => v && String(v) === uid)) return true;
+  if (a.email && tok.email && String(a.email).toLowerCase() === String(tok.email).toLowerCase()) return true;
+  return false;
+}
 async function assertAdmin(request) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Entre novamente.');
   const slug = String((request.data || {}).slug || '');
-  if (!slug) throw new HttpsError('invalid-argument', 'Organização não informada.');
-  // login recente (o painel pede a senha e renova o token antes de chamar)
+  if (!slug || slug.length > 100 || !SLUG_RE.test(slug)) throw new HttpsError('invalid-argument', 'Organização inválida.');
+  const tenant = (await db().ref(`agendapro_saas/tenants/${slug}`).get()).val();
+  if (!tenant) throw new HttpsError('not-found', 'Empresa não encontrada.');
+  if (!isTenantAdmin(request, slug, tenant)) throw new HttpsError('permission-denied', 'Só o administrador da empresa pode alterar isto.');
   const authTime = Number(request.auth.token.auth_time || 0) * 1000;
-  if (Date.now() - authTime > 5 * 60 * 1000) throw new HttpsError('permission-denied', 'Confirme a senha novamente.');
-  // TODO: troque esta checagem pela MESMA que o seu mpConnect usa para validar que
-  // request.auth.uid é administrador da organização "slug".
-  // (reaproveite a função auxiliar que já existe no seu backend)
+  if (Date.now() - authTime > 15 * 60 * 1000) throw new HttpsError('permission-denied', 'Confirme a senha novamente.');
   return slug;
 }
 
