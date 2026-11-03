@@ -3578,8 +3578,9 @@
         // aviso de acesso: as regras do banco bloqueiam gravações quando acessoAte já passou
         window.accessBannerHtml = function () {
             if (session.role !== 'admin') return '';
+            if (window.__billing === undefined || window.__billingErr) return '';
             const a = window.__billing && window.__billing.assinatura;
-            if (!a || !a.acessoAte) return '';
+            if (!a || !a.acessoAte) return `<div class="mb-4 p-4 rounded-2xl border-2" style="border-color:#fecaca;background:rgba(254,226,226,.6)"><p class="text-sm font-semibold" style="color:#991b1b">Esta conta ainda não está com o período de acesso ativado, por isso o sistema não deixa salvar alterações (aparece "permissão negada"). Fale com o suporte: <a class="underline font-bold" href="mailto:contato@primstav.com.br?subject=${encodeURIComponent('Ativar acesso - ' + (t.name || session.slug))}">contato@primstav.com.br</a>.</p></div>`;
             const left = Math.ceil((a.acessoAte - Date.now()) / 864e5);
             const fim = new Date(a.acessoAte).toLocaleDateString('pt-BR');
             const mail = 'mailto:contato@primstav.com.br?subject=' + encodeURIComponent('Renovar acesso - ' + (t.name || session.slug));
