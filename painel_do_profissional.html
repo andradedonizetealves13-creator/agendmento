@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <script>var _m=null;try{_m=localStorage.getItem("painel_mode")}catch(e){}if(_m!=="light")document.documentElement.setAttribute("data-mode","dark")</script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Primstav - Painel de Controle</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -256,6 +256,17 @@
         .dt-dur { font-size: 12px; font-weight: 800; color: var(--theme-primary); background: var(--theme-secondary); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
         .dt-dur:empty { display: none; }
 
+
+        /* ===== Cards da agenda: nunca passar do limite ===== */
+        .lst-card { min-width: 0; max-width: 100%; box-sizing: border-box; overflow: hidden; }
+        .lst-card p, .lst-card span { overflow-wrap: anywhere; }
+
+        /* ===== Exclusão de conta ===== */
+        #del-acc { position: fixed; inset: 0; z-index: 150; background: rgba(15,23,42,.6); backdrop-filter: blur(4px); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 40px); }
+        #del-acc-card { margin: auto; max-width: 28rem; width: 100%; background: #fff; color: #1e293b; border-radius: 20px; padding: 24px; box-shadow: 0 30px 80px -20px rgba(0,0,0,.6); }
+        #del-acc-card input { width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 16px; margin-top: 6px; background: #fff; color: #0f172a; }
+        html[data-mode="dark"] #del-acc-card { background: #1c1c22; color: #e4e4e7; border: 1px solid rgba(255,255,255,.12); }
+        html[data-mode="dark"] #del-acc-card input { background: #131317; color: #fff; border-color: rgba(255,255,255,.2); }
         /* ===== Modal de agendamento manual: rolagem + centralização ===== */
         #create-modal { align-items: flex-start !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px) !important; touch-action: pan-y; }
         #create-modal > div { margin: auto !important; }
@@ -299,7 +310,7 @@
         html[data-mode="dark"] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
     </style>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#fffbeb">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Primstav Pro">
@@ -320,8 +331,8 @@
     <div id="create-modal" class="hidden fixed inset-0 z-[115] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 fade-in">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 relative">
             <button onclick="closeCreateModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
-            <h3 class="text-xl font-black text-slate-900 mb-1 flex items-center"><i data-lucide="calendar-plus" class="w-5 h-5 mr-2 text-theme-primary"></i> Novo Agendamento</h3>
-            <p class="text-xs text-slate-500 mb-6">Preencha os detalhes do horário selecionado</p>
+            <h3 class="text-xl font-black text-slate-900 mb-1 flex items-center"><i data-lucide="calendar-plus" class="w-5 h-5 mr-2 text-theme-primary"></i> <span id="create-modal-title">Novo Agendamento</span></h3>
+            <p id="create-modal-sub" class="text-xs text-slate-500 mb-6">Preencha os detalhes do horário selecionado</p>
 
             <form onsubmit="handleManualAppSave(event)" class="space-y-4">
                 <div>
@@ -385,7 +396,7 @@
 
                 <div class="pt-2 flex items-center justify-between">
                     <button type="button" onclick="closeCreateModal()" class="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors">Cancelar</button>
-                    <button type="submit" class="px-7 py-3 btn-theme-primary font-bold rounded-xl text-xs shadow-md transition-all">Salvar Agendamento</button>
+                    <button type="submit" id="manual-submit" class="px-7 py-3 btn-theme-primary font-bold rounded-xl text-xs shadow-md transition-all">Salvar Agendamento</button>
                 </div>
             </form>
         </div>
@@ -467,6 +478,7 @@
                 window.location.href = '/entrar';
             } else {
                 ensureStaffClaims(user);
+                if (session.role === 'admin' && (window.__billing === undefined || window.__billingErr) && window.loadBilling) window.loadBilling();
             }
         });
 
@@ -567,6 +579,7 @@
         onValue(tenantRef, (snapshot) => {
             const data = snapshot.val();
             if (!data) {
+                if (window.__deleting) return;
                 console.warn('[Primstav] Empresa não encontrada no banco para o slug:', session.slug);
                 localStorage.removeItem('agendaProSession');
                 document.getElementById('app').innerHTML = '<div class="p-6 text-center"><p class="font-bold text-rose-600 mb-3">Não encontramos os dados da sua empresa.</p><a href="/entrar" class="inline-block px-5 py-3 rounded-xl bg-amber-600 text-white font-bold">Voltar ao login</a></div>';
@@ -610,6 +623,21 @@
             document.getElementById('app').innerHTML = `<div class="p-6 text-center text-rose-600 font-bold">Erro de conexão ao Firebase: ${error.message}</div>`;
         });
 
+
+        // Cor da barra do sistema (status/navegação) = cor de fundo real da página (claro/escuro/tema)
+        function syncBarColor() {
+            try {
+                const bg = getComputedStyle(document.body).backgroundColor;
+                if (!bg || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') return;
+                let tc = document.querySelector('meta[name="theme-color"]');
+                if (!tc) { tc = document.createElement('meta'); tc.name = 'theme-color'; document.head.appendChild(tc); }
+                if (tc.getAttribute('content') !== bg) tc.setAttribute('content', bg);
+            } catch (_) {}
+        }
+        window.syncBarColor = syncBarColor;
+        new MutationObserver(() => syncBarColor()).observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'data-mode'] });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) syncBarColor(); });
+
         function applyThemeCSS(paletteId) {
             const PRIMSTAV = { id: 'primstav', bg: '#fffbeb', primary: '#d97706', primaryHover: '#b45309', secondary: '#fde68a', dark: '#78350f' };
             const palette = window.__semTema ? PRIMSTAV : (THEME_PALETTES.find(p => p.id === paletteId) || THEME_PALETTES.find(p => p.id === 'indigo_classic'));
@@ -621,7 +649,7 @@
 
             let tc = document.querySelector('meta[name="theme-color"]');
             if (!tc) { tc = document.createElement('meta'); tc.name = 'theme-color'; document.head.appendChild(tc); }
-            tc.setAttribute('content', palette.primary);
+            tc.setAttribute('content', palette.bg); setTimeout(syncBarColor, 0);
         }
 
         function applyBgImageSettings() {
@@ -848,6 +876,7 @@
                                 ${navBtn('products', 'package', 'Produtos', 'editProductId=null;prodDraft=null;')}
                                 ${navBtn('employees', 'users', 'Profissionais', 'editEmployeeId=null;')}
                                 ${navBtn('clients', 'user-cog', 'Clientes')}
+                                ${navBtn('assinatura', 'credit-card', 'Assinatura')}
                             ` : ''}
                             ${navBtn('profile', 'settings', 'Configurações & Estilos')}
                         </nav>
@@ -986,6 +1015,7 @@
         }
 
         window.openCreateModal = function(defaultDate = null, defaultStart = '09:00', defaultEnd = '10:00') {
+            window.__editAppId = null; setCreateModalMode(false);
             const role = session.role;
             const empSelect = document.getElementById('manual-employee-id');
             empSelect.innerHTML = '';
@@ -1027,6 +1057,76 @@
         };
 
 
+
+        // ---------- nome abreviado (cards): "Yasmin Aparecida da Silva Hilario" -> "Yasmin A. S. Hilario" ----------
+        window.shortName = function (full, max) {
+            const n = String(full || '').trim().replace(/\s+/g, ' ');
+            const lim = max || (window.innerWidth > 768 ? 34 : 22);
+            if (n.length <= lim) return n;
+            const parts = n.split(' ');
+            if (parts.length < 2) return n.slice(0, lim - 1) + '…';
+            const small = ['da', 'de', 'do', 'das', 'dos', 'e'];
+            const first = parts[0], last = parts[parts.length - 1];
+            const ini = (w) => w.charAt(0).toUpperCase() + '.';
+            const mid = parts.slice(1, -1).filter(w => !small.includes(w.toLowerCase())).map(ini);
+            let out = [first, ...mid, last].join(' ');
+            if (out.length <= lim) return out;
+            out = first + ' ' + last;
+            if (out.length <= lim) return out;
+            out = first + ' ' + ini(last);
+            if (out.length <= lim) return out;
+            return first.slice(0, lim - 1) + '…';
+        };
+
+        // ---------- editar agendamento feito manualmente (admin: todos; funcionário: os da própria agenda) ----------
+        window.canEditApp = function (a) {
+            if (!a || !String(a.clientId || '').startsWith('manual-cli-')) return false;
+            if (a.closed || a.status === 'cancelado' || a.status === 'nao_compareceu') return false;
+            return session.role === 'admin' || a.employeeId === session.id;
+        };
+        window.setCreateModalMode = function (edit) {
+            const q = (id) => document.getElementById(id);
+            if (q('create-modal-title')) q('create-modal-title').textContent = edit ? 'Editar Agendamento' : 'Novo Agendamento';
+            if (q('create-modal-sub')) q('create-modal-sub').textContent = edit ? 'Altere os dados e salve' : 'Preencha os detalhes do horário selecionado';
+            if (q('manual-submit')) q('manual-submit').textContent = edit ? 'Salvar alterações' : 'Salvar Agendamento';
+        };
+        window.editManualApp = function (appId) {
+            const app = (t.appointments || []).find(a => a.id === appId);
+            if (!app || !canEditApp(app)) return;
+            closeModal();
+            openCreateModal(app.date, app.time, minsToTime(timeToMins(app.time) + (app.totalDuration || 0)));
+            window.__editAppId = appId;
+            setCreateModalMode(true);
+            document.getElementById('manual-client-name').value = app.clientName || '';
+            const sel = document.getElementById('manual-employee-id');
+            if ([...sel.options].some(o => o.value === app.employeeId)) sel.value = app.employeeId;
+            document.getElementById('manual-courtesy').checked = !!app.courtesy;
+            const names = app.proceduresNames || [];
+            document.querySelectorAll('.manual-proc-cb').forEach(cb => {
+                const p = (t.procedures || []).find(x => String(x.id) === cb.value);
+                cb.checked = !!p && names.includes(p.name);
+            });
+            manualDurUpdate();
+        };
+        window.updateAppointmentDB = function (id, patch) {
+            let clash = false, missing = false;
+            return runTransaction(ref(rtdb, basePath + '/appointments'), (cur) => {
+                clash = false; missing = false;
+                if (!cur) { missing = true; return; }
+                const list = toList(cur);
+                const item = list.find(a => a.id === id);
+                if (!item) { missing = true; return; }
+                const s = timeToMins(patch.time), e = s + patch.totalDuration;
+                clash = list.some(a => a.id !== id && a.employeeId === patch.employeeId && a.date === patch.date
+                    && isBusyApp(a) && s < timeToMins(a.time) + a.totalDuration && e > timeToMins(a.time));
+                if (clash) return;
+                Object.assign(item, patch);
+                if (!patch.courtesy) delete item.courtesy;
+                item.editedAt = new Date().toISOString();
+                return list;
+            }).then(res => ({ ok: res.committed, clash, missing }));
+        };
+
         window.manualDurUpdate = function() {
             const el = document.getElementById('manual-dur'); if (!el) return;
             const a = document.getElementById('manual-start-time').value, b = document.getElementById('manual-end-time').value;
@@ -1043,6 +1143,7 @@
         };
 
         window.closeCreateModal = function() {
+            window.__editAppId = null; setCreateModalMode(false);
             document.getElementById('create-modal').classList.add('hidden');
         };
 
@@ -1063,6 +1164,7 @@
 
             const conflict = (t.appointments || []).find(a => {
                 if (a.employeeId !== employeeId || a.date !== date) return false;
+                if (window.__editAppId && a.id === window.__editAppId) return false;
                 if (!isBusyApp(a)) return false;
                 const aStart = timeToMins(a.time);
                 const aEnd = aStart + (a.totalDuration || 0);
@@ -1078,6 +1180,16 @@
             const totalPrice = isCourtesy ? 0 : selectedProcs.reduce((s, p) => s + p.price, 0);
 
             const doSave = () => {
+                if (window.__editAppId) {
+                    const patch = { clientName: clientName, beneficiaryName: clientName, employeeId: employeeId, date: date, time: startTime,
+                        proceduresNames: selectedProcs.map(p => p.name), totalDuration: totalDuration, totalPrice: totalPrice, courtesy: isCourtesy };
+                    return updateAppointmentDB(window.__editAppId, patch).then(res => {
+                        if (res.missing) return showModal('Erro', 'Este agendamento não existe mais.', 'error');
+                        if (!res.ok) return showModal('Horário ocupado', 'Esse horário ficou ocupado para este profissional. Escolha outro horário.', 'error');
+                        closeCreateModal();
+                        showModal('Sucesso!', 'Agendamento atualizado.', 'success');
+                    }).catch(() => showModal('Erro de conexão', 'Não foi possível salvar as alterações. Tente novamente.', 'error'));
+                }
                 const newApp = {
                     id: 'app-' + Date.now(),
                     clientId: 'manual-cli-' + Date.now(),
@@ -1482,7 +1594,7 @@
                     </div>
                 </div>
                 <p class="text-[11px] text-slate-400 -mt-2">Se o sinal não for confirmado dentro do prazo, o horário é liberado automaticamente para outros clientes. ${provOn ? 'Com o pagamento automático, 0 vira 24 horas (o Pix gerado precisa de validade).' : 'Use 0 para não ter prazo.'}</p>
-                <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-4 flex items-start justify-between gap-3">
+                ${isBasico() ? '' : `<div class="rounded-2xl border border-dashed border-slate-300 bg-white p-4 flex items-start justify-between gap-3">
                     <div class="flex items-start gap-3">
                         <div class="bg-theme-secondary text-theme-primary p-2 rounded-xl shrink-0"><i data-lucide="terminal" class="w-4 h-4"></i></div>
                         <div>
@@ -1491,7 +1603,7 @@
                         </div>
                     </div>
                     <button type="button" onclick="profileTab='dev'; render()" class="shrink-0 btn-theme-primary text-xs font-bold px-4 py-2.5 rounded-xl">Abrir portal</button>
-                </div>
+                </div>`}
                 ${provOn ? '' : `
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div>
@@ -1758,6 +1870,10 @@
                 `;
             }
 
+            if(role === 'admin' && activeTab === 'assinatura') {
+                return window.assinaturaHtml();
+            }
+
             if(activeTab === 'dashboard') {
                 return renderDashboardAnalytics(role, user);
             }
@@ -1906,8 +2022,9 @@
                 const avatarShown = draft.avatar || user.avatar;
 
                 if (role !== 'admin') profileTab = 'perfil';
+                if (profileTab === 'dev' && isBasico()) profileTab = 'aparencia';
                 const tabs = role === 'admin'
-                    ? [['aparencia', 'palette', 'Aparência'], ['empresa', 'building-2', 'Empresa'], ['regras', 'shield-check', 'Regras'], ['dev', 'terminal', 'Desenvolvedor'], ['perfil', 'user', 'Meu Perfil']]
+                    ? [['aparencia', 'palette', 'Aparência'], ['empresa', 'building-2', 'Empresa'], ['regras', 'shield-check', 'Regras'], ...(isBasico() ? [] : [['dev', 'terminal', 'Desenvolvedor']]), ['perfil', 'user', 'Meu Perfil']]
                     : [['perfil', 'user', 'Meu Perfil']];
                 const tabsHtml = `
                     <div class="flex flex-wrap gap-2 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl border shadow-sm w-fit">
@@ -2644,7 +2761,7 @@
                         <div class="flex items-start gap-3 min-w-0">
                             ${cliAvatar}
                             <div class="min-w-0">
-                                <p class="font-bold text-[15px] leading-tight truncate" style="color:#fff">${esc(a.clientName)}</p>
+                                <p class="font-bold text-[15px] leading-tight" title="${esc(a.clientName)}" style="color:#fff; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word">${esc(shortName(a.clientName))}</p>
                                 <p class="text-xs font-semibold mt-1 leading-snug" style="color:#60a5fa">${procs || '—'}</p>
                                 ${chips ? `<div class="flex flex-wrap gap-1.5 mt-2">${chips}</div>` : ''}
                             </div>
@@ -2753,7 +2870,7 @@
                             <h3 class="text-sm font-extrabold text-slate-800">${label}</h3>
                             <span class="text-[11px] font-bold text-slate-500 bg-white border px-2 py-0.5 rounded-full">${dayApps.length} ${dayApps.length === 1 ? 'atendimento' : 'atendimentos'}</span>
                         </div>
-                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                             ${dayApps.length ? dayApps.map(listCardHtml).join('') : '<div class="md:col-span-2 xl:col-span-3 text-center py-14 bg-white/80 rounded-2xl border border-dashed"><p class="text-sm text-slate-500 font-medium">Nenhum atendimento neste dia.</p></div>'}
                         </div>
                     </div>
@@ -2789,7 +2906,7 @@
                 </div>
                 <div class="flex items-center gap-2 mt-2.5">
                     ${cliAvatar}
-                    <p class="font-bold text-[13px] leading-tight min-w-0" style="color:#fff; word-break:break-word">${esc(a.clientName)}</p>
+                    <p class="font-bold text-[13px] leading-tight min-w-0" title="${esc(a.clientName)}" style="color:#fff; word-break:break-word">${esc(shortName(a.clientName, 26))}</p>
                 </div>
                 <p class="text-[11px] font-semibold mt-1.5 leading-snug" style="color:#60a5fa">${procs || '—'}</p>
                 ${chips ? `<div class="flex flex-wrap gap-1 mt-2">${chips}</div>` : ''}
@@ -2928,7 +3045,7 @@
                                     <h3 class="text-sm font-extrabold text-slate-800">${dayLabel(g.date)}</h3>
                                     <span class="text-[11px] font-bold text-slate-500 bg-slate-100 border px-2 py-0.5 rounded-full">${g.items.length} ${g.items.length === 1 ? 'atendimento' : 'atendimentos'}</span>
                                 </div>
-                                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">${g.items.map(card).join('')}</div>
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">${g.items.map(card).join('')}</div>
                             </div>`).join('')}
                     </div>`}
                 </div>
@@ -3156,6 +3273,7 @@
                     ${closeInfoHtml(app)}
 
                     <div class="pt-4 border-t flex flex-col sm:flex-row gap-2">
+                        ${canEditApp(app) ? `<button onclick="editManualApp('${app.id}')" class="flex-1 bg-theme-secondary text-theme-primary border font-bold py-2.5 rounded-xl text-xs hover:brightness-95 transition-colors">✏️ Editar</button>` : ''}
                         <button onclick="confirmAppStatus('${app.id}', 'cancelado')" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-100 transition-colors">${app.status === 'pendente' ? 'Recusar / Cancelar' : 'Cancelar Agendamento'}</button>
                         <button onclick="confirmAppStatus('${app.id}', 'nao_compareceu')" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-100 transition-colors">Não Compareceu</button>
                     </div>
@@ -3281,6 +3399,123 @@
             if (ok) showModal('Sucesso', 'Regras atualizadas!', 'success');
         };
 
+
+        // ===================== Assinatura + exclusão de conta =====================
+        const PLAN_NAMES = { individual: 'Individual', equipe: 'Equipe Inicial', crescimento: 'Crescimento', avancado: 'Avançado' };
+        const moneyBR = (n) => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        window.__billing = undefined;
+        window.loadBilling = async function () {
+            try { window.__billing = (await get(ref(rtdb, 'agendapro_saas/billing/' + session.slug))).val() || null; window.__billingErr = false; }
+            catch (e) { console.warn('billing:', e && e.message); window.__billing = null; window.__billingErr = true; }
+            if (typeof render === 'function') render();
+        };
+        // plano Básico: sem integrações (Mercado Pago, webhooks, WhatsApp automático). Sem registro de assinatura (conta antiga) = liberado.
+        window.isBasico = function () { const a = window.__billing && window.__billing.assinatura; return !!(a && a.nivel === 'basico'); };
+        window.assinaturaHtml = function () {
+            if (window.__billing === undefined) {
+                window.loadBilling();
+                return `<div class="max-w-3xl mx-auto p-10 text-center text-sm text-slate-500">Carregando sua assinatura...</div>`;
+            }
+            const b = window.__billing || {};
+            const a = b.assinatura || null;
+            const emps = t.employees ? (Array.isArray(t.employees) ? t.employees : Object.values(t.employees)).filter(Boolean).length : 0;
+            const used = 1 + emps;
+            let body;
+            if (!a) {
+                body = `<p class="text-sm text-slate-500">Não encontramos os dados da sua assinatura. Fale com o suporte: <a class="underline" href="mailto:contato@primstav.com.br">contato@primstav.com.br</a>.</p>`;
+            } else {
+                const now = Date.now();
+                const fimMs = a.acessoAte || a.trialFim;
+                const left = fimMs ? Math.ceil((fimMs - now) / 864e5) : null;
+                const fim = fimMs ? new Date(fimMs).toLocaleDateString('pt-BR') : '';
+                const st = String(a.status || '');
+                const isTrial = st === 'trial';
+                const label = isTrial ? (left > 0 ? 'Período de teste' : 'Teste encerrado') : (st === 'ativa' || st === 'ativo' ? 'Ativa' : (st === 'cancelada' ? 'Cancelada' : (st || '—')));
+                const color = isTrial ? (left > 0 ? '#b45309' : '#dc2626') : (st === 'ativa' || st === 'ativo' ? '#16a34a' : '#64748b');
+                const pct = a.maxProfissionais ? Math.min(100, Math.round(used / a.maxProfissionais * 100)) : 0;
+                const row = (k, v) => `<div class="flex items-center justify-between gap-3 py-2.5 border-b last:border-0"><span class="text-xs font-bold text-slate-500 uppercase tracking-wide">${k}</span><span class="text-sm font-bold text-right">${v}</span></div>`;
+                body = `
+                    <div class="flex items-center justify-between gap-3 mb-4">
+                        <div><p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Seu plano</p><p class="text-2xl font-black">${esc(PLAN_NAMES[a.plano] || a.plano || '—')}</p></div>
+                        <span class="text-xs font-extrabold px-3 py-1.5 rounded-full" style="background:${color}22;color:${color}">${esc(label)}</span>
+                    </div>
+                    ${isTrial && left !== null ? `<div class="mb-4 p-3 rounded-xl text-sm font-semibold" style="background:${color}14;color:${color}">${left > 0 ? `Faltam <b>${left}</b> ${left === 1 ? 'dia' : 'dias'} do teste grátis (até ${fim}).` : `Seu teste grátis terminou em ${fim}. Fale com a gente para continuar.`}</div>` : ''}
+                    ${row('Nível', esc(a.nivel === 'automacao' ? 'Automação' : 'Básico'))}
+                    ${row('Cobrança', esc(a.ciclo === 'anual' ? 'Anual' : 'Mensal'))}
+                    ${row('Valor', `${moneyBR(a.valor)} <span class="text-xs font-semibold text-slate-400">/ ${a.ciclo === 'anual' ? 'ano' : 'mês'}</span>`)}
+                    <div class="py-2.5">
+                        <div class="flex items-center justify-between mb-1.5"><span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Profissionais</span><span class="text-sm font-bold">${used} de ${a.maxProfissionais || '—'}</span></div>
+                        <div class="h-2 rounded-full bg-slate-200 overflow-hidden"><div class="h-full rounded-full" style="width:${pct}%;background:${pct >= 100 ? '#dc2626' : 'var(--theme-primary)'}"></div></div>
+                    </div>
+                    <a href="mailto:contato@primstav.com.br?subject=${encodeURIComponent('Mudança de plano - ' + (t.name || session.slug))}" class="btn-theme-primary mt-3 inline-block px-5 py-3 rounded-xl text-sm font-bold">Mudar de plano</a>`;
+            }
+            return `
+            <div class="max-w-2xl mx-auto space-y-6 fade-in">
+                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                    <h3 class="font-bold text-lg mb-4 flex items-center"><i data-lucide="credit-card" class="w-5 h-5 mr-2 text-theme-primary"></i> Assinatura</h3>
+                    ${body}
+                </div>
+                <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl border shadow-sm">
+                    <h3 class="font-bold text-lg mb-1">Meus dados</h3>
+                    <p class="text-xs text-slate-500 mb-4">Baixe uma cópia de tudo o que está guardado da sua empresa (agenda, clientes, serviços...).</p>
+                    <button onclick="downloadMyData()" class="px-5 py-3 rounded-xl text-sm font-bold border bg-white/80 hover:bg-slate-50">Baixar cópia (JSON)</button>
+                </div>
+                <div class="p-6 rounded-2xl border-2 shadow-sm" style="border-color:#fecaca;background:rgba(254,226,226,.35)">
+                    <h3 class="font-bold text-lg mb-1" style="color:#dc2626">Excluir minha conta</h3>
+                    <p class="text-xs text-slate-600 mb-4">Apaga a empresa, a agenda, os clientes cadastrados, a assinatura e as integrações. <b>Não dá para desfazer.</b></p>
+                    <button onclick="openDeleteAccount()" class="px-5 py-3 rounded-xl text-sm font-bold text-white" style="background:#dc2626">Excluir conta e dados</button>
+                </div>
+            </div>`;
+        };
+        window.downloadMyData = function () {
+            try {
+                const blob = new Blob([JSON.stringify({ exportadoEm: new Date().toISOString(), empresa: session.slug, assinatura: (window.__billing || {}).assinatura || null, dados: window.t }, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob); a.download = 'primstav-' + session.slug + '-dados.json';
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+            } catch (e) { alert('Não foi possível gerar o arquivo: ' + (e && e.message || e)); }
+        };
+        window.closeDeleteAccount = function () { const o = document.getElementById('del-acc'); if (o) o.remove(); };
+        window.openDeleteAccount = function () {
+            closeDeleteAccount();
+            const u = auth.currentUser;
+            const usesPass = !!(u && u.providerData.some(x => x.providerId === 'password'));
+            const o = document.createElement('div'); o.id = 'del-acc';
+            o.innerHTML = `<div id="del-acc-card">
+                <h3 style="font-size:20px;font-weight:900;color:#dc2626;margin:0 0 8px">Excluir conta</h3>
+                <p style="font-size:14px;margin:0 0 12px">Isto apaga <b>para sempre</b> a empresa, a agenda, os agendamentos, os clientes cadastrados, a assinatura e as integrações (Pix, webhooks, notificações). Não há como recuperar.</p>
+                <p style="font-size:12px;margin:0 0 14px;opacity:.75">Dica: baixe uma cópia dos seus dados antes.</p>
+                ${usesPass ? `<label style="font-size:12px;font-weight:700">Sua senha</label><input id="del-pass" type="password" autocomplete="current-password" placeholder="Digite sua senha"><div style="height:12px"></div>` : `<p style="font-size:12px;margin:0 0 12px">Vamos pedir para você confirmar com o Google.</p>`}
+                <label style="font-size:12px;font-weight:700">Digite EXCLUIR para confirmar</label>
+                <input id="del-confirm" type="text" autocomplete="off" autocapitalize="characters" placeholder="EXCLUIR" oninput="document.getElementById('del-go').disabled = this.value.trim().toUpperCase() !== 'EXCLUIR'">
+                <p id="del-err" style="color:#dc2626;font-size:13px;font-weight:600;min-height:18px;margin:10px 0 0"></p>
+                <div style="display:flex;gap:10px;margin-top:14px">
+                    <button onclick="closeDeleteAccount()" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid #cbd5e1;background:transparent;color:inherit;font-weight:700">Cancelar</button>
+                    <button id="del-go" disabled onclick="confirmDeleteAccount()" style="flex:1;padding:13px;border-radius:12px;border:0;background:#dc2626;color:#fff;font-weight:800;opacity:1" >Excluir definitivamente</button>
+                </div></div>`;
+            document.body.appendChild(o);
+            const go = document.getElementById('del-go'); const sync = () => { go.style.opacity = go.disabled ? '.45' : '1'; };
+            sync(); document.getElementById('del-confirm').addEventListener('input', sync);
+        };
+        window.confirmDeleteAccount = async function () {
+            const go = document.getElementById('del-go'), err = document.getElementById('del-err');
+            if ((document.getElementById('del-confirm').value || '').trim().toUpperCase() !== 'EXCLUIR') return;
+            go.disabled = true; go.textContent = 'Excluindo...'; err.textContent = '';
+            try {
+                await mpConfirmLogin('del-pass');
+                window.__deleting = true;
+                await mpCall('deleteOrganization', { confirm: 'EXCLUIR' });
+                try { await signOut(auth); } catch (_) {}
+                try { localStorage.removeItem('agendaProSession'); localStorage.removeItem('primstav_push_pref'); localStorage.removeItem('primstav_push_token'); } catch (_) {}
+                window.location.href = '/?conta=excluida';
+            } catch (e) {
+                window.__deleting = false;
+                err.textContent = (e && e.message) || 'Não foi possível excluir. Tente de novo.';
+                go.disabled = false; go.textContent = 'Excluir definitivamente'; go.style.opacity = '1';
+            }
+        };
+
         async function mpConfirmLogin(passId) {
             const u = auth.currentUser;
             if (!u) throw new Error('Sessão expirada. Entre novamente.');
@@ -3340,7 +3575,20 @@
             if (typeof render === 'function') render();
         };
         window.togglePush = function () { return pushState() === 'on' ? disablePush(false) : enablePush(true); };
-        window.notifBannerHtml = function () {
+        // aviso de acesso: as regras do banco bloqueiam gravações quando acessoAte já passou
+        window.accessBannerHtml = function () {
+            if (session.role !== 'admin') return '';
+            const a = window.__billing && window.__billing.assinatura;
+            if (!a || !a.acessoAte) return '';
+            const left = Math.ceil((a.acessoAte - Date.now()) / 864e5);
+            const fim = new Date(a.acessoAte).toLocaleDateString('pt-BR');
+            const mail = 'mailto:contato@primstav.com.br?subject=' + encodeURIComponent('Renovar acesso - ' + (t.name || session.slug));
+            if (left <= 0) return `<div class="mb-4 p-4 rounded-2xl border-2 flex items-center justify-between gap-3" style="border-color:#fecaca;background:rgba(254,226,226,.6)"><p class="text-sm font-semibold" style="color:#991b1b">Seu acesso terminou em ${fim}. Você ainda vê tudo, mas não consegue salvar agendamentos nem alterações até renovar.</p><a href="${mail}" class="shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold text-white" style="background:#dc2626">Renovar</a></div>`;
+            if (left <= 5) return `<div class="mb-4 p-4 rounded-2xl border flex items-center justify-between gap-3" style="border-color:#fde68a;background:rgba(254,243,199,.7)"><p class="text-sm font-semibold" style="color:#92400e">Seu acesso termina em ${left} ${left === 1 ? 'dia' : 'dias'} (${fim}).</p><a href="${mail}" class="shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold btn-theme-primary">Renovar</a></div>`;
+            return '';
+        };
+        window.notifBannerHtml = function () { return accessBannerHtml() + notifBannerCore(); };
+        window.notifBannerCore = function () {
             const st = pushState();
             if (st === 'unsupported' || st === 'unconfigured' || st === 'blocked') return '';
             if (st === 'on') { if (!window.__pushAuto) { window.__pushAuto = 1; setTimeout(() => enablePush(false), 800); } return ''; }
