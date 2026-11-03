@@ -15,6 +15,9 @@ const lower = (v) => String(v || '').toLowerCase().trim();
 // syncRole (papel do login) e pagamentos (Mercado Pago) vivem em arquivos próprios
 exports.syncRole = require('./roles').syncRole;
 Object.assign(exports, require('./pagamentos'));
+Object.assign(exports, require('./webhooks'));   // Portal do Desenvolvedor: webhooks (WhatsApp/Z-API, n8n...)
+Object.assign(exports, require('./conta'));      // exclusão da conta pelo próprio administrador
+// whatsappPix.js é a versão antiga do aviso de Pix; NÃO ligue junto com webhooks (enviaria o Pix duas vezes).
 
 // ---- Lembretes automáticos (e-mail pela extensão "Trigger Email from Firestore") ----
 // Requer: plano Blaze, Firestore ativo e a extensão instalada com a coleção "mail".
