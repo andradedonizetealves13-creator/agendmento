@@ -1,8 +1,8 @@
 {
   "rules": {
     "agendapro_saas": {
-      ".read": false,
-      ".write": false,
+      ".read": "auth != null && auth.uid === 'd5emgNiOvBato7k7eV6ecjKjkJy1'",
+      ".write": "auth != null && auth.uid === 'd5emgNiOvBato7k7eV6ecjKjkJy1'",
       "secrets": {
         ".read": false,
         ".write": false
@@ -21,20 +21,27 @@
         ".read": true,
         ".write": false,
         "$empresa": {
-          ".write": "auth != null && !data.exists() && newData.child('admin/id').val() == auth.uid",
+          ".write": "auth != null && !data.exists() && newData.child('admin/id').val() == auth.uid && newData.parent().parent().child('billing').child($empresa).child('assinatura').child('status').val() == 'trial'",
           "$campo": {
-            ".write": "auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)"
+            ".write": "auth != null && (root.child('agendapro_saas/billing/' + $empresa + '/assinatura/acessoAte').val() > now) && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)"
+          },
+          "employees": {
+            ".write": "auth != null && (root.child('agendapro_saas/billing/' + $empresa + '/assinatura/acessoAte').val() > now) && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)",
+            "$idx": {
+              ".write": "auth != null && (root.child('agendapro_saas/billing/' + $empresa + '/assinatura/acessoAte').val() > now) && (data.child('uid').val() == auth.uid || (data.child('uid').val() == null && auth.token.email != null && data.child('email').val() != null && data.child('email').val().toLowerCase() == auth.token.email.toLowerCase()))",
+              ".validate": "(auth.token.staff != null && auth.token.staff[$empresa] != null) || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid || (newData.child('uid').val() == data.child('uid').val() && newData.child('role').val() == data.child('role').val() && newData.child('isAdmin').val() == data.child('isAdmin').val() && newData.child('canSeeDashboard').val() == data.child('canSeeDashboard').val())"
+            }
           },
           "appointments": {
-            ".write": "auth != null",
+            ".write": "auth != null && (root.child('agendapro_saas/billing/' + $empresa + '/assinatura/acessoAte').val() > now)",
             "$i": {
               ".validate": "(auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)) || (auth != null && ((!data.exists() && newData.child('clientId').val() == auth.uid && newData.hasChildren(['id','employeeId','date','time','totalDuration']) && (newData.child('status').val() == null || newData.child('status').val() == 'pendente') && !newData.hasChild('depositPaid') && !newData.hasChild('depositPaidAt') && !newData.hasChild('depositPaidVia') && !newData.hasChild('paymentAlert') && !newData.hasChild('paymentAlertAt') && !newData.hasChild('paidAmount') && !newData.hasChild('paymentAlertResolved') && !newData.hasChild('paymentAlertResolvedAt') && !newData.hasChild('mpPaymentId') && !newData.hasChild('mpPixCode') && !newData.hasChild('rescheduledAt')) || (data.exists() && newData.child('id').val() == data.child('id').val() && newData.child('clientId').val() == data.child('clientId').val() && newData.child('clientName').val() == data.child('clientName').val() && newData.child('beneficiaryName').val() == data.child('beneficiaryName').val() && newData.child('clientPhone').val() == data.child('clientPhone').val() && newData.child('employeeId').val() == data.child('employeeId').val() && newData.child('totalDuration').val() == data.child('totalDuration').val() && newData.child('totalPrice').val() == data.child('totalPrice').val() && newData.child('createdAt').val() == data.child('createdAt').val() && newData.child('depositRequired').val() == data.child('depositRequired').val() && newData.child('depositAmount').val() == data.child('depositAmount').val() && newData.child('depositPercent').val() == data.child('depositPercent').val() && newData.child('pixKeyType').val() == data.child('pixKeyType').val() && newData.child('pixKey').val() == data.child('pixKey').val() && newData.child('whatsappLink').val() == data.child('whatsappLink').val() && newData.child('depositDeadline').val() == data.child('depositDeadline').val() && newData.child('pixProvider').val() == data.child('pixProvider').val() && newData.child('mpPaymentId').val() == data.child('mpPaymentId').val() && newData.child('mpPixCode').val() == data.child('mpPixCode').val() && newData.child('depositPaid').val() == data.child('depositPaid').val() && newData.child('depositPaidAt').val() == data.child('depositPaidAt').val() && newData.child('depositPaidVia').val() == data.child('depositPaidVia').val() && newData.child('paymentAlert').val() == data.child('paymentAlert').val() && newData.child('paymentAlertAt').val() == data.child('paymentAlertAt').val() && newData.child('paidAmount').val() == data.child('paidAmount').val() && newData.child('paymentAlertResolved').val() == data.child('paymentAlertResolved').val() && newData.child('paymentAlertResolvedAt').val() == data.child('paymentAlertResolvedAt').val() && (data.child('clientId').val() == auth.uid ? (newData.child('status').val() == data.child('status').val() || (newData.child('status').val() == 'cancelado' && (data.child('status').val() == null || data.child('status').val() == 'agendado' || data.child('status').val() == 'pendente'))) : (newData.child('status').val() == data.child('status').val() && newData.child('date').val() == data.child('date').val() && newData.child('time').val() == data.child('time').val() && newData.child('rescheduledAt').val() == data.child('rescheduledAt').val())))))"
             }
           },
           "clients": {
-            ".write": "auth != null",
+            ".write": "auth != null && (root.child('agendapro_saas/billing/' + $empresa + '/assinatura/acessoAte').val() > now)",
             "$i": {
-              ".validate": "(auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)) || (auth != null && ((!data.exists() && newData.child('id').val() == auth.uid) || (data.exists() && ((data.child('id').val() == auth.uid || (auth.token.email_verified == true && auth.token.email != null && data.child('email').val() != null && data.child('email').val().toLowerCase() == auth.token.email.toLowerCase())) ? (newData.child('id').val() == auth.uid && newData.child('email').val() == data.child('email').val()) : (newData.child('id').val() == data.child('id').val() && newData.child('email').val() == data.child('email').val() && newData.child('name').val() == data.child('name').val() && newData.child('phone').val() == data.child('phone').val() && newData.child('avatar').val() == data.child('avatar').val())))))"
+              ".validate": "(auth != null && (auth.token.staff != null && auth.token.staff[$empresa] != null || root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid)) || (auth != null && ((!data.exists() && newData.child('id').val() == auth.uid) || (data.exists() && ((data.child('id').val() == auth.uid || (auth.token.email != null && data.child('email').val() != null && data.child('email').val().toLowerCase() == auth.token.email.toLowerCase())) ? (newData.child('id').val() == auth.uid && newData.child('email').val() == data.child('email').val()) : (newData.child('id').val() == data.child('id').val() && newData.child('email').val() == data.child('email').val() && newData.child('name').val() == data.child('name').val() && newData.child('phone').val() == data.child('phone').val() && newData.child('avatar').val() == data.child('avatar').val())))))"
             }
           }
         }
@@ -42,8 +49,15 @@
       "billing": {
         "$empresa": {
           ".read": "auth != null && root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid",
-          ".write": "auth != null && root.child('agendapro_saas/tenants/' + $empresa + '/admin/id').val() == auth.uid"
+          ".write": "auth != null && !data.exists() && newData.parent().parent().child('tenants').child($empresa).child('admin').child('id').val() == auth.uid",
+          "assinatura": {
+            ".read": "auth != null",
+            ".validate": "(auth != null && auth.uid === 'd5emgNiOvBato7k7eV6ecjKjkJy1') || (newData.child('status').val() == 'trial' && newData.child('acessoAte').isNumber() && newData.child('acessoAte').val() > now && newData.child('acessoAte').val() <= now + 3024000000 && ((newData.child('plano').val() == 'individual' && newData.child('maxProfissionais').val() == 1) || (newData.child('plano').val() == 'equipe' && newData.child('maxProfissionais').val() == 3) || (newData.child('plano').val() == 'crescimento' && newData.child('maxProfissionais').val() == 6) || (newData.child('plano').val() == 'avancado' && newData.child('maxProfissionais').val() == 10)))"
+          }
         }
+      },
+      "pushQueue": {
+        ".indexOn": ["dueAt"]
       }
     }
   }
